@@ -1,0 +1,16 @@
+# Normalize line endings to LF everywhere (important across Windows + WSL).
+* text=auto eol=lf
+
+# Truly binary — never modify.
+*.png binary
+*.jpg binary
+*.gif binary
+*.woff2 binary
+*.zip binary
+*.pdf binary
+
+# TSConfig files are JSONC (allows comments).
+tsconfig*.json linguist-language=jsonc
+
+# Flag docs for GitHub language stats.
+docs/** linguist-documentation
