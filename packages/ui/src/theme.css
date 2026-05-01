@@ -1,0 +1,11 @@
+/**
+ * Matvis theme based on the WordPress Design System. 
+ * Colors come from the WordPress Design System tokens
+ * (`--wpds-color-*`)
+ */
+.matvis-theme {
+  isolation: isolate; /* so portaled popovers layer correctly */
+  min-height: 100%;
+  background-color: var(--wpds-color-background-surface-neutral);
+  color: var(--wpds-color-foreground-content-neutral);
+}

@@ -1,0 +1,23 @@
+{
+  "name": "@matvis/shared",
+  "version": "0.0.0",
+  "description": "Shared",
+  "type": "module",
+  "sideEffects": false,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/qrabbe/matvis.git",
+    "directory": "packages/shared"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "typecheck": "tsc -b"
+  }
+}
