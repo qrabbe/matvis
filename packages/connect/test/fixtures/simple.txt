@@ -1,0 +1,19 @@
+Stora Coop Location
+12345 Staden
+070-1234567
+Kvitto 100000-001-00001
+Datum 2025-01-01 12:00
+Kassör 9
+Org.Nr 5560001234
+EGEN/INGEN PÅSE 0,00
+PESTO PEPERONICO 32,95
+Total SEK 32,95
+Antal artiklar 2
+Poänggrundade belopp 32,95
+Medlemskort 1234567
+Kort 32,95
+************0000
+Moms Belopp Netto Brutto
+12% 3,53 29,42 32,95
+Total 3,53 29,42 32,95
+www.coop.se

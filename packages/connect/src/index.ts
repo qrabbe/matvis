@@ -1,3 +1,37 @@
 // @matvis/connect
+// store connectors that turn accounts into normalized results. 
+// Inject a `FetchLike` (see ./http) to run it anywhere.
 
-export {};
+export type { FetchLike, HttpResponse } from './http';
+export { defaultFetch } from './http';
+
+export type { Connector } from './connector';
+
+// Coop connector
+export { CoopConnector } from './coop/connector';
+export type { CoopConnectorOptions } from './coop/connector';
+export {
+  COOP_HOSTS,
+  COOP_USER_AGENT,
+  DEFAULT_COOP_CONFIG,
+  SCANPAY_CLIENT_ID,
+} from './coop/config';
+export type { CoopConfig } from './coop/config';
+export {
+  isAccessTokenValid,
+  pollBankId,
+  refreshBankId,
+  startBankId,
+  toTokenSet,
+} from './coop/auth/bankid';
+export { listReceipts } from './coop/receipts/list';
+export { fetchReceiptPdf } from './coop/receipts/pdf';
+export { extractPdfText } from './coop/parse/extract-pdf';
+export {
+  extractPurchaseItemLines,
+  parseCoopReceiptItems,
+} from './coop/parse/items';
+export { parseCoopReceiptMetadata } from './coop/parse/metadata';
+export type { CoopReceiptMetadata } from './coop/parse/metadata';
+export { parseCoopReceipt, parseCoopReceiptPdf } from './coop/parse/receipt';
+export type { ParseCoopReceiptOptions } from './coop/parse/receipt';

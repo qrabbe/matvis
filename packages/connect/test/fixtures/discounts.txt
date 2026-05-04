@@ -1,0 +1,26 @@
+Stora Coop Location
+12345 Staden
+070-1234567
+Coop Region ekonomisk förening
+Elektroniskt kassakvitto
+Kvitto 100000-001-00002
+Datum 2026-01-02 12:00
+Kassör 9
+Org.Nr 5560001234
+EGEN/INGEN PÅSE 0,00
+STANDARDMJÖLK 3,0% 19,95
+PAN PIZZA OST/SK 13,50
+PAN PIZZA 3 för 33kr -2,50
+PAN PIZZA OST/SK 13,50
+PAN PIZZA 3 för 33kr -2,50
+Total SEK 41,95
+Antal artiklar 4
+Erhållna rabatter 5,00
+Poänggrundade belopp 41,95
+Medlemskort 1234567
+Kort 41,95
+************0000
+Moms Belopp Netto Brutto
+12% 4,49 37,46 41,95
+Total 4,49 37,46 41,95
+www.coop.se

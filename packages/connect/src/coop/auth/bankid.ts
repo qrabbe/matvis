@@ -1,0 +1,166 @@
+import type { BankIdPoll, BankIdStart, TokenSet } from '@matvis/shared';
+import type { FetchLike } from '../../http';
+import {
+  DEFAULT_COOP_CONFIG,
+  SCANPAY_CLIENT_ID,
+  ssoHeaders,
+  type CoopConfig,
+} from '../config';
+
+/** A Keycloak token response (snake_case, as returned by Coop). */
+interface KeycloakTokenResponse {
+  access_token: string;
+  refresh_token: string;
+  id_token?: string;
+  expires_in?: number;
+  refresh_expires_in?: number;
+  token_type?: string;
+  scope?: string;
+  session_state?: string;
+}
+
+const START_BODY: Record<string, string> = {
+  grant_type: 'password',
+  scope: 'openid offline_access',
+  username: '',
+  response_type: 'id_token token',
+  client_id: SCANPAY_CLIENT_ID,
+  other_device: 'true',
+};
+
+const POLL_BODY: Record<string, string> = {
+  grant_type: 'password',
+  scope: 'openid offline_access',
+  username: '',
+  response_type: 'id_token token',
+  client_id: SCANPAY_CLIENT_ID,
+  required_personal_number: '',
+  user_visible_data: '',
+};
+
+function tokenUrl(config: CoopConfig, query?: Record<string, string>): string {
+  const params = new URLSearchParams({ origin: 'scanpay', ...query });
+  return `${config.ssoBaseUrl}/auth/realms/coop/protocol/openid-connect/token?${params}`;
+}
+
+/** Normalize a raw Keycloak response to a {@link TokenSet} with absolute expiry. */
+export function toTokenSet(
+  raw: KeycloakTokenResponse,
+  now = Date.now(),
+): TokenSet {
+  const expiresIn = raw.expires_in ?? 0;
+  const refreshExpiresIn = raw.refresh_expires_in;
+  return {
+    accessToken: raw.access_token,
+    refreshToken: raw.refresh_token ?? '',
+    idToken: raw.id_token,
+    tokenType: raw.token_type,
+    scope: raw.scope,
+    obtainedAt: now,
+    expiresAt: expiresIn > 0 ? now + expiresIn * 1000 : 0,
+    refreshExpiresAt:
+      refreshExpiresIn && refreshExpiresIn > 0
+        ? now + refreshExpiresIn * 1000
+        : undefined,
+  };
+}
+
+/** True when a token set's access token is still valid at `now` (0 = no expiry). */
+export function isAccessTokenValid(
+  tokens: TokenSet,
+  now = Date.now(),
+): boolean {
+  return tokens.expiresAt === 0 ? true : tokens.expiresAt > now;
+}
+
+/** Begin a BankID login. Returns an `orderRef` to poll with {@link pollBankId}. */
+export async function startBankId(
+  fetchImpl: FetchLike,
+  config: CoopConfig = DEFAULT_COOP_CONFIG,
+): Promise<BankIdStart> {
+  const res = await fetchImpl(tokenUrl(config), {
+    method: 'POST',
+    headers: ssoHeaders(),
+    body: new URLSearchParams(START_BODY).toString(),
+  });
+  if (!res.ok) {
+    throw new Error(`startBankId failed: ${res.status} ${res.statusText}`);
+  }
+  const json = (await res.json()) as {
+    orderRef?: string;
+    autoStartToken?: string;
+  };
+  if (!json.orderRef) {
+    throw new Error('startBankId: response did not contain an orderRef');
+  }
+  return { orderRef: json.orderRef, autoStartToken: json.autoStartToken };
+}
+
+/**
+ * Perform a single BankID poll
+ * `pending` (current QR + hint)
+ * `complete` (tokens), or
+ * `failed`
+ * The caller paces polls
+ */
+export async function pollBankId(
+  fetchImpl: FetchLike,
+  orderRef: string,
+  config: CoopConfig = DEFAULT_COOP_CONFIG,
+): Promise<BankIdPoll> {
+  const res = await fetchImpl(tokenUrl(config, { orderRef }), {
+    method: 'POST',
+    headers: ssoHeaders(),
+    body: new URLSearchParams(POLL_BODY).toString(),
+  });
+
+  if (!res.ok) {
+    return {
+      status: 'failed',
+      error: `poll failed: ${res.status} ${res.statusText}`,
+    };
+  }
+
+  const json = (await res.json()) as {
+    access_token?: string;
+    qrCode?: string;
+    error?: string;
+    hintCode?: string;
+  };
+
+  if (json.access_token) {
+    return {
+      status: 'complete',
+      tokens: toTokenSet(json as KeycloakTokenResponse),
+    };
+  }
+  if (json.error) {
+    return {
+      status: 'failed',
+      error: String(json.error),
+      hintCode: json.hintCode,
+    };
+  }
+  return { status: 'pending', qrCode: json.qrCode, hintCode: json.hintCode };
+}
+
+/** Exchange a refresh token for a fresh {@link TokenSet}. */
+export async function refreshBankId(
+  fetchImpl: FetchLike,
+  refreshToken: string,
+  config: CoopConfig = DEFAULT_COOP_CONFIG,
+): Promise<TokenSet> {
+  const res = await fetchImpl(tokenUrl(config), {
+    method: 'POST',
+    headers: ssoHeaders(),
+    body: new URLSearchParams({
+      grant_type: 'refresh_token',
+      refresh_token: refreshToken,
+      client_id: SCANPAY_CLIENT_ID,
+    }).toString(),
+  });
+  if (!res.ok) {
+    throw new Error(`refreshBankId failed: ${res.status} ${res.statusText}`);
+  }
+  return toTokenSet((await res.json()) as KeycloakTokenResponse);
+}
