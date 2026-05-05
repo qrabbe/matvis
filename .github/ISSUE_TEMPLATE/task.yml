@@ -1,0 +1,53 @@
+name: Task / Enhancement
+description: A unit of work (a feature, component, or improvement to build).
+title: 'Task: '
+labels: ['type: enhancement']
+body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: Package / area
+      options:
+        - shared
+        - ui
+        - catalog
+        - connect
+        - app
+        - repo / tooling
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Why this is needed (background, links, prior decisions).
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: What to build. Bullet the concrete pieces.
+    validations:
+      required: true
+
+  - type: textarea
+    id: constraints
+    attributes:
+      label: Constraints / non-goals
+      description: Things to avoid, dependencies not to add, out-of-scope items.
+    validations:
+      required: false
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: How we know it's done.
+      value: |
+        - [ ]
+        - [ ] Passes `tsc -b` and `format:check`
+    validations:
+      required: true

@@ -15,6 +15,7 @@
   ],
   "scripts": {
     "typecheck": "tsc -b",
+    "test": "bun test",
     "build": "tsc -b",
     "clean": "tsc -b --clean",
     "format": "prettier --write .",

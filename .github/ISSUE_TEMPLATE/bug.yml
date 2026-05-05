@@ -1,0 +1,45 @@
+name: Bug report
+description: Something isn't working as expected.
+title: 'Bug: '
+labels: ['type: bug']
+body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: Package / area
+      options:
+        - shared
+        - ui
+        - catalog
+        - connect
+        - app
+        - repo / tooling
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: What you expected vs. what actually happens.
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      value: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+
+  - type: textarea
+    id: env
+    attributes:
+      label: Environment
+      description: OS, Bun version, browser (only if relevant).
+    validations:
+      required: false

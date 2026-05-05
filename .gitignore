@@ -19,6 +19,9 @@ storybook-static
 *.zip
 scrape/
 
+# Local, uncommitted working notes / tickets (never committed)
+tickets/
+
 # Self-hosted backend volumes / local infra
 convex_backend/
 

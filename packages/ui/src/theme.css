@@ -5,7 +5,7 @@
  */
 .matvis-theme {
   isolation: isolate; /* so portaled popovers layer correctly */
-  min-height: 100%;
+  min-height: 100dvh; /* fill the viewport so the surface color reaches the edges */
   background-color: var(--wpds-color-background-surface-neutral);
   color: var(--wpds-color-foreground-content-neutral);
 }
