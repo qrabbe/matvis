@@ -1,0 +1,11 @@
+/** Pure formatting/display helpers (no DOM). */
+
+export function errMsg(e: unknown): string {
+  return e instanceof Error ? e.message : String(e);
+}
+
+/** Format a number as a receipt amount, e.g. "32.95 SEK". */
+export function formatAmount(n: number | undefined, currency = 'SEK'): string {
+  if (n === undefined) return '—';
+  return `${n.toFixed(2)} ${currency}`;
+}
