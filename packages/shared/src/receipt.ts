@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ReceiptSource } from './stores';
 
 /**
  * Versioned contract for a normalized purchase receipt. Fields are defined once
@@ -8,10 +9,6 @@ import { z } from 'zod';
 
 /** Bumped when the {@link Receipt} shape changes in a breaking way. */
 export const SCHEMA_VERSION = 1;
-
-/** Which store/connector produced a receipt. Extend as connectors are added. */
-export const ReceiptSource = z.enum(['coop', 'ica']);
-export type ReceiptSource = z.infer<typeof ReceiptSource>;
 
 /**
  * A single printed line on the receipt. `gtin` / `matchedProductId` stay empty

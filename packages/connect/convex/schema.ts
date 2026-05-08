@@ -1,0 +1,109 @@
+import { defineSchema, defineTable } from 'convex/server';
+import { v } from 'convex/values';
+import { storeValidator as store } from './validators';
+
+export default defineSchema({
+  // ── Identity ──────────────────────────────────────────────────────────
+  // A connector principal: the opaque owner of connections + receipts. This is
+  // the connector service's OWN account, separate from any consuming app's
+  // user. An app links to one of these via a grant token (service auth, later).
+  accounts: defineTable({
+    // Opaque auth subject — whatever authenticates to the connector. Keeps the
+    // connector from being welded to a single auth provider.
+    subject: v.string(),
+  }).index('by_subject', ['subject']),
+
+  // ── Store links ───────────────────────────────────────────────────────
+  // A linked store account (e.g. one Coop login) under one connector account.
+  // Folds the old repo's `external_api_tokens` onto the connection row.
+  connections: defineTable({
+    accountId: v.id('accounts'),
+    store,
+    // Secrets. Encrypt at rest before real tokens ever land here.
+    accessToken: v.string(),
+    accessTokenExpiresAt: v.number(), // epoch ms
+    refreshToken: v.string(),
+    status: v.union(
+      v.literal('active'),
+      v.literal('needs_reauth'),
+      v.literal('revoked'),
+    ),
+    lastSyncedAt: v.optional(v.number()), // sync bookkeeping
+  }).index('by_account', ['accountId']),
+
+  // In-flight BankID link attempts. Short-lived; deleted once resolved.
+  // (The old repo's `bankid_sessions`.)
+  pendingLinks: defineTable({
+    accountId: v.id('accounts'),
+    store,
+    orderRef: v.string(),
+    status: v.union(
+      v.literal('pending'),
+      v.literal('complete'),
+      v.literal('failed'),
+    ),
+  })
+    .index('by_account', ['accountId'])
+    .index('by_order_ref', ['orderRef']),
+
+  // ── Receipts ──────────────────────────────────────────────────────────
+  // Normalized receipt header — one row per real-world purchase.
+  receipts: defineTable({
+    connectionId: v.id('connections'),
+    // Denormalized for ownership scoping + the subscribe cursor.
+    accountId: v.id('accounts'),
+    source: store,
+    // The store's own id for this receipt — the DEDUP key.
+    externalId: v.string(),
+    schemaVersion: v.number(),
+
+    store: v.object({
+      name: v.string(),
+      city: v.optional(v.string()),
+      postalCode: v.optional(v.string()),
+      phone: v.optional(v.string()),
+      orgNr: v.optional(v.string()),
+      legalEntity: v.optional(v.string()),
+    }),
+    receiptNumber: v.optional(v.string()),
+    purchasedAt: v.optional(v.string()), // ISO 8601
+    purchasedAtMs: v.optional(v.number()), // for range/sort
+    currency: v.string(),
+    total: v.optional(v.number()),
+    itemCount: v.optional(v.number()),
+    discountsTotal: v.optional(v.number()),
+    pointsAmount: v.optional(v.number()),
+    vat: v.array(
+      v.object({
+        rate: v.number(),
+        vat: v.number(),
+        net: v.number(),
+        gross: v.number(),
+      }),
+    ),
+    loyaltyCardId: v.optional(v.string()),
+
+    // Raw source of truth — kept for re-parse + the download feature.
+    pdfStorageId: v.optional(v.id('_storage')),
+    rawText: v.optional(v.string()),
+  })
+    // Dedup: at most one receipt per (connection, externalId).
+    .index('by_connection_external', ['connectionId', 'externalId'])
+    // Subscribe cursor: receipts for an account, ordered by _creationTime
+    // (Convex appends _creationTime to every index automatically).
+    .index('by_account', ['accountId']),
+
+  // One printed line. `gtin` is the connector's deliverable, filled by its
+  // per-store matcher; empty when no confident match is found (never dropped).
+  receiptItems: defineTable({
+    receiptId: v.id('receipts'),
+    lineNo: v.number(), // preserve on-receipt order
+    text: v.string(),
+    price: v.number(),
+    isDiscount: v.boolean(),
+    quantity: v.optional(v.number()),
+    unit: v.optional(v.string()),
+    gtin: v.optional(v.string()), // the EAN
+    matchConfidence: v.optional(v.number()), // how sure the match is
+  }).index('by_receipt', ['receiptId']),
+});

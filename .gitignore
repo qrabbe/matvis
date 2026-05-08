@@ -21,6 +21,11 @@ scrape/
 
 # Local, uncommitted working notes / tickets (never committed)
 tickets/
+*_donotcommit.md
+
+# Convex installed agent skills (restore via skills-lock.json)
+packages/connect/.agents/
+packages/connect/.claude/
 
 # Self-hosted backend volumes / local infra
 convex_backend/
