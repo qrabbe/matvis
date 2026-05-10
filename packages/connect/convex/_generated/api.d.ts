@@ -10,6 +10,8 @@
 
 import type * as links from "../links.js";
 import type * as model_accounts from "../model/accounts.js";
+import type * as model_receipts from "../model/receipts.js";
+import type * as sync from "../sync.js";
 import type * as validators from "../validators.js";
 
 import type {
@@ -21,6 +23,8 @@ import type {
 declare const fullApi: ApiFromModules<{
   links: typeof links;
   "model/accounts": typeof model_accounts;
+  "model/receipts": typeof model_receipts;
+  sync: typeof sync;
   validators: typeof validators;
 }>;
 
