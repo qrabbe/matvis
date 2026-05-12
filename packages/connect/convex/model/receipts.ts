@@ -1,38 +1,19 @@
 import { v } from 'convex/values';
 import { internalMutation, internalQuery } from '../_generated/server';
-import { storeValidator } from '../validators';
+import {
+  receiptItemInsertValidator as receiptItem,
+  storeObjectValidator as storeObject,
+  storeValidator,
+  vatLineValidator as vatLine,
+} from '../validators';
 
 // Registered DB helpers for the sync engine. They live here (default Convex
 // runtime) — NOT in `convex/sync.ts` — so that action can be flipped to
 // `"use node";` with a one-line change (a `"use node"` file may export only
 // actions). The orchestration itself is in `../src/sync.ts`.
-
-/** The store identity object, matching the `receipts.store` schema column. */
-const storeObject = v.object({
-  name: v.string(),
-  city: v.optional(v.string()),
-  postalCode: v.optional(v.string()),
-  phone: v.optional(v.string()),
-  orgNr: v.optional(v.string()),
-  legalEntity: v.optional(v.string()),
-});
-
-/** One VAT breakdown row, matching the `receipts.vat` element schema. */
-const vatLine = v.object({
-  rate: v.number(),
-  vat: v.number(),
-  net: v.number(),
-  gross: v.number(),
-});
-
-/** One receipt line to insert. `gtin` is omitted — filled by a later pass. */
-const receiptItem = v.object({
-  text: v.string(),
-  price: v.number(),
-  isDiscount: v.boolean(),
-  quantity: v.optional(v.number()),
-  unit: v.optional(v.string()),
-});
+//
+// The receipt-shape validators (store/vat/item) now live in `../validators.ts`
+// so the public read API in `convex/receipts.ts` shares one source of truth.
 
 /** Load the connection fields the sync action needs. `null` if it's gone. */
 export const getConnectionForSync = internalQuery({

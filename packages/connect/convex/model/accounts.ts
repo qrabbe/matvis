@@ -1,5 +1,5 @@
 import type { Id } from '../_generated/dataModel';
-import type { MutationCtx } from '../_generated/server';
+import type { MutationCtx, QueryCtx } from '../_generated/server';
 
 /**
  * Resolve the connector account for `subject`, creating it on first use.
@@ -18,4 +18,23 @@ export async function getOrCreateAccount(
     .first();
   if (existing) return existing._id;
   return await ctx.db.insert('accounts', { subject });
+}
+
+/**
+ * Read-only lookup of the account for `subject`; `null` if none exists yet.
+ *
+ * The query counterpart of {@link getOrCreateAccount} — a query can't insert,
+ * so callers scope to the returned id or short-circuit to an empty result. Same
+ * `by_subject` index; keep this the single account-resolution point for reads
+ * so real service auth can swap it for `requireAccount(ctx)` in one place.
+ */
+export async function findAccount(
+  ctx: QueryCtx,
+  subject: string,
+): Promise<Id<'accounts'> | null> {
+  const existing = await ctx.db
+    .query('accounts')
+    .withIndex('by_subject', (q) => q.eq('subject', subject))
+    .first();
+  return existing?._id ?? null;
 }
