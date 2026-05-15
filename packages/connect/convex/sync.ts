@@ -16,16 +16,21 @@ import { syncConnection } from '../src/sync';
  * resulting status (`needs_reauth` when a token refresh failed).
  */
 export const sync = action({
-  args: { connectionId: v.id('connections') },
+  args: {
+    connectionId: v.id('connections'),
+    subject: v.optional(v.string()),
+  },
   returns: v.object({
     synced: v.number(),
     skipped: v.number(),
     status: v.string(),
   }),
-  handler: async (ctx, { connectionId }) => {
+  handler: async (ctx, { connectionId, subject }) => {
+    // Ownership is enforced inside `getConnectionForSync`: a connection owned by
+    // another account resolves to null, indistinguishable from a missing one.
     const connection = await ctx.runQuery(
       internal.model.receipts.getConnectionForSync,
-      { connectionId },
+      { connectionId, subject },
     );
     if (!connection) throw new Error('connection not found');
 

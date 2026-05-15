@@ -6,6 +6,7 @@ import {
   storeValidator,
   vatLineValidator as vatLine,
 } from '../validators';
+import { requireAccountRead } from './auth';
 
 // Registered DB helpers for the sync engine. They live here (default Convex
 // runtime) — NOT in `convex/sync.ts` — so that action can be flipped to
@@ -17,7 +18,10 @@ import {
 
 /** Load the connection fields the sync action needs. `null` if it's gone. */
 export const getConnectionForSync = internalQuery({
-  args: { connectionId: v.id('connections') },
+  args: {
+    connectionId: v.id('connections'),
+    subject: v.optional(v.string()),
+  },
   returns: v.union(
     v.null(),
     v.object({
@@ -33,9 +37,13 @@ export const getConnectionForSync = internalQuery({
       ),
     }),
   ),
-  handler: async (ctx, { connectionId }) => {
+  handler: async (ctx, { connectionId, subject }) => {
     const c = await ctx.db.get(connectionId);
     if (!c) return null;
+    // Ownership check: only sync a connection the caller's account owns. Return
+    // null for a foreign connection so it's indistinguishable from a missing one.
+    const accountId = await requireAccountRead(ctx, subject);
+    if (accountId === null || c.accountId !== accountId) return null;
     return {
       accountId: c.accountId,
       store: c.store,

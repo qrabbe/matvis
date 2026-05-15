@@ -10,6 +10,7 @@
 
 import type * as links from "../links.js";
 import type * as model_accounts from "../model/accounts.js";
+import type * as model_auth from "../model/auth.js";
 import type * as model_receipts from "../model/receipts.js";
 import type * as receipts from "../receipts.js";
 import type * as sync from "../sync.js";
@@ -24,6 +25,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   links: typeof links;
   "model/accounts": typeof model_accounts;
+  "model/auth": typeof model_auth;
   "model/receipts": typeof model_receipts;
   receipts: typeof receipts;
   sync: typeof sync;

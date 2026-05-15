@@ -4,20 +4,20 @@ import { defaultFetch } from '../src/http';
 import { internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
 import { action, internalMutation, internalQuery } from './_generated/server';
-import { getOrCreateAccount } from './model/accounts';
+import { requireAccount, requireAccountRead } from './model/auth';
 import { storeValidator } from './validators';
 
 // ── AUTH SEAM ─────────────────────────────────────────────────────────────
-// `subject` identifies the connector account. For now it's supplied by the
-// caller (dev only — no auth yet, so any caller can act as any account). When
-// service auth lands, `subject` MUST instead come from
-// ctx.auth.getUserIdentity() and this argument be removed; `poll` must verify
-// the pending link belongs to the caller's account. Account resolution is kept
-// in one place (getOrCreateAccount) to make that swap local.
+// Every entry point resolves the caller's account through the `model/auth`
+// seam (identity first, dev `subject` behind ALLOW_DEV_SUBJECT). `subject` is
+// an OPTIONAL arg: when a real provider is wired in `convex/auth.config.ts`,
+// identity wins and the arg is ignored — removing it then is non-breaking.
+// `poll` verifies the pending link belongs to the caller's account (ownership
+// is folded into `getPendingLink`, which returns null for a foreign link).
 
 /** Begin a BankID link for a store under the caller's connector account. */
 export const start = action({
-  args: { subject: v.string(), store: storeValidator },
+  args: { subject: v.optional(v.string()), store: storeValidator },
   returns: v.object({
     pendingLinkId: v.id('pendingLinks'),
     orderRef: v.string(),
@@ -39,7 +39,7 @@ export const start = action({
 
 /** Poll a pending link once. Render the QR while `pending`. */
 export const poll = action({
-  args: { pendingLinkId: v.id('pendingLinks') },
+  args: { pendingLinkId: v.id('pendingLinks'), subject: v.optional(v.string()) },
   returns: v.union(
     v.object({ status: v.literal('pending'), qrCode: v.optional(v.string()) }),
     v.object({
@@ -48,10 +48,12 @@ export const poll = action({
     }),
     v.object({ status: v.literal('failed'), error: v.optional(v.string()) }),
   ),
-  handler: async (ctx, { pendingLinkId }) => {
+  handler: async (ctx, { pendingLinkId, subject }) => {
+    // Ownership is enforced inside `getPendingLink`: a link belonging to another
+    // account resolves to null here, indistinguishable from a missing one.
     const link: Doc<'pendingLinks'> | null = await ctx.runQuery(
       internal.links.getPendingLink,
-      { pendingLinkId },
+      { pendingLinkId, subject },
     );
     if (!link) return { status: 'failed' as const, error: 'unknown pending link' };
 
@@ -84,10 +86,14 @@ export const poll = action({
 // ── Internal DB effects ─────────────────────────────────────────────────────
 
 export const createPendingLink = internalMutation({
-  args: { subject: v.string(), store: storeValidator, orderRef: v.string() },
+  args: {
+    subject: v.optional(v.string()),
+    store: storeValidator,
+    orderRef: v.string(),
+  },
   returns: v.id('pendingLinks'),
   handler: async (ctx, { subject, store, orderRef }) => {
-    const accountId = await getOrCreateAccount(ctx, subject);
+    const accountId = await requireAccount(ctx, subject);
     return await ctx.db.insert('pendingLinks', {
       accountId,
       store,
@@ -98,7 +104,7 @@ export const createPendingLink = internalMutation({
 });
 
 export const getPendingLink = internalQuery({
-  args: { pendingLinkId: v.id('pendingLinks') },
+  args: { pendingLinkId: v.id('pendingLinks'), subject: v.optional(v.string()) },
   returns: v.union(
     v.null(),
     v.object({
@@ -114,8 +120,15 @@ export const getPendingLink = internalQuery({
       ),
     }),
   ),
-  handler: async (ctx, { pendingLinkId }) => {
-    return await ctx.db.get(pendingLinkId);
+  handler: async (ctx, { pendingLinkId, subject }) => {
+    const link = await ctx.db.get(pendingLinkId);
+    if (!link) return null;
+    // Ownership check: never poll a pending link owned by another account.
+    // Return null (not the row) so a foreign link is indistinguishable from a
+    // missing one — no existence leak.
+    const accountId = await requireAccountRead(ctx, subject);
+    if (accountId === null || link.accountId !== accountId) return null;
+    return link;
   },
 });
 
