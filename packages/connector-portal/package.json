@@ -1,0 +1,33 @@
+{
+  "name": "@matvis/connector-portal",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Matvis Connector portal (link flow + developer docs)",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/qrabbe/matvis.git",
+    "directory": "packages/connector-portal"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -b"
+  },
+  "dependencies": {
+    "@matvis/shared": "workspace:*",
+    "@matvis/ui": "workspace:*",
+    "convex": "^1.42.3",
+    "qrcode": "^1.5.4",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/qrcode": "^1.5.5",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "@vitejs/plugin-react": "^6.0.3",
+    "vite": "^8.1.5"
+  }
+}
