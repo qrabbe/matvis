@@ -6,6 +6,12 @@ dist
 dist-ssr
 build
 build-types
+
+# Stray TS declaration artifacts (real ones live in gitignored build-types/)
+*.d.ts.map
+packages/connect/convex/**/*.d.ts
+packages/connect/src/**/*.d.ts
+!packages/connect/convex/_generated/**
 storybook-static
 *.tsbuildinfo
 

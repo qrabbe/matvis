@@ -5,6 +5,7 @@
     { "path": "packages/ui" },
     { "path": "packages/catalog" },
     { "path": "packages/connect" },
-    { "path": "packages/app" }
+    { "path": "packages/app" },
+    { "path": "packages/connector-portal" }
   ]
 }

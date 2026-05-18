@@ -1,6 +1,8 @@
-// NOTE: keep this file ACTION-ONLY. If the V8 runtime rejects the Coop
-// `User-Agent` header or `unpdf` at runtime (see the step handoff), add
-// `"use node";` as the first line — a one-line flip. That works only because
+'use node';
+// NOTE: keep this file ACTION-ONLY. This runs in the Node runtime (not the V8
+// isolate) because `unpdf`/pdfjs calls `structuredClone(..., { transfer })`
+// during PDF parsing, which the V8 isolate rejects ("structuredClone with
+// transfer not supported"). Node supports it. This flip works only because
 // every query/mutation it uses lives in `./model/receipts.ts`, not here.
 import { v } from 'convex/values';
 import type { Id } from './_generated/dataModel';

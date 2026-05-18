@@ -47,6 +47,25 @@
         "vitest": "^4.1.10",
       },
     },
+    "packages/connector-portal": {
+      "name": "@matvis/connector-portal",
+      "version": "0.0.0",
+      "dependencies": {
+        "@matvis/shared": "workspace:*",
+        "@matvis/ui": "workspace:*",
+        "convex": "^1.42.3",
+        "qrcode": "^1.5.4",
+        "react": "^18.3.1",
+        "react-dom": "^18.3.1",
+      },
+      "devDependencies": {
+        "@types/qrcode": "^1.5.5",
+        "@types/react": "^18",
+        "@types/react-dom": "^18",
+        "@vitejs/plugin-react": "^6.0.3",
+        "vite": "^8.1.5",
+      },
+    },
     "packages/shared": {
       "name": "@matvis/shared",
       "version": "0.0.0",
@@ -210,6 +229,8 @@
     "@matvis/catalog": ["@matvis/catalog@workspace:packages/catalog"],
 
     "@matvis/connect": ["@matvis/connect@workspace:packages/connect"],
+
+    "@matvis/connector-portal": ["@matvis/connector-portal@workspace:packages/connector-portal"],
 
     "@matvis/shared": ["@matvis/shared@workspace:packages/shared"],
 
