@@ -160,8 +160,11 @@ export async function syncConnection(deps: SyncDeps): Promise<SyncResult> {
       continue;
     }
     const bytes = await fetchReceiptPdf(fetch, accessToken, summary.id);
-    const pdfStorageId = await db.storePdf(bytes);
-    const receipt = await parseCoopReceiptPdf(bytes, { includeRawText: true });
+    // Storing and parsing both read `bytes` but not each other; overlap them.
+    const [pdfStorageId, receipt] = await Promise.all([
+      db.storePdf(bytes),
+      parseCoopReceiptPdf(bytes, { includeRawText: true }),
+    ]);
     await db.insertReceipt(mapReceiptToRow(receipt, summary.id), pdfStorageId);
     synced++;
   }

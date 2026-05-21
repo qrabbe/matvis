@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import { useConvex } from 'convex/react';
+import type { FunctionReturnType } from 'convex/server';
 import { Badge, Button, Card, Notice, Stack, Text } from '@wordpress/ui';
 import { STORES, type StoreSlug } from '@matvis/shared';
 import { api, type Id } from '../lib/convexApi';
@@ -10,13 +11,14 @@ import {
   useDevSubject,
 } from '../lib/devSubject';
 import { errMsg } from '../lib/format';
+import { pendingHint } from '../lib/bankid-copy';
 import { useBankIdLink } from '../hooks/useBankIdLink';
 import { QrCode } from '../components/QrCode';
 
 /** Only `coop` has a built connector today; the rest are reserved slugs. */
 const LIVE_STORES: readonly StoreSlug[] = ['coop'];
 
-type SyncResult = { synced: number; skipped: number; status: string };
+type SyncResult = FunctionReturnType<typeof api.sync.sync>;
 
 export function ConnectPanel() {
   const subject = useDevSubject();
@@ -138,9 +140,7 @@ function LinkInProgressView({
       ) : (
         <Text variant="body-md">Starting BankID…</Text>
       )}
-      <Text variant="body-sm">
-        {hint ?? 'Open the BankID app on your phone and scan the code.'}
-      </Text>
+      <Text variant="body-sm">{hint ?? pendingHint}</Text>
       {appLink && (
         <Button variant="outline" tone="neutral" render={<a href={appLink} />}>
           Open BankID on this device

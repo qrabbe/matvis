@@ -49,11 +49,7 @@ export const receiptItemDocValidator = v.object({
   _creationTime: v.number(),
   receiptId: v.id('receipts'),
   lineNo: v.number(),
-  text: v.string(),
-  price: v.number(),
-  isDiscount: v.boolean(),
-  quantity: v.optional(v.number()),
-  unit: v.optional(v.string()),
+  ...receiptItemInsertValidator.fields,
   gtin: v.optional(v.string()),
   matchConfidence: v.optional(v.number()),
 });

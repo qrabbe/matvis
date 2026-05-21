@@ -7,13 +7,8 @@ import { action, internalMutation, internalQuery } from './_generated/server';
 import { requireAccount, requireAccountRead } from './model/auth';
 import { storeValidator } from './validators';
 
-// ── AUTH SEAM ─────────────────────────────────────────────────────────────
 // Every entry point resolves the caller's account through the `model/auth`
-// seam (identity first, dev `subject` behind ALLOW_DEV_SUBJECT). `subject` is
-// an OPTIONAL arg: when a real provider is wired in `convex/auth.config.ts`,
-// identity wins and the arg is ignored — removing it then is non-breaking.
-// `poll` verifies the pending link belongs to the caller's account (ownership
-// is folded into `getPendingLink`, which returns null for a foreign link).
+// seam. `subject` is an optional arg that a real auth provider will supersede.
 
 /** Begin a BankID link for a store under the caller's connector account. */
 export const start = action({
@@ -49,8 +44,6 @@ export const poll = action({
     v.object({ status: v.literal('failed'), error: v.optional(v.string()) }),
   ),
   handler: async (ctx, { pendingLinkId, subject }) => {
-    // Ownership is enforced inside `getPendingLink`: a link belonging to another
-    // account resolves to null here, indistinguishable from a missing one.
     const link: Doc<'pendingLinks'> | null = await ctx.runQuery(
       internal.links.getPendingLink,
       { pendingLinkId, subject },

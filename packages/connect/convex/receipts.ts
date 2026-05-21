@@ -5,15 +5,9 @@ import { query } from './_generated/server';
 import { requireAccountRead } from './model/auth';
 import { receiptHeaderValidator, receiptItemDocValidator } from './validators';
 
-// Public read API for stored receipts — the portal today, a subscribing app
-// later. Every handler is scoped to ONE account, resolved through the single
-// `requireAccountRead` seam (identity first, dev `subject` behind a flag).
-//
-// `subject` is an OPTIONAL arg: when a real auth provider is wired in
-// `convex/auth.config.ts`, identity wins and the arg is ignored — removing it
-// then is non-breaking. Reads can't create an account (queries don't insert),
-// so an unknown subject yields `null` and the handler returns an empty result
-// rather than leaking or erroring.
+// Public read API for stored receipts. Every handler is scoped to one account
+// via the `requireAccountRead` seam. A query can't create an account, so an
+// unknown subject yields `null` and the handler returns an empty result.
 
 /** Drop `rawText` (can be large) from a stored receipt to make a header. */
 function trim(doc: Doc<'receipts'>) {
@@ -54,11 +48,14 @@ export const getReceipt = query({
     }),
   ),
   handler: async (ctx, { subject, receiptId }) => {
-    const accountId = await requireAccountRead(ctx, subject);
-    if (accountId === null) return null;
-    const receipt = await ctx.db.get(receiptId);
+    const [accountId, receipt] = await Promise.all([
+      requireAccountRead(ctx, subject),
+      ctx.db.get(receiptId),
+    ]);
     // Ownership: never leak another account's row.
-    if (receipt === null || receipt.accountId !== accountId) return null;
+    if (accountId === null || receipt === null || receipt.accountId !== accountId) {
+      return null;
+    }
     const items = await ctx.db
       .query('receiptItems')
       .withIndex('by_receipt', (q) => q.eq('receiptId', receiptId))
@@ -75,10 +72,13 @@ export const getPdf = query({
   args: { subject: v.optional(v.string()), receiptId: v.id('receipts') },
   returns: v.union(v.null(), v.string()),
   handler: async (ctx, { subject, receiptId }) => {
-    const accountId = await requireAccountRead(ctx, subject);
-    if (accountId === null) return null;
-    const receipt = await ctx.db.get(receiptId);
-    if (receipt === null || receipt.accountId !== accountId) return null;
+    const [accountId, receipt] = await Promise.all([
+      requireAccountRead(ctx, subject),
+      ctx.db.get(receiptId),
+    ]);
+    if (accountId === null || receipt === null || receipt.accountId !== accountId) {
+      return null;
+    }
     if (!receipt.pdfStorageId) return null;
     return await ctx.storage.getUrl(receipt.pdfStorageId);
   },

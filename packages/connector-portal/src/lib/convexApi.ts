@@ -73,7 +73,7 @@ type SyncSync = FunctionReference<
   'action',
   'public',
   { connectionId: GenericId<'connections'>; subject?: string },
-  { synced: number; skipped: number; status: string }
+  { synced: number; skipped: number; status: 'active' | 'needs_reauth' }
 >;
 
 type ReceiptsList = FunctionReference<

@@ -12,7 +12,7 @@ import {
 } from '@wordpress/ui';
 import { api } from '../lib/convexApi';
 import { useDevSubject } from '../lib/devSubject';
-import { errMsg, formatAmount } from '../lib/format';
+import { errMsg, formatAmount, formatPurchasedAt } from '../lib/format';
 
 // Header + item row shapes derived straight from the connector's read API, so
 // the UI can't drift from what the server actually returns.
@@ -139,9 +139,7 @@ function ReceiptRow({
             <Stack direction="column" gap="xs">
               <Text variant="body-md">{header.store.name}</Text>
               <Text variant="body-sm">
-                {header.purchasedAt
-                  ? new Date(header.purchasedAt).toLocaleString()
-                  : header.externalId}
+                {formatPurchasedAt(header.purchasedAt) ?? header.externalId}
               </Text>
             </Stack>
             <Stack direction="row" gap="sm" align="center" wrap="wrap">

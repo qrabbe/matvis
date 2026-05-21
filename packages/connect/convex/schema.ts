@@ -1,6 +1,10 @@
 import { defineSchema, defineTable } from 'convex/server';
 import { v } from 'convex/values';
-import { storeValidator as store } from './validators';
+import {
+  storeObjectValidator,
+  storeValidator as store,
+  vatLineValidator,
+} from './validators';
 
 export default defineSchema({
   // ── Identity ──────────────────────────────────────────────────────────
@@ -57,14 +61,7 @@ export default defineSchema({
     externalId: v.string(),
     schemaVersion: v.number(),
 
-    store: v.object({
-      name: v.string(),
-      city: v.optional(v.string()),
-      postalCode: v.optional(v.string()),
-      phone: v.optional(v.string()),
-      orgNr: v.optional(v.string()),
-      legalEntity: v.optional(v.string()),
-    }),
+    store: storeObjectValidator,
     receiptNumber: v.optional(v.string()),
     purchasedAt: v.optional(v.string()), // ISO 8601
     purchasedAtMs: v.optional(v.number()), // for range/sort
@@ -73,14 +70,7 @@ export default defineSchema({
     itemCount: v.optional(v.number()),
     discountsTotal: v.optional(v.number()),
     pointsAmount: v.optional(v.number()),
-    vat: v.array(
-      v.object({
-        rate: v.number(),
-        vat: v.number(),
-        net: v.number(),
-        gross: v.number(),
-      }),
-    ),
+    vat: v.array(vatLineValidator),
     loyaltyCardId: v.optional(v.string()),
 
     // Raw source of truth — kept for re-parse + the download feature.

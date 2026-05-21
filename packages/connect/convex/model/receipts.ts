@@ -8,13 +8,9 @@ import {
 } from '../validators';
 import { requireAccountRead } from './auth';
 
-// Registered DB helpers for the sync engine. They live here (default Convex
-// runtime) — NOT in `convex/sync.ts` — so that action can be flipped to
-// `"use node";` with a one-line change (a `"use node"` file may export only
-// actions). The orchestration itself is in `../src/sync.ts`.
-//
-// The receipt-shape validators (store/vat/item) now live in `../validators.ts`
-// so the public read API in `convex/receipts.ts` shares one source of truth.
+// Registered DB helpers for the sync engine. They live here in the default
+// Convex runtime, not in the `"use node"` `convex/sync.ts` (which may export
+// only actions). The orchestration itself is in `../src/sync.ts`.
 
 /** Load the connection fields the sync action needs. `null` if it's gone. */
 export const getConnectionForSync = internalQuery({
@@ -97,18 +93,20 @@ export const insertReceipt = internalMutation({
   handler: async (ctx, args) => {
     const { items, ...header } = args;
     const receiptId = await ctx.db.insert('receipts', header);
-    for (const [lineNo, it] of items.entries()) {
-      await ctx.db.insert('receiptItems', {
-        receiptId,
-        lineNo,
-        text: it.text,
-        price: it.price,
-        isDiscount: it.isDiscount,
-        quantity: it.quantity,
-        unit: it.unit,
-        // `gtin` intentionally omitted — the matching pass fills it later.
-      });
-    }
+    // `gtin`/`matchConfidence` are intentionally omitted; a later pass fills them.
+    await Promise.all(
+      items.map((it, lineNo) =>
+        ctx.db.insert('receiptItems', {
+          receiptId,
+          lineNo,
+          text: it.text,
+          price: it.price,
+          isDiscount: it.isDiscount,
+          quantity: it.quantity,
+          unit: it.unit,
+        }),
+      ),
+    );
     return receiptId;
   },
 });

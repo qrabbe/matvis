@@ -9,3 +9,8 @@ export function formatAmount(n: number | undefined, currency = 'SEK'): string {
   if (n === undefined) return '—';
   return `${n.toFixed(2)} ${currency}`;
 }
+
+/** Format an ISO purchase timestamp for display, or `null` if absent. */
+export function formatPurchasedAt(iso: string | undefined): string | null {
+  return iso ? new Date(iso).toLocaleString() : null;
+}

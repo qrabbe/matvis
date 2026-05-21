@@ -2,16 +2,14 @@ import type { Id } from '../_generated/dataModel';
 import type { ActionCtx, MutationCtx, QueryCtx } from '../_generated/server';
 import { findAccount, getOrCreateAccount } from './accounts';
 
-// ── THE AUTH SEAM ───────────────────────────────────────────────────────────
-// Every entry point resolves the caller's connector account through here.
-// Identity comes first (real auth), the dev-supplied `subject` second and ONLY
-// behind ALLOW_DEV_SUBJECT. The day a real provider is wired in
-// `convex/auth.config.ts`, remove the fallback: the identity branch below is the
-// ONE place that changes.
+// The auth seam: every entry point resolves the caller's account here. Identity
+// wins; the dev-supplied `subject` is a fallback behind ALLOW_DEV_SUBJECT. When
+// a real provider is wired in convex/auth.config.ts, drop the fallback. The
+// identity branch below is the one place that changes.
 
-// DEV ONLY. Set `ALLOW_DEV_SUBJECT=true` on the dev deployment so the portal's
-// client-supplied `subject` flow keeps working before real auth exists.
-// Production MUST NOT set this: with it unset, an unauthenticated caller throws.
+// DEV ONLY: set ALLOW_DEV_SUBJECT=true on the dev deployment so the portal's
+// client-supplied subject works before real auth exists. Production leaves it
+// unset, so an unauthenticated caller throws.
 const ALLOW_DEV_SUBJECT = process.env.ALLOW_DEV_SUBJECT === 'true';
 
 /** Resolve the caller's connector subject: real auth first, dev fallback second. */

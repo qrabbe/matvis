@@ -25,11 +25,9 @@ export const sync = action({
   returns: v.object({
     synced: v.number(),
     skipped: v.number(),
-    status: v.string(),
+    status: v.union(v.literal('active'), v.literal('needs_reauth')),
   }),
   handler: async (ctx, { connectionId, subject }) => {
-    // Ownership is enforced inside `getConnectionForSync`: a connection owned by
-    // another account resolves to null, indistinguishable from a missing one.
     const connection = await ctx.runQuery(
       internal.model.receipts.getConnectionForSync,
       { connectionId, subject },
@@ -58,12 +56,10 @@ export const sync = action({
             connectionId,
             externalId,
           }),
-        storePdf: async (bytes) => {
-          const storageId = await ctx.storage.store(
+        storePdf: (bytes) =>
+          ctx.storage.store(
             new Blob([bytes as unknown as BlobPart], { type: 'application/pdf' }),
-          );
-          return storageId;
-        },
+          ),
         insertReceipt: async (row, pdfStorageId) => {
           await ctx.runMutation(internal.model.receipts.insertReceipt, {
             connectionId,

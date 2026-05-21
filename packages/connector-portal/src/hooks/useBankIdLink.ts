@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useConvex } from 'convex/react';
 import type { StoreSlug } from '@matvis/shared';
 import { api, type Id } from '../lib/convexApi';
-import { bankIdAppLink, failedHintMessage, pendingHintMessage } from '../lib/bankid-copy';
+import { bankIdAppLink, failedHintMessage, pendingHint } from '../lib/bankid-copy';
 import { errMsg } from '../lib/format';
 
 export type LinkPhase = 'idle' | 'starting' | 'polling' | 'error';
@@ -52,7 +52,7 @@ export function useBankIdLink(
 
         if (res.status === 'pending') {
           if (res.qrCode) setQr(res.qrCode);
-          setHint(pendingHintMessage());
+          setHint(pendingHint);
           await delay(POLL_INTERVAL_MS);
           continue;
         }
@@ -75,7 +75,7 @@ export function useBankIdLink(
     async (store: StoreSlug) => {
       setError(null);
       setQr(null);
-      setHint(pendingHintMessage());
+      setHint(pendingHint);
       setAppLink(null);
       setPhase('starting');
       try {
@@ -104,13 +104,9 @@ export function useBankIdLink(
 
   /** Stop the loop and wipe all state, including errors. */
   const reset = useCallback(() => {
-    activeRef.current = false;
-    setPhase('idle');
-    setQr(null);
-    setHint(null);
-    setAppLink(null);
+    cancel();
     setError(null);
-  }, []);
+  }, [cancel]);
 
   const active = phase === 'starting' || phase === 'polling';
   return { phase, active, qr, hint, appLink, error, login, cancel, reset };
