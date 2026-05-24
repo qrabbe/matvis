@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react';
 import { Badge, Card, Stack, Text } from '@wordpress/ui';
 import { SCHEMA_VERSION } from '@matvis/shared';
+import { CopyButton } from '../components/CopyButton';
+import { useDevSubject } from '../lib/devSubject';
 
 // Hand-written v1 docs. The field table below mirrors `Receipt` in
 // packages/shared/src/receipt.ts — keep the two in sync when the contract moves
@@ -55,6 +57,7 @@ const READ_ENDPOINTS: Endpoint[] = [
 ];
 
 export function DevPortal() {
+  const subject = useDevSubject();
   return (
     <Stack direction="column" gap="xl">
       <Card.Root>
@@ -112,6 +115,11 @@ export function DevPortal() {
               the single seam that goes away when auth lands — identity will win
               and the arg is ignored.
             </Text>
+            <Stack direction="row" gap="sm" align="center" wrap="wrap">
+              <Text variant="body-sm">Your dev subject:</Text>
+              <Code>{subject}</Code>
+              <CopyButton text={subject} label="Copy subject" />
+            </Stack>
           </Stack>
         </Card.Content>
       </Card.Root>
@@ -129,6 +137,7 @@ export function DevPortal() {
                   <Badge intent={e.live ? 'stable' : 'high'}>
                     {e.live ? 'live' : 'planned'}
                   </Badge>
+                  <CopyButton text={e.sig} label="Copy" />
                 </Stack>
                 <Text variant="body-sm">{e.desc}</Text>
               </Stack>

@@ -8,4 +8,8 @@ import { defineConfig } from 'vite';
 export default defineConfig({
   plugins: [react()],
   server: { port: 5273 },
+  // `@wordpress/ui` ships a nested `react`/`react-dom`; without deduping, Vite's
+  // optimizer can load a second React copy and every hook throws "Invalid hook
+  // call". Force one instance across all deps (surfaced after adding DataViews).
+  resolve: { dedupe: ['react', 'react-dom'] },
 });

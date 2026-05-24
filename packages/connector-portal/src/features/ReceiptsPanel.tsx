@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { usePaginatedQuery, useConvex } from 'convex/react';
 import type { FunctionReturnType } from 'convex/server';
 import {
@@ -8,8 +8,23 @@ import {
   EmptyState,
   Notice,
   Stack,
+  Tabs,
   Text,
 } from '@wordpress/ui';
+// Fallback: `@wordpress/ui` has no spinner (only `skeleton`) — see UI-component policy.
+import { Spinner } from '@wordpress/components';
+// The receipts list is a `@wordpress/dataviews` table — `@wordpress/ui` has no
+// data-grid equivalent, so this is a justified fallback (like `Spinner`). It
+// renders in the classic `@wordpress/components` style; its stylesheet is loaded
+// once in `main.tsx`.
+import {
+  DataViews,
+  filterSortAndPaginate,
+  type Action,
+  type Field,
+  type View,
+} from '@wordpress/dataviews';
+import { CopyButton } from '../components/CopyButton';
 import { api } from '../lib/convexApi';
 import { useDevSubject } from '../lib/devSubject';
 import { errMsg, formatAmount, formatPurchasedAt } from '../lib/format';
@@ -20,6 +35,46 @@ type ReceiptHeader = FunctionReturnType<typeof api.receipts.list>['page'][number
 type ReceiptDetail = NonNullable<FunctionReturnType<typeof api.receipts.getReceipt>>;
 type ReceiptItem = ReceiptDetail['items'][number];
 
+/** Table columns. `getValue` powers DataViews' client-side sort/search over the
+ * already-loaded rows; `render` draws the cell. */
+const FIELDS: Field<ReceiptHeader>[] = [
+  {
+    id: 'store',
+    label: 'Store',
+    enableHiding: false,
+    getValue: ({ item }) => item.store.name,
+    render: ({ item }) => <Text variant="body-md">{item.store.name}</Text>,
+  },
+  {
+    id: 'purchasedAt',
+    label: 'Purchased',
+    getValue: ({ item }) => item.purchasedAt ?? '',
+    render: ({ item }) => (
+      <Text variant="body-sm">
+        {formatPurchasedAt(item.purchasedAt) ?? item.externalId}
+      </Text>
+    ),
+  },
+  {
+    id: 'total',
+    label: 'Total',
+    getValue: ({ item }) => item.total,
+    render: ({ item }) => (
+      <Badge intent="informational">
+        {formatAmount(item.total, item.currency)}
+      </Badge>
+    ),
+  },
+];
+
+const DEFAULT_VIEW: View = {
+  type: 'table',
+  page: 1,
+  perPage: 20,
+  fields: ['store', 'purchasedAt', 'total'],
+  layout: { styles: { total: { align: 'end' } } },
+};
+
 export function ReceiptsPanel() {
   const subject = useDevSubject();
   const page = usePaginatedQuery(
@@ -27,9 +82,36 @@ export function ReceiptsPanel() {
     { subject },
     { initialNumItems: 20 },
   );
+  const [view, setView] = useState<View>(DEFAULT_VIEW);
 
   const loading = page.status === 'LoadingFirstPage';
-  const empty = !loading && page.results.length === 0;
+
+  // DataViews doesn't fetch — it paginates/sorts whatever we hand it. We feed it
+  // the rows loaded so far; "Load more" extends that pool from the server.
+  const { data, paginationInfo } = useMemo(
+    () => filterSortAndPaginate(page.results, view, FIELDS),
+    [page.results, view],
+  );
+
+  // A single per-row action opens a modal that switches between the readable
+  // item list and the raw JSON (with copy/download).
+  const actions = useMemo<Action<ReceiptHeader>[]>(
+    () => [
+      {
+        id: 'view',
+        label: 'View purchase',
+        isPrimary: true,
+        modalHeader: (items) => items[0]?.store.name ?? 'Purchase',
+        RenderModal: ({ items }) =>
+          items[0] ? (
+            <ReceiptModal header={items[0]} subject={subject} />
+          ) : (
+            <></>
+          ),
+      },
+    ],
+    [subject],
+  );
 
   return (
     <Card.Root>
@@ -38,25 +120,27 @@ export function ReceiptsPanel() {
       </Card.Header>
       <Card.Content>
         <Stack direction="column" gap="md">
-          {loading && <Text variant="body-sm">Loading receipts…</Text>}
-
-          {empty && (
-            <EmptyState.Root>
-              <EmptyState.Title>No receipts yet</EmptyState.Title>
-              <EmptyState.Description>
-                Link a store and hit “Sync now” — receipts appear here live as
-                they land.
-              </EmptyState.Description>
-            </EmptyState.Root>
-          )}
-
-          {page.results.length > 0 && (
-            <Stack direction="column" gap="sm">
-              {page.results.map((r) => (
-                <ReceiptRow key={r._id} header={r} subject={subject} />
-              ))}
-            </Stack>
-          )}
+          <DataViews
+            data={data}
+            fields={FIELDS}
+            view={view}
+            onChangeView={setView}
+            actions={actions}
+            paginationInfo={paginationInfo}
+            getItemId={(item) => item._id}
+            isLoading={loading}
+            defaultLayouts={{ table: {} }}
+            search={false}
+            empty={
+              <EmptyState.Root>
+                <EmptyState.Title>No receipts yet</EmptyState.Title>
+                <EmptyState.Description>
+                  Link a store and hit “Sync now” — receipts appear here live as
+                  they land.
+                </EmptyState.Description>
+              </EmptyState.Root>
+            }
+          />
 
           {page.status === 'CanLoadMore' && (
             <Button
@@ -68,7 +152,10 @@ export function ReceiptsPanel() {
             </Button>
           )}
           {page.status === 'LoadingMore' && (
-            <Text variant="body-sm">Loading more…</Text>
+            <Stack direction="row" gap="sm" align="center">
+              <Spinner />
+              <Text variant="body-sm">Loading more…</Text>
+            </Stack>
           )}
         </Stack>
       </Card.Content>
@@ -76,7 +163,10 @@ export function ReceiptsPanel() {
   );
 }
 
-function ReceiptRow({
+/** Modal body for one purchase: a Download-PDF control plus a tab switcher
+ * between the readable item list and the raw JSON. The line-item detail is
+ * fetched lazily when the modal opens. */
+function ReceiptModal({
   header,
   subject,
 }: {
@@ -84,92 +174,102 @@ function ReceiptRow({
   subject: string;
 }) {
   const convex = useConvex();
-  const [items, setItems] = useState<ReceiptItem[] | null>(null);
-  const [busy, setBusy] = useState<'preview' | 'pdf' | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [detail, setDetail] = useState<ReceiptDetail | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
 
-  const preview = useCallback(async () => {
-    if (items) {
-      setItems(null);
-      return;
-    }
-    setBusy('preview');
-    setError(null);
-    try {
-      const detail = await convex.query(api.receipts.getReceipt, {
-        subject,
-        receiptId: header._id,
+  useEffect(() => {
+    let active = true;
+    convex
+      .query(api.receipts.getReceipt, { subject, receiptId: header._id })
+      .then((d) => {
+        if (active) setDetail(d ?? { receipt: header, items: [] });
+      })
+      .catch((e) => {
+        if (active) setLoadError(errMsg(e));
       });
-      setItems(detail?.items ?? []);
-    } catch (e) {
-      setError(errMsg(e));
-    } finally {
-      setBusy(null);
-    }
-  }, [convex, subject, header._id, items]);
+    return () => {
+      active = false;
+    };
+  }, [convex, subject, header]);
 
   const downloadPdf = useCallback(async () => {
-    setBusy('pdf');
-    setError(null);
+    setPdfBusy(true);
+    setPdfError(null);
     try {
       const url = await convex.query(api.receipts.getPdf, {
         subject,
         receiptId: header._id,
       });
       if (url) window.open(url, '_blank', 'noopener');
-      else setError('No PDF stored for this receipt.');
+      else setPdfError('No PDF stored for this receipt.');
     } catch (e) {
-      setError(errMsg(e));
+      setPdfError(errMsg(e));
     } finally {
-      setBusy(null);
+      setPdfBusy(false);
     }
   }, [convex, subject, header._id]);
 
   return (
-    <Card.Root>
-      <Card.Content>
-        <Stack direction="column" gap="sm">
-          <Stack
-            direction="row"
-            gap="md"
-            align="center"
-            justify="space-between"
-            wrap="wrap"
-          >
-            <Stack direction="column" gap="xs">
-              <Text variant="body-md">{header.store.name}</Text>
-              <Text variant="body-sm">
-                {formatPurchasedAt(header.purchasedAt) ?? header.externalId}
-              </Text>
-            </Stack>
-            <Stack direction="row" gap="sm" align="center" wrap="wrap">
-              <Badge intent="informational">
-                {formatAmount(header.total, header.currency)}
-              </Badge>
-              <Button
-                variant="outline"
-                tone="neutral"
-                onClick={preview}
-                loading={busy === 'preview'}
-              >
-                {items ? 'Hide items' : 'Preview items'}
-              </Button>
-              <Button onClick={downloadPdf} loading={busy === 'pdf'}>
-                Download PDF
-              </Button>
-            </Stack>
+    <Stack direction="column" gap="md">
+      <Stack
+        direction="row"
+        gap="md"
+        justify="space-between"
+        align="center"
+        wrap="wrap"
+      >
+        <Text variant="body-sm">
+          {formatPurchasedAt(header.purchasedAt) ?? header.externalId}
+        </Text>
+        <Button onClick={downloadPdf} loading={pdfBusy}>
+          Download PDF
+        </Button>
+      </Stack>
+
+      {(loadError || pdfError) && (
+        <Notice.Root intent="error">
+          <Notice.Description>{loadError ?? pdfError}</Notice.Description>
+        </Notice.Root>
+      )}
+
+      {detail ? (
+        <ReceiptDetailView detail={detail} header={header} />
+      ) : (
+        !loadError && (
+          <Stack direction="row" gap="sm" align="center">
+            <Spinner />
+            <Text variant="body-sm">Loading items…</Text>
           </Stack>
+        )
+      )}
+    </Stack>
+  );
+}
 
-          {error && (
-            <Notice.Root intent="error">
-              <Notice.Description>{error}</Notice.Description>
-            </Notice.Root>
-          )}
-
-          {items && <ReceiptItems items={items} header={header} />}
-        </Stack>
-      </Card.Content>
-    </Card.Root>
+/** Expanded receipt: a tab switcher between the human-readable item list and
+ * the raw JSON payload. Both tabs render the same already-fetched `detail`. */
+function ReceiptDetailView({
+  detail,
+  header,
+}: {
+  detail: ReceiptDetail;
+  header: ReceiptHeader;
+}) {
+  return (
+    <Tabs.Root defaultValue="items">
+      <Tabs.List variant="minimal">
+        <Tabs.Tab value="items">Items</Tabs.Tab>
+        <Tabs.Tab value="json">JSON</Tabs.Tab>
+      </Tabs.List>
+      <Tabs.Panel value="items" style={{ paddingTop: 12 }}>
+        <ReceiptItems items={detail.items} header={header} />
+      </Tabs.Panel>
+      <Tabs.Panel value="json" style={{ paddingTop: 12 }}>
+        <ReceiptJson detail={detail} header={header} />
+      </Tabs.Panel>
+    </Tabs.Root>
   );
 }
 
@@ -213,6 +313,59 @@ function ReceiptItems({
           </Text>
         </Stack>
       )}
+    </Stack>
+  );
+}
+
+/** Raw receipt payload (header + line items) with copy + download controls. */
+function ReceiptJson({
+  detail,
+  header,
+}: {
+  detail: ReceiptDetail;
+  header: ReceiptHeader;
+}) {
+  const json = useMemo(() => JSON.stringify(detail, null, 2), [detail]);
+  const filename = `receipt-${header.externalId ?? header._id}.json`;
+
+  const download = useCallback(() => {
+    const url = URL.createObjectURL(
+      new Blob([json], { type: 'application/json' }),
+    );
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [json, filename]);
+
+  return (
+    <Stack direction="column" gap="sm">
+      <Stack direction="row" gap="sm" align="center" justify="end" wrap="wrap">
+        <CopyButton text={json} label="Copy JSON" />
+        <Button variant="outline" tone="neutral" onClick={download}>
+          Download JSON
+        </Button>
+      </Stack>
+      <Text
+        variant="body-sm"
+        render={
+          <pre
+            style={{
+              fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+              background: 'rgba(127,127,127,0.16)',
+              padding: '10px 12px',
+              borderRadius: 6,
+              margin: 0,
+              maxHeight: 320,
+              overflow: 'auto',
+              whiteSpace: 'pre',
+            }}
+          />
+        }
+      >
+        {json}
+      </Text>
     </Stack>
   );
 }

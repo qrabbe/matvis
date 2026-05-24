@@ -18,6 +18,9 @@
   "dependencies": {
     "@matvis/shared": "workspace:*",
     "@matvis/ui": "workspace:*",
+    "@wordpress/components": "^37.0.0",
+    "@wordpress/compose": "^8.4.0",
+    "@wordpress/dataviews": "^17.2.0",
     "convex": "^1.42.3",
     "qrcode": "^1.5.4",
     "react": "^18.3.1",

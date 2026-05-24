@@ -2,6 +2,12 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { ConvexProvider, ConvexReactClient } from 'convex/react';
 import { MatvisThemeProvider } from '@matvis/ui';
+// Fallback-only: styles for the classic `@wordpress/components` `Spinner`. The
+// rest of the portal is `@wordpress/ui` (see UI-component policy). Scoped to
+// `.components-*` classes, so it doesn't bleed into the ui theme.
+import '@wordpress/components/build-style/style.css';
+// Styles for the `@wordpress/dataviews` receipts table (see ReceiptsPanel).
+import '@wordpress/dataviews/build-style/style.css';
 import { App } from './App';
 
 const convexUrl = import.meta.env.VITE_CONVEX_URL as string | undefined;

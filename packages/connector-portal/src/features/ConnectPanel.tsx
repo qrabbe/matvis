@@ -2,7 +2,10 @@ import { useCallback, useState } from 'react';
 import { useConvex } from 'convex/react';
 import type { FunctionReturnType } from 'convex/server';
 import { Badge, Button, Card, Notice, Stack, Text } from '@wordpress/ui';
+// Fallback: `@wordpress/ui` has no spinner (only `skeleton`) — see UI-component policy.
+import { Spinner } from '@wordpress/components';
 import { STORES, type StoreSlug } from '@matvis/shared';
+import { CopyButton } from '../components/CopyButton';
 import { api, type Id } from '../lib/convexApi';
 import {
   clearConnectionId,
@@ -138,7 +141,10 @@ function LinkInProgressView({
       {qr ? (
         <QrCode value={qr} />
       ) : (
-        <Text variant="body-md">Starting BankID…</Text>
+        <Stack direction="row" gap="sm" align="center">
+          <Spinner />
+          <Text variant="body-md">Starting BankID…</Text>
+        </Stack>
       )}
       <Text variant="body-sm">{hint ?? pendingHint}</Text>
       {appLink && (
@@ -191,6 +197,7 @@ function ConnectedView({
       <Stack direction="row" gap="sm" align="center" wrap="wrap">
         <Badge intent="stable">Connected</Badge>
         <Text variant="body-sm">Connection {connectionId}</Text>
+        <CopyButton text={connectionId} label="Copy id" />
       </Stack>
 
       {needsReauth && (
