@@ -1,54 +1,22 @@
 # Matvis
 
-Matvis turns Swedish grocery receipts into structured, GTIN-keyed purchase data and eventually into pantry and nutrition insight. 
+Matvis turns your Swedish grocery receipts into clear, structured purchase data and eventually into pantry and nutrition insight. 
 It's a combination of independent systems so custom user programms can be developed.
 
 ---
 
 ## Usage
 
-The core flow — **link a store, sync purchases, consume normalized data** — is live
-today through the connector. The consumer app and product catalog built on top of it
-are still in progress, so not every part below is reachable yet.
+Right now the one thing you can actually use is the **connector portal**. It lets you:
 
-**1. Link a store.** A user connects their grocery account with BankID in the
-connector portal. The connector stores the tokens and syncs their receipts.
+- link a grocery store
+- browse the receipts it syncs for you
 
-**2. Receipts become normalized data.** Every receipt is parsed into a
-store-agnostic, versioned `Receipt` contract ([`packages/shared/src/receipt.ts`](packages/shared/src/receipt.ts))
-— store, timestamp, totals, VAT, and GTIN-keyed line items.
+Today that portal is most useful to **developers**. The **Developers** tab documents
+the receipt API and the versioned data contract you can build custom programs on. The
+Matvis app that turns all of this into pantry and nutrition insight is still in progress.
 
-**3. Read it from your own program.** The connector exposes a reactive read +
-subscribe API over Convex. Point a Convex client at the connector deployment and
-pull receipts as they land:
-
-```ts
-import { ConvexClient } from 'convex/browser';
-import { api } from './convex/_generated/api'; // the connector's generated API
-
-const client = new ConvexClient(process.env.CONVEX_URL!);
-
-// Reactive: the callback re-fires every time a sync inserts new receipts.
-client.onUpdate(api.receipts.changes, { since: 0 }, (res) => {
-  for (const receipt of res.receipts) {
-    console.log(receipt.store.name, receipt.total, receipt.currency);
-  }
-  // Pass `res.cursor` back as `since` to page forward or resume later.
-});
-```
-
-Available endpoints (all scoped to one account):
-
-| Endpoint | Does | Status |
-|---|---|---|
-| `receipts.list` | Paginated receipt headers, newest first | ✅ Live |
-| `receipts.getReceipt` | One header plus its line items | ✅ Live |
-| `receipts.getPdf` | Signed URL for the original receipt PDF | ✅ Live |
-| `receipts.changes` | Incremental cursor-pull of new receipts | ✅ Live |
-| webhooks / push | Server-push on new receipts | 🚧 Planned |
-
-> During development, every call takes an optional `subject` id that scopes reads to
-> your account. Per-app grant tokens land when auth is wired.
+If you're a developer, head to [Getting started](#getting-started).
 
 ---
 
@@ -70,18 +38,6 @@ Not everything is built yet — status is called out per system.
 |---|---|
 | [`shared`](packages/shared) | Versioned, zod-validated contracts shared across every package. |
 | [`ui`](packages/ui) | The design system, built on the WordPress design system (`@wordpress/ui` + `@wordpress/theme`) with a dark theme and Storybook built for the frontends. |
-
-### How they fit together
-
-```
-                 shared  (contracts: Receipt / LineItem / stores)
-                /   |   \
-          connect   |    app ──────────┐
-             │      ui                  │ subscribes to connect's API
-   connector-portal (link UI + docs)    │
-             │                          │
-        catalog (GTIN → product data) ──┘ enriches line items
-```
 
 ---
 
@@ -173,3 +129,40 @@ bun run --filter @matvis/ui storybook            # http://localhost:6006
 Per-package tasks use Bun's filter, e.g. `bun run --filter @matvis/connect test`.
 
 ---
+
+## Building on the connector API
+
+The connector exposes a reactive read + subscribe API over Convex. Every receipt is
+normalized to a store-agnostic, versioned `Receipt` contract
+([`packages/shared/src/receipt.ts`](packages/shared/src/receipt.ts)) — store,
+timestamp, totals, VAT, and GTIN-keyed line items.
+
+Point a Convex client at the connector deployment and pull receipts as they land:
+
+```ts
+import { ConvexClient } from 'convex/browser';
+import { api } from './convex/_generated/api'; // the connector's generated API
+
+const client = new ConvexClient(process.env.CONVEX_URL!);
+
+// Reactive: the callback re-fires every time a sync inserts new receipts.
+client.onUpdate(api.receipts.changes, { since: 0 }, (res) => {
+  for (const receipt of res.receipts) {
+    console.log(receipt.store.name, receipt.total, receipt.currency);
+  }
+  // Pass `res.cursor` back as `since` to page forward or resume later.
+});
+```
+
+Available endpoints (all scoped to one account):
+
+| Endpoint | Does | Status |
+|---|---|---|
+| `receipts.list` | Paginated receipt headers, newest first | ✅ Live |
+| `receipts.getReceipt` | One header plus its line items | ✅ Live |
+| `receipts.getPdf` | Signed URL for the original receipt PDF | ✅ Live |
+| `receipts.changes` | Incremental cursor-pull of new receipts | ✅ Live |
+| webhooks / push | Server-push on new receipts | 🚧 Planned |
+
+> During development, every call takes an optional `subject` id that scopes reads to
+> your account. Per-app grant tokens land when auth is wired.
