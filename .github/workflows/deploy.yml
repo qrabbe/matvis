@@ -1,0 +1,64 @@
+name: Deploy (Convex prod + Pages)
+
+# Runs on every push to main. Because `main` is the squashed public branch
+# (see git alias `publish`), a `git publish` from dev triggers a full deploy:
+#   1. deploy packages/connect to the Convex PRODUCTION deployment
+#   2. build packages/connector-portal with the prod Convex URL injected
+#   3. publish the static build to GitHub Pages
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Least privilege the deploy needs: read the repo, write Pages, mint the OIDC
+# token deploy-pages uses.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deploy at a time; newer pushes supersede an in-flight run.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.pages.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.2.0'
+
+      - name: Install workspace deps
+        run: bun install --frozen-lockfile
+
+      # `convex deploy` (authenticated by CONVEX_DEPLOY_KEY, which targets the
+      # production deployment) ships the backend, then runs the build command
+      # with VITE_CONVEX_URL set to the prod URL — so the portal is always built
+      # against the deployment it was just shipped with. Fails the whole job if
+      # the backend deploy fails, so we never publish a portal pointing at a
+      # half-deployed backend.
+      - name: Deploy Convex (prod) and build portal
+        working-directory: packages/connect
+        env:
+          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
+          PORTAL_BASE: /matvis/
+        run: >
+          bunx convex deploy
+          --cmd-url-env-var-name VITE_CONVEX_URL
+          --cmd 'cd ../connector-portal && bun run build'
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: packages/connector-portal/dist
+
+      - id: pages
+        uses: actions/deploy-pages@v4
