@@ -15,7 +15,7 @@
   ],
   "scripts": {
     "typecheck": "tsc -b",
-    "test": "bun test",
+    "test": "bun test packages/app packages/connect/test && bunx vitest run --root packages/connect",
     "build": "tsc -b",
     "clean": "tsc -b --clean",
     "format": "prettier --write .",

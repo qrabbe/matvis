@@ -1,4 +1,7 @@
-import { paginationOptsValidator, paginationResultValidator } from 'convex/server';
+import {
+  paginationOptsValidator,
+  paginationResultValidator,
+} from 'convex/server';
 import { v } from 'convex/values';
 import type { Doc } from './_generated/dataModel';
 import { query } from './_generated/server';
@@ -53,7 +56,11 @@ export const getReceipt = query({
       ctx.db.get(receiptId),
     ]);
     // Ownership: never leak another account's row.
-    if (accountId === null || receipt === null || receipt.accountId !== accountId) {
+    if (
+      accountId === null ||
+      receipt === null ||
+      receipt.accountId !== accountId
+    ) {
       return null;
     }
     const items = await ctx.db
@@ -76,7 +83,11 @@ export const getPdf = query({
       requireAccountRead(ctx, subject),
       ctx.db.get(receiptId),
     ]);
-    if (accountId === null || receipt === null || receipt.accountId !== accountId) {
+    if (
+      accountId === null ||
+      receipt === null ||
+      receipt.accountId !== accountId
+    ) {
       return null;
     }
     if (!receipt.pdfStorageId) return null;

@@ -4,3 +4,6 @@ build
 build-types
 storybook-static
 *.tsbuildinfo
+
+# Convex codegen — committed but written in Convex's own style, not ours.
+**/convex/_generated

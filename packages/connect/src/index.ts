@@ -1,5 +1,5 @@
 // @matvis/connect
-// store connectors that turn accounts into normalized results. 
+// store connectors that turn accounts into normalized results.
 // Inject a `FetchLike` (see ./http) to run it anywhere.
 
 export type { FetchLike, HttpResponse } from './http';

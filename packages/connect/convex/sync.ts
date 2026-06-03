@@ -58,7 +58,9 @@ export const sync = action({
           }),
         storePdf: (bytes) =>
           ctx.storage.store(
-            new Blob([bytes as unknown as BlobPart], { type: 'application/pdf' }),
+            new Blob([bytes as unknown as BlobPart], {
+              type: 'application/pdf',
+            }),
           ),
         insertReceipt: async (row, pdfStorageId) => {
           await ctx.runMutation(internal.model.receipts.insertReceipt, {

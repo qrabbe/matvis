@@ -12,7 +12,9 @@ export function App() {
     >
       <Stack direction="column" gap="xs">
         <Text variant="heading-xl">Matvis Connector</Text>
-        <Text variant="body-md">Link a store, sync receipts, build on the API</Text>
+        <Text variant="body-md">
+          Link a store, sync receipts, build on the API
+        </Text>
       </Stack>
 
       <Tabs.Root defaultValue="connect">

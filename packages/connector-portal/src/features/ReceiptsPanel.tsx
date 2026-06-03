@@ -31,8 +31,12 @@ import { errMsg, formatAmount, formatPurchasedAt } from '../lib/format';
 
 // Header + item row shapes derived straight from the connector's read API, so
 // the UI can't drift from what the server actually returns.
-type ReceiptHeader = FunctionReturnType<typeof api.receipts.list>['page'][number];
-type ReceiptDetail = NonNullable<FunctionReturnType<typeof api.receipts.getReceipt>>;
+type ReceiptHeader = FunctionReturnType<
+  typeof api.receipts.list
+>['page'][number];
+type ReceiptDetail = NonNullable<
+  FunctionReturnType<typeof api.receipts.getReceipt>
+>;
 type ReceiptItem = ReceiptDetail['items'][number];
 
 /** Table columns. `getValue` powers DataViews' client-side sort/search over the

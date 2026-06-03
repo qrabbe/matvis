@@ -45,13 +45,19 @@ describe('mapReceiptToRow', () => {
   });
 
   it('guards an unparseable date to undefined', () => {
-    const row = mapReceiptToRow({ ...baseReceipt, purchasedAt: 'not-a-date' }, 'x');
+    const row = mapReceiptToRow(
+      { ...baseReceipt, purchasedAt: 'not-a-date' },
+      'x',
+    );
     expect(row.purchasedAtMs).toBeUndefined();
     expect(row.purchasedAt).toBe('not-a-date');
   });
 
   it('leaves purchasedAtMs undefined when there is no date', () => {
-    const row = mapReceiptToRow({ ...baseReceipt, purchasedAt: undefined }, 'x');
+    const row = mapReceiptToRow(
+      { ...baseReceipt, purchasedAt: undefined },
+      'x',
+    );
     expect(row.purchasedAtMs).toBeUndefined();
   });
 
@@ -113,7 +119,10 @@ function makeFetch(opts: {
     if (url.includes('/formalReceipt')) return bytesResponse(opts.pdf);
     if (url.includes('/openid-connect/token')) {
       if (opts.refresh === 'fail') {
-        return jsonResponse({ error: 'invalid_grant' }, { ok: false, status: 400 });
+        return jsonResponse(
+          { error: 'invalid_grant' },
+          { ok: false, status: 400 },
+        );
       }
       return jsonResponse({
         access_token: 'new-access',
@@ -122,7 +131,11 @@ function makeFetch(opts: {
       });
     }
     if (url.includes('/kvitto/rest/receipts/v1')) {
-      return jsonResponse({ data: opts.list, current_page: 1, total: opts.list.length });
+      return jsonResponse({
+        data: opts.list,
+        current_page: 1,
+        total: opts.list.length,
+      });
     }
     throw new Error(`unexpected url: ${url}`);
   };
@@ -158,7 +171,10 @@ describe('syncConnection', () => {
     const { db, events } = makeDb();
     const result = await syncConnection({
       fetch: makeFetch({ pdf: new Uint8Array(), list: [], refresh: 'fail' }),
-      connection: { ...activeConnection, accessTokenExpiresAt: Date.now() - 1000 },
+      connection: {
+        ...activeConnection,
+        accessTokenExpiresAt: Date.now() - 1000,
+      },
       db,
     });
     expect(result).toEqual({ synced: 0, skipped: 0, status: 'needs_reauth' });
@@ -177,14 +193,22 @@ describe('syncConnection', () => {
     const { db, stored, inserted, events } = makeDb();
     const fetch = makeFetch({ pdf, list });
 
-    const first = await syncConnection({ fetch, connection: activeConnection, db });
+    const first = await syncConnection({
+      fetch,
+      connection: activeConnection,
+      db,
+    });
     expect(first).toEqual({ synced: 2, skipped: 0, status: 'active' });
     expect(stored.size).toBe(2);
     expect(inserted[0].pdfStorageId).toMatch(/^storage_/);
     expect(inserted[0].row.rawText).toBeTruthy(); // parsed with includeRawText
     expect(events).toContain('touched');
 
-    const second = await syncConnection({ fetch, connection: activeConnection, db });
+    const second = await syncConnection({
+      fetch,
+      connection: activeConnection,
+      db,
+    });
     expect(second).toEqual({ synced: 0, skipped: 2, status: 'active' });
     expect(stored.size).toBe(2); // nothing new inserted
   });
@@ -194,7 +218,10 @@ describe('syncConnection', () => {
     const { db, events } = makeDb();
     const result = await syncConnection({
       fetch: makeFetch({ pdf, list: [{ receipt_id: 'r1' }], refresh: 'ok' }),
-      connection: { ...activeConnection, accessTokenExpiresAt: Date.now() - 1000 },
+      connection: {
+        ...activeConnection,
+        accessTokenExpiresAt: Date.now() - 1000,
+      },
       db,
     });
     expect(result).toEqual({ synced: 1, skipped: 0, status: 'active' });

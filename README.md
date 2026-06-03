@@ -1,6 +1,6 @@
 # Matvis
 
-Matvis turns your Swedish grocery receipts into clear, structured purchase data and eventually into pantry and nutrition insight. 
+Matvis turns your Swedish grocery receipts into clear, structured purchase data and eventually into pantry and nutrition insight.
 It's a combination of independent systems so custom user programms can be developed.
 
 ---
@@ -25,27 +25,27 @@ If you're a developer, head to [Getting started](#getting-started).
 The repo is one monorepo containing **four systems** plus **two shared libraries**.
 Not everything is built yet — status is called out per system.
 
-| Package | What it is | Status |
-|---|---|---|
-| [`connect`](packages/connect) | **The receipt connector.** A standalone service that links a store account and syncs purchases into normalized data which gets exposed through an API. | ✅ Live |
-| [`connector-portal`](packages/connector-portal) | **The connector's web UI.** A link/setup flow (BankID QR, connection status) plus a "for developers" portal documenting the API and the versioned `Receipt` contract. Talks only to the connector's Convex deployment. | ✅ Live |
-| [`app`](packages/app) | **The Matvis user app.** The consumer-facing frontend for nutrition, pantry and charts built on top of the connector. | 🚧 In progress |
-| [`catalog`](packages/catalog) | **Product-data mirror.** A database that hosts GTIN/EAN, product, nutrition, price data, focusing on swedish grocery store items | 🚧 Not started (stub) |
+| Package                                         | What it is                                                                                                                                                                                                             | Status                |
+| ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------- |
+| [`connect`](packages/connect)                   | **The receipt connector.** A standalone service that links a store account and syncs purchases into normalized data which gets exposed through an API.                                                                 | ✅ Live               |
+| [`connector-portal`](packages/connector-portal) | **The connector's web UI.** A link/setup flow (BankID QR, connection status) plus a "for developers" portal documenting the API and the versioned `Receipt` contract. Talks only to the connector's Convex deployment. | ✅ Live               |
+| [`app`](packages/app)                           | **The Matvis user app.** The consumer-facing frontend for nutrition, pantry and charts built on top of the connector.                                                                                                  | 🚧 In progress        |
+| [`catalog`](packages/catalog)                   | **Product-data mirror.** A database that hosts GTIN/EAN, product, nutrition, price data, focusing on swedish grocery store items                                                                                       | 🚧 Not started (stub) |
 
 ### Shared libraries
 
-| Package | What it is |
-|---|---|
-| [`shared`](packages/shared) | Versioned, zod-validated contracts shared across every package. |
-| [`ui`](packages/ui) | The design system, built on the WordPress design system (`@wordpress/ui` + `@wordpress/theme`) with a dark theme and Storybook built for the frontends. |
+| Package                     | What it is                                                                                                                                              |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`shared`](packages/shared) | Versioned, zod-validated contracts shared across every package.                                                                                         |
+| [`ui`](packages/ui)         | The design system, built on the WordPress design system (`@wordpress/ui` + `@wordpress/theme`) with a dark theme and Storybook built for the frontends. |
 
 ---
 
 ## Tech stack
 
-- **Runtime / package manager:** [Bun](https://bun.sh) `>= 1.2` 
+- **Runtime / package manager:** [Bun](https://bun.sh) `>= 1.2`
 - **Language:** TypeScript 5.9, project references, `tsc -b`
-- **Backend:** [Convex](https://convex.dev) 
+- **Backend:** [Convex](https://convex.dev)
 - **Frontends:** React 18 + [Vite](https://vitejs.dev) 8 (`app`, `connector-portal`)
 - **Design system:** `@wordpress/ui` + `@wordpress/theme`, Storybook 10
 - **Tests:** `bun test` for pure code, `vitest` + `convex-test` for Convex functions
@@ -76,12 +76,12 @@ cp .env.example .env.local
 Then fill in the values you need. `.env.example` documents variable names only
 Relevant vars:
 
-| Variable | Used by | Purpose |
-|---|---|---|
-| `VITE_CONVEX_URL` / `VITE_CONVEX_SITE_URL` | frontends | Convex deployment the client talks to |
-| `CONVEX_SELF_HOSTED_URL` / `CONVEX_SELF_HOSTED_ADMIN_KEY` | `connect` | self-hosted Convex backend |
-| `COOP_EXTERNAL_API_KEY` | product lookups | public product API key |
-| `VITE_SENTRY_DSN` | frontends | error reporting (optional) |
+| Variable                                                  | Used by         | Purpose                               |
+| --------------------------------------------------------- | --------------- | ------------------------------------- |
+| `VITE_CONVEX_URL` / `VITE_CONVEX_SITE_URL`                | frontends       | Convex deployment the client talks to |
+| `CONVEX_SELF_HOSTED_URL` / `CONVEX_SELF_HOSTED_ADMIN_KEY` | `connect`       | self-hosted Convex backend            |
+| `COOP_EXTERNAL_API_KEY`                                   | product lookups | public product API key                |
+| `VITE_SENTRY_DSN`                                         | frontends       | error reporting (optional)            |
 
 ### 3. Run the connector backend
 
@@ -117,14 +117,14 @@ bun run --filter @matvis/ui storybook            # http://localhost:6006
 
 ## Common scripts (run from the repo root)
 
-| Command | Does |
-|---|---|
-| `bun run typecheck` | `tsc -b` typechecks and builds every package |
-| `bun run build` | same as typecheck (`tsc -b`) |
-| `bun run test` | `bun test` |
-| `bun run format` | Prettier write |
-| `bun run format:check` | Prettier check |
-| `bun run clean` | `tsc -b --clean` |
+| Command                | Does                                         |
+| ---------------------- | -------------------------------------------- |
+| `bun run typecheck`    | `tsc -b` typechecks and builds every package |
+| `bun run build`        | same as typecheck (`tsc -b`)                 |
+| `bun run test`         | `bun test`                                   |
+| `bun run format`       | Prettier write                               |
+| `bun run format:check` | Prettier check                               |
+| `bun run clean`        | `tsc -b --clean`                             |
 
 Per-package tasks use Bun's filter, e.g. `bun run --filter @matvis/connect test`.
 
@@ -156,13 +156,13 @@ client.onUpdate(api.receipts.changes, { since: 0 }, (res) => {
 
 Available endpoints (all scoped to one account):
 
-| Endpoint | Does | Status |
-|---|---|---|
-| `receipts.list` | Paginated receipt headers, newest first | ✅ Live |
-| `receipts.getReceipt` | One header plus its line items | ✅ Live |
-| `receipts.getPdf` | Signed URL for the original receipt PDF | ✅ Live |
-| `receipts.changes` | Incremental cursor-pull of new receipts | ✅ Live |
-| webhooks / push | Server-push on new receipts | 🚧 Planned |
+| Endpoint              | Does                                    | Status     |
+| --------------------- | --------------------------------------- | ---------- |
+| `receipts.list`       | Paginated receipt headers, newest first | ✅ Live    |
+| `receipts.getReceipt` | One header plus its line items          | ✅ Live    |
+| `receipts.getPdf`     | Signed URL for the original receipt PDF | ✅ Live    |
+| `receipts.changes`    | Incremental cursor-pull of new receipts | ✅ Live    |
+| webhooks / push       | Server-push on new receipts             | 🚧 Planned |
 
 > During development, every call takes an optional `subject` id that scopes reads to
 > your account. Per-app grant tokens land when auth is wired.

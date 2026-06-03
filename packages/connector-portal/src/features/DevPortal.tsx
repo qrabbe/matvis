@@ -11,19 +11,55 @@ import { useDevSubject } from '../lib/devSubject';
 type Field = { name: string; type: string; note: string };
 
 const RECEIPT_FIELDS: Field[] = [
-  { name: 'schemaVersion', type: 'number', note: 'Contract version (see badge above).' },
-  { name: 'source', type: 'StoreSlug', note: 'Which connector produced it, e.g. "coop".' },
-  { name: 'store', type: 'Store', note: 'name + optional city/postalCode/phone/orgNr/legalEntity.' },
+  {
+    name: 'schemaVersion',
+    type: 'number',
+    note: 'Contract version (see badge above).',
+  },
+  {
+    name: 'source',
+    type: 'StoreSlug',
+    note: 'Which connector produced it, e.g. "coop".',
+  },
+  {
+    name: 'store',
+    type: 'Store',
+    note: 'name + optional city/postalCode/phone/orgNr/legalEntity.',
+  },
   { name: 'receiptNumber', type: 'string?', note: 'Kvitto number as printed.' },
-  { name: 'purchasedAt', type: 'string?', note: 'ISO 8601 purchase timestamp when parseable.' },
+  {
+    name: 'purchasedAt',
+    type: 'string?',
+    note: 'ISO 8601 purchase timestamp when parseable.',
+  },
   { name: 'currency', type: 'string', note: 'ISO 4217, "SEK" for Coop.' },
   { name: 'total', type: 'number?', note: 'Grand total ("Total SEK").' },
-  { name: 'itemCount', type: 'number?', note: 'Article count as printed (excludes discounts).' },
-  { name: 'discountsTotal', type: 'number?', note: 'Sum of discounts ("Erhållna rabatter").' },
+  {
+    name: 'itemCount',
+    type: 'number?',
+    note: 'Article count as printed (excludes discounts).',
+  },
+  {
+    name: 'discountsTotal',
+    type: 'number?',
+    note: 'Sum of discounts ("Erhållna rabatter").',
+  },
   { name: 'pointsAmount', type: 'number?', note: 'Points-earning amount.' },
-  { name: 'vat', type: 'VatLine[]', note: 'rate/vat/net/gross rows of the Moms table.' },
-  { name: 'items', type: 'LineItem[]', note: 'text + price (+ optional quantity/unit/gtin).' },
-  { name: 'loyaltyCardId', type: 'string?', note: 'Membership card number. Personal data.' },
+  {
+    name: 'vat',
+    type: 'VatLine[]',
+    note: 'rate/vat/net/gross rows of the Moms table.',
+  },
+  {
+    name: 'items',
+    type: 'LineItem[]',
+    note: 'text + price (+ optional quantity/unit/gtin).',
+  },
+  {
+    name: 'loyaltyCardId',
+    type: 'string?',
+    note: 'Membership card number. Personal data.',
+  },
 ];
 
 type Endpoint = { sig: string; desc: string; live: boolean };
@@ -73,8 +109,10 @@ export function DevPortal() {
           <Stack direction="column" gap="md">
             <Text variant="body-md">
               Every stored receipt is normalized to this store-agnostic,
-              versioned shape (source: <Code>packages/shared/src/receipt.ts</Code>
-              ). Fields only some stores print are optional (marked <Code>?</Code>
+              versioned shape (source:{' '}
+              <Code>packages/shared/src/receipt.ts</Code>
+              ). Fields only some stores print are optional (marked{' '}
+              <Code>?</Code>
               ).
             </Text>
             <Stack direction="column" gap="xs">
@@ -104,10 +142,10 @@ export function DevPortal() {
           <Stack direction="column" gap="md">
             <Text variant="body-md">
               Auth is scaffolded but no login provider is wired yet. During
-              development every endpoint accepts an optional <Code>subject</Code>{' '}
-              — a stable id this portal mints once and stores in{' '}
-              <Code>localStorage["matvis.connector.subject"]</Code>, passed on
-              every call to scope reads and links to your own account.
+              development every endpoint accepts an optional{' '}
+              <Code>subject</Code> — a stable id this portal mints once and
+              stores in <Code>localStorage["matvis.connector.subject"]</Code>,
+              passed on every call to scope reads and links to your own account.
             </Text>
             <Text variant="body-sm">
               Real per-app grant tokens (issued when a user authorizes a

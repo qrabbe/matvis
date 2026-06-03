@@ -1,7 +1,7 @@
 # Local receipt documents
 
 Drop real Coop receipt PDFs into this folder to smoke-test the parser against
-them. 
+them.
 The PDFs stay **local**
 
 The test [`../documents.test.ts`](../documents.test.ts) discovers whatever

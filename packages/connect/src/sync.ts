@@ -46,7 +46,10 @@ export interface ReceiptRow {
  * items (filled by the later matching pass); `purchasedAtMs` is derived from the
  * ISO `purchasedAt`, guarding an unparseable date to `undefined`.
  */
-export function mapReceiptToRow(receipt: Receipt, externalId: string): ReceiptRow {
+export function mapReceiptToRow(
+  receipt: Receipt,
+  externalId: string,
+): ReceiptRow {
   const ms = receipt.purchasedAt ? Date.parse(receipt.purchasedAt) : NaN;
   return {
     externalId,

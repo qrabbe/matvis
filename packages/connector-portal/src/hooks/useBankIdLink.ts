@@ -2,7 +2,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useConvex } from 'convex/react';
 import type { StoreSlug } from '@matvis/shared';
 import { api, type Id } from '../lib/convexApi';
-import { bankIdAppLink, failedHintMessage, pendingHint } from '../lib/bankid-copy';
+import {
+  bankIdAppLink,
+  failedHintMessage,
+  pendingHint,
+} from '../lib/bankid-copy';
 import { errMsg } from '../lib/format';
 
 export type LinkPhase = 'idle' | 'starting' | 'polling' | 'error';

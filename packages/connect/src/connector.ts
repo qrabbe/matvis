@@ -9,7 +9,7 @@ import type {
 /**
  * The store-agnostic connector contract.
  *
- * A connector turns a grocery chain's account into normalized, GTIN-keyed 
+ * A connector turns a grocery chain's account into normalized, GTIN-keyed
  * (EAN) result
  */
 export interface Connector {

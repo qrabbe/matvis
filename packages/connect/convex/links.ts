@@ -34,7 +34,10 @@ export const start = action({
 
 /** Poll a pending link once. Render the QR while `pending`. */
 export const poll = action({
-  args: { pendingLinkId: v.id('pendingLinks'), subject: v.optional(v.string()) },
+  args: {
+    pendingLinkId: v.id('pendingLinks'),
+    subject: v.optional(v.string()),
+  },
   returns: v.union(
     v.object({ status: v.literal('pending'), qrCode: v.optional(v.string()) }),
     v.object({
@@ -48,7 +51,8 @@ export const poll = action({
       internal.links.getPendingLink,
       { pendingLinkId, subject },
     );
-    if (!link) return { status: 'failed' as const, error: 'unknown pending link' };
+    if (!link)
+      return { status: 'failed' as const, error: 'unknown pending link' };
 
     const result = await pollBankId(defaultFetch, link.orderRef);
     if (result.status === 'pending') {
@@ -97,7 +101,10 @@ export const createPendingLink = internalMutation({
 });
 
 export const getPendingLink = internalQuery({
-  args: { pendingLinkId: v.id('pendingLinks'), subject: v.optional(v.string()) },
+  args: {
+    pendingLinkId: v.id('pendingLinks'),
+    subject: v.optional(v.string()),
+  },
   returns: v.union(
     v.null(),
     v.object({

@@ -144,7 +144,11 @@ function LoginInProgressView({
 }) {
   return (
     <Stack direction="column" gap="md" align="center">
-      {qr ? <QrCode value={qr} /> : <Text variant="body-md">Starting BankID…</Text>}
+      {qr ? (
+        <QrCode value={qr} />
+      ) : (
+        <Text variant="body-md">Starting BankID…</Text>
+      )}
       <Text variant="body-sm">
         {hint ?? 'Open the BankID app on your phone and scan the code.'}
       </Text>

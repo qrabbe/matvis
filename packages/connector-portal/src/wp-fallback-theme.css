@@ -14,7 +14,10 @@
 :root {
   /* Brand accent — buttons, links, focus rings, active column header. Tied to the
      `--wpds-*` brand tokens so it follows the theme seed automatically. */
-  --wp-admin-theme-color: var(--wpds-color-background-interactive-brand-strong, #435ab8);
+  --wp-admin-theme-color: var(
+    --wpds-color-background-interactive-brand-strong,
+    #435ab8
+  );
   --wp-components-color-accent: var(
     --wpds-color-background-interactive-brand-strong,
     #435ab8
@@ -52,7 +55,10 @@
     --wpds-color-background-surface-neutral-strong,
     #1a1a1a
   );
-  --wp-components-color-gray-400: var(--wpds-color-stroke-surface-neutral, #343434);
+  --wp-components-color-gray-400: var(
+    --wpds-color-stroke-surface-neutral,
+    #343434
+  );
   --wp-components-color-gray-600: var(
     --wpds-color-stroke-surface-neutral-strong,
     #6e6e6e
@@ -124,7 +130,8 @@ textarea {
     #242424
   ) !important;
   color: var(--wpds-color-foreground-content-neutral, #f0f0f0);
-  box-shadow: 0 0 0 1px var(--wpds-color-stroke-surface-neutral, #343434),
+  box-shadow:
+    0 0 0 1px var(--wpds-color-stroke-surface-neutral, #343434),
     0 8px 24px rgba(0, 0, 0, 0.4) !important;
 }
 .components-popover__header {
@@ -161,8 +168,14 @@ textarea {
 
 /* Unchecked toggles/checkboxes/radios in the view-options dropdown. */
 .components-form-toggle .components-form-toggle__track {
-  background-color: var(--wpds-color-background-track-neutral, #343434) !important;
-  border-color: var(--wpds-color-stroke-surface-neutral-strong, #6e6e6e) !important;
+  background-color: var(
+    --wpds-color-background-track-neutral,
+    #343434
+  ) !important;
+  border-color: var(
+    --wpds-color-stroke-surface-neutral-strong,
+    #6e6e6e
+  ) !important;
 }
 .components-checkbox-control__input[type='checkbox']:not(:checked),
 .components-radio-control__input[type='radio']:not(:checked) {
@@ -170,7 +183,10 @@ textarea {
     --wpds-color-background-surface-neutral-strong,
     #242424
   ) !important;
-  border-color: var(--wpds-color-stroke-surface-neutral-strong, #6e6e6e) !important;
+  border-color: var(
+    --wpds-color-stroke-surface-neutral-strong,
+    #6e6e6e
+  ) !important;
 }
 
 /*

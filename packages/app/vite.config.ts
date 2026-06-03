@@ -2,7 +2,7 @@ import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 
 /**
- * The Coop User-Agent the endpoints of the Coop Server expect. 
+ * The Coop User-Agent the endpoints of the Coop Server expect.
  * Keep in sync with COOP_USER_AGENT in @matvis/connect.
  */
 const COOP_USER_AGENT =

@@ -28,7 +28,9 @@ async function seed(t: ReturnType<typeof convexTest>) {
       accountId: typeof accountA,
       connectionId: typeof connA,
       externalId: string,
-      extra: { pdfStorageId?: Awaited<ReturnType<typeof ctx.storage.store>> } = {},
+      extra: {
+        pdfStorageId?: Awaited<ReturnType<typeof ctx.storage.store>>;
+      } = {},
     ) =>
       ctx.db.insert('receipts', {
         connectionId,

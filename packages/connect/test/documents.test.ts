@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'bun:test';
 import { parseCoopReceiptPdf } from '../src/coop/parse/receipt';
 
-// Smoke test over real receipt PDFs kept locally in ./documents (git-ignored, 
+// Smoke test over real receipt PDFs kept locally in ./documents (git-ignored,
 // see documents/README.md). Every PDF present must parse
 // end-to-end without throwing.
 const documentsDir = fileURLToPath(new URL('./documents/', import.meta.url));
