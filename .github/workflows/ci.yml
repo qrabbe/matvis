@@ -1,13 +1,22 @@
-name: CI
+name: CI + Deploy
 
+# One pipeline. On pull requests it only verifies (format · typecheck · build ·
+# test · secret scan). On a push to main, the same checks run first and the
+# deploy job runs ONLY if every check passes — so a broken build, a failing
+# test, a formatting slip, or a leaked secret blocks the Convex + Pages release.
 on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
+
+# Default to read-only; the deploy job widens this for itself.
+permissions:
+  contents: read
 
 jobs:
   verify:
-    name: format · typecheck · build
+    name: format · typecheck · build · test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -17,6 +26,7 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun run format:check
       - run: bun run typecheck # tsc -b: typechecks + builds every package
+      - run: bun run test # bun unit tests + connect's convex-test (vitest)
 
   secrets:
     name: secret scan
@@ -26,3 +36,47 @@ jobs:
         with:
           fetch-depth: 0
       - uses: gitleaks/gitleaks-action@v2
+
+  deploy:
+    name: Convex prod + Pages
+    # Gate: only after every check is green, and only for a real push to main
+    # (never on pull_request runs, which can come from forks).
+    needs: [verify, secrets]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write # publish to GitHub Pages
+      id-token: write # OIDC token for deploy-pages
+    concurrency:
+      group: pages
+      cancel-in-progress: true
+    environment:
+      name: github-pages
+      url: ${{ steps.pages.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+
+      # `convex deploy` (authenticated by CONVEX_DEPLOY_KEY → production) ships
+      # the backend, then runs the build with VITE_CONVEX_URL set to the prod
+      # URL, so the portal is always built against the deployment just shipped.
+      - name: Deploy Convex (prod) and build portal
+        working-directory: packages/connect
+        env:
+          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
+          PORTAL_BASE: /matvis/
+        run: >
+          bunx convex deploy
+          --cmd-url-env-var-name VITE_CONVEX_URL
+          --cmd 'cd ../connector-portal && bun run build'
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: packages/connector-portal/dist
+      - id: pages
+        uses: actions/deploy-pages@v4
