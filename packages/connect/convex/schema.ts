@@ -1,5 +1,6 @@
 import { defineSchema, defineTable } from 'convex/server';
 import { v } from 'convex/values';
+import { authTables } from '@convex-dev/auth/server';
 import {
   storeObjectValidator,
   storeValidator as store,
@@ -7,6 +8,13 @@ import {
 } from './validators';
 
 export default defineSchema({
+  // ── Login (Convex Auth) ───────────────────────────────────────────────
+  // `users`, `authAccounts`, `authSessions`, … — the connector is its own
+  // identity authority (plan §5). A logged-in user's identity becomes the
+  // `accounts.subject` below via the auth seam (model/auth.ts). Distinct from
+  // the connector's `accounts` table — Convex Auth uses `authAccounts`.
+  ...authTables,
+
   // ── Identity ──────────────────────────────────────────────────────────
   // A connector principal: the opaque owner of connections + receipts. This is
   // the connector service's OWN account, separate from any consuming app's

@@ -26,7 +26,6 @@ import {
 } from '@wordpress/dataviews';
 import { CopyButton } from '../components/CopyButton';
 import { api } from '../lib/convexApi';
-import { useDevSubject } from '../lib/devSubject';
 import { errMsg, formatAmount, formatPurchasedAt } from '../lib/format';
 
 // Header + item row shapes derived straight from the connector's read API, so
@@ -80,10 +79,9 @@ const DEFAULT_VIEW: View = {
 };
 
 export function ReceiptsPanel() {
-  const subject = useDevSubject();
   const page = usePaginatedQuery(
     api.receipts.list,
-    { subject },
+    {},
     { initialNumItems: 20 },
   );
   const [view, setView] = useState<View>(DEFAULT_VIEW);
@@ -107,14 +105,10 @@ export function ReceiptsPanel() {
         isPrimary: true,
         modalHeader: (items) => items[0]?.store.name ?? 'Purchase',
         RenderModal: ({ items }) =>
-          items[0] ? (
-            <ReceiptModal header={items[0]} subject={subject} />
-          ) : (
-            <></>
-          ),
+          items[0] ? <ReceiptModal header={items[0]} /> : <></>,
       },
     ],
-    [subject],
+    [],
   );
 
   return (
@@ -170,13 +164,7 @@ export function ReceiptsPanel() {
 /** Modal body for one purchase: a Download-PDF control plus a tab switcher
  * between the readable item list and the raw JSON. The line-item detail is
  * fetched lazily when the modal opens. */
-function ReceiptModal({
-  header,
-  subject,
-}: {
-  header: ReceiptHeader;
-  subject: string;
-}) {
+function ReceiptModal({ header }: { header: ReceiptHeader }) {
   const convex = useConvex();
   const [detail, setDetail] = useState<ReceiptDetail | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -186,7 +174,7 @@ function ReceiptModal({
   useEffect(() => {
     let active = true;
     convex
-      .query(api.receipts.getReceipt, { subject, receiptId: header._id })
+      .query(api.receipts.getReceipt, { receiptId: header._id })
       .then((d) => {
         if (active) setDetail(d ?? { receipt: header, items: [] });
       })
@@ -196,14 +184,13 @@ function ReceiptModal({
     return () => {
       active = false;
     };
-  }, [convex, subject, header]);
+  }, [convex, header]);
 
   const downloadPdf = useCallback(async () => {
     setPdfBusy(true);
     setPdfError(null);
     try {
       const url = await convex.query(api.receipts.getPdf, {
-        subject,
         receiptId: header._id,
       });
       if (url) window.open(url, '_blank', 'noopener');
@@ -213,7 +200,7 @@ function ReceiptModal({
     } finally {
       setPdfBusy(false);
     }
-  }, [convex, subject, header._id]);
+  }, [convex, header._id]);
 
   return (
     <Stack direction="column" gap="md">

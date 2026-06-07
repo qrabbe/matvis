@@ -2,7 +2,6 @@ import type { ReactNode } from 'react';
 import { Badge, Card, Stack, Text } from '@wordpress/ui';
 import { SCHEMA_VERSION } from '@matvis/shared';
 import { CopyButton } from '../components/CopyButton';
-import { useDevSubject } from '../lib/devSubject';
 
 // Hand-written v1 docs. The field table below mirrors `Receipt` in
 // packages/shared/src/receipt.ts — keep the two in sync when the contract moves
@@ -93,7 +92,6 @@ const READ_ENDPOINTS: Endpoint[] = [
 ];
 
 export function DevPortal() {
-  const subject = useDevSubject();
   return (
     <Stack direction="column" gap="xl">
       <Card.Root>
@@ -141,23 +139,18 @@ export function DevPortal() {
         <Card.Content>
           <Stack direction="column" gap="md">
             <Text variant="body-md">
-              Auth is scaffolded but no login provider is wired yet. During
-              development every endpoint accepts an optional{' '}
-              <Code>subject</Code> — a stable id this portal mints once and
-              stores in <Code>localStorage["matvis.connector.subject"]</Code>,
-              passed on every call to scope reads and links to your own account.
+              You&rsquo;re signed in with GitHub — the connector is its own
+              identity authority, and your login resolves to a connector{' '}
+              <Code>account</Code> that scopes every read and store link. The
+              endpoints below infer that account from your session, so no{' '}
+              <Code>subject</Code> needs to be passed.
             </Text>
             <Text variant="body-sm">
-              Real per-app grant tokens (issued when a user authorizes a
-              subscribing app) are future work; the <Code>subject</Code> arg is
-              the single seam that goes away when auth lands — identity will win
-              and the arg is ignored.
+              The <Code>subject</Code> arg the signatures list is optional and
+              ignored while a session is present; it&rsquo;s reserved for the
+              future per-app grant-token flow (a subscribing app authorizing
+              against a connector account).
             </Text>
-            <Stack direction="row" gap="sm" align="center" wrap="wrap">
-              <Text variant="body-sm">Your dev subject:</Text>
-              <Code>{subject}</Code>
-              <CopyButton text={subject} label="Copy subject" />
-            </Stack>
           </Stack>
         </Card.Content>
       </Card.Root>

@@ -11,8 +11,7 @@ import {
   clearConnectionId,
   loadConnectionId,
   saveConnectionId,
-  useDevSubject,
-} from '../lib/devSubject';
+} from '../lib/connectionStore';
 import { errMsg } from '../lib/format';
 import { pendingHint } from '../lib/bankid-copy';
 import { useBankIdLink } from '../hooks/useBankIdLink';
@@ -24,7 +23,6 @@ const LIVE_STORES: readonly StoreSlug[] = ['coop'];
 type SyncResult = FunctionReturnType<typeof api.sync.sync>;
 
 export function ConnectPanel() {
-  const subject = useDevSubject();
   const convex = useConvex();
 
   const [store, setStore] = useState<StoreSlug>('coop');
@@ -38,7 +36,7 @@ export function ConnectPanel() {
   }, []);
 
   const { active, qr, hint, appLink, error, login, cancel, reset } =
-    useBankIdLink(subject, onComplete);
+    useBankIdLink(onComplete);
 
   const relink = useCallback(() => {
     reset();
@@ -63,7 +61,6 @@ export function ConnectPanel() {
           {connectionId ? (
             <ConnectedView
               connectionId={connectionId}
-              subject={subject}
               convex={convex}
               onRelink={relink}
             />
@@ -161,12 +158,10 @@ function LinkInProgressView({
 
 function ConnectedView({
   connectionId,
-  subject,
   convex,
   onRelink,
 }: {
   connectionId: string;
-  subject: string;
   convex: ReturnType<typeof useConvex>;
   onRelink: () => void;
 }) {
@@ -182,7 +177,6 @@ function ConnectedView({
     try {
       const res = await convex.action(api.sync.sync, {
         connectionId: connectionId as Id<'connections'>,
-        subject,
       });
       setResult(res);
     } catch (e) {
@@ -190,7 +184,7 @@ function ConnectedView({
     } finally {
       setBusy(false);
     }
-  }, [convex, connectionId, subject]);
+  }, [convex, connectionId]);
 
   return (
     <Stack direction="column" gap="md">

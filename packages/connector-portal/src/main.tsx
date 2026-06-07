@@ -1,6 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { ConvexProvider, ConvexReactClient } from 'convex/react';
+import { ConvexReactClient } from 'convex/react';
+import { ConvexAuthProvider } from '@convex-dev/auth/react';
 import { MatvisThemeProvider } from '@matvis/ui';
 // Fallback-only: styles for the classic `@wordpress/components` `Spinner`. The
 // rest of the portal is `@wordpress/ui` (see UI-component policy). Scoped to
@@ -24,14 +25,15 @@ const convex = new ConvexReactClient(convexUrl);
 const container = document.getElementById('root');
 if (!container) throw new Error('#root element not found');
 
-// Plain `ConvexProvider` — no auth provider yet (dev `subject` shim). When real
-// auth lands, switch to `ConvexProviderWithAuth`.
+// `ConvexAuthProvider` supplies the auth context (token storage + refresh) that
+// the connector's identity seam reads via `getUserIdentity()`. The App gates its
+// body on `<Authenticated>` / `<Unauthenticated>` (GitHub sign-in).
 createRoot(container).render(
   <StrictMode>
-    <ConvexProvider client={convex}>
+    <ConvexAuthProvider client={convex}>
       <MatvisThemeProvider>
         <App />
       </MatvisThemeProvider>
-    </ConvexProvider>
+    </ConvexAuthProvider>
   </StrictMode>,
 );

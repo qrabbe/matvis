@@ -1,9 +1,15 @@
-// No provider wired yet (auth deferred). This file exists so the auth plumbing is
-// in place; ctx.auth.getUserIdentity() returns null until a real provider is added
-// here, at which point the dev-subject fallback (ALLOW_DEV_SUBJECT) is removed.
+// Convex Auth is a self-issued OIDC provider: the deployment signs its own JWTs
+// (JWT_PRIVATE_KEY) and serves the matching JWKS from its HTTP router (http.ts).
 //
-// An empty `providers` array is valid and keeps getUserIdentity() returning null
-// without error. When real auth lands, add `{ domain, applicationID }` here — the
-// `domain` must be the JWT issuer URL (Convex fetches
-// {domain}/.well-known/openid-configuration to discover the JWKS endpoint).
-export default { providers: [] as { domain: string; applicationID: string }[] };
+// FOOTGUN: `domain` MUST be CONVEX_SITE_URL — the deployment's `.convex.site`
+// origin (where the JWKS lives), NOT the `.convex.cloud` client URL. Getting
+// this wrong makes every request silently unauthenticated with no error.
+// `applicationID: 'convex'` is the fixed audience Convex Auth mints tokens for.
+export default {
+  providers: [
+    {
+      domain: process.env.CONVEX_SITE_URL,
+      applicationID: 'convex',
+    },
+  ],
+};
