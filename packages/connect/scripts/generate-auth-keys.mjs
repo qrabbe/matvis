@@ -28,7 +28,8 @@ const convexCli = [
   join(here, '..', 'node_modules', 'convex', 'bin', 'main.js'),
   join(here, '..', '..', '..', 'node_modules', 'convex', 'bin', 'main.js'),
 ].find(existsSync);
-if (!convexCli) throw new Error('Could not locate the Convex CLI (convex/bin/main.js)');
+if (!convexCli)
+  throw new Error('Could not locate the Convex CLI (convex/bin/main.js)');
 
 const { privateKey, publicKey } = generateKeyPairSync('rsa', {
   modulusLength: 2048,
