@@ -4,7 +4,7 @@ import type { FunctionReturnType } from 'convex/server';
 import { Badge, Button, Card, Notice, Stack, Text } from '@wordpress/ui';
 // Fallback: `@wordpress/ui` has no spinner (only `skeleton`) — see UI-component policy.
 import { Spinner } from '@wordpress/components';
-import { STORES, type StoreSlug } from '@matvis/shared';
+import { STORES, STORE_LABELS, type StoreSlug } from '@matvis/shared';
 import { CopyButton } from '../components/CopyButton';
 import { api, type Id } from '../lib/convexApi';
 import {
@@ -19,6 +19,15 @@ import { QrCode } from '../components/QrCode';
 
 /** Only `coop` has a built connector today; the rest are reserved slugs. */
 const LIVE_STORES: readonly StoreSlug[] = ['coop'];
+
+/**
+ * Picker order: working stores first (only `coop` today), then the rest in
+ * canonical market-share order. `STORES` itself stays market-share ordered —
+ * this is display-only. `Array.sort` is stable, so each group keeps its order.
+ */
+const PICKER_STORES: readonly StoreSlug[] = [...STORES].sort(
+  (a, b) => Number(!LIVE_STORES.includes(a)) - Number(!LIVE_STORES.includes(b)),
+);
 
 type SyncResult = FunctionReturnType<typeof api.sync.sync>;
 
@@ -100,7 +109,7 @@ function StorePickerView({
         server-side — nothing touches this browser.
       </Text>
       <Stack direction="row" gap="sm" wrap="wrap">
-        {STORES.map((slug) => {
+        {PICKER_STORES.map((slug) => {
           const live = LIVE_STORES.includes(slug);
           const selected = slug === store;
           return (
@@ -111,7 +120,7 @@ function StorePickerView({
               disabled={!live}
               onClick={() => onStore(slug)}
             >
-              {slug}
+              {STORE_LABELS[slug]}
               {!live ? ' (coming soon)' : ''}
             </Button>
           );
@@ -133,10 +142,26 @@ function LinkInProgressView({
   appLink: string | null;
   onCancel: () => void;
 }) {
+  // Same-device is the primary path: on the phone you tap straight into the
+  // BankID app (the deep link), so it leads. The QR is the fallback for when
+  // you're on a desktop and scan with a phone. `appLink` arrives from
+  // `links.start`'s autoStartToken, before the first `qr` from polling.
   return (
     <Stack direction="column" gap="md" align="center">
-      {qr ? (
-        <QrCode value={qr} />
+      {appLink ? (
+        <>
+          <Button
+            variant="solid"
+            tone="brand"
+            render={<a href={appLink} />}
+          >
+            Open the BankID app on this device
+          </Button>
+          <Text variant="body-sm">
+            On another device? Scan this with the BankID app instead:
+          </Text>
+          {qr ? <QrCode value={qr} /> : <Spinner />}
+        </>
       ) : (
         <Stack direction="row" gap="sm" align="center">
           <Spinner />
@@ -144,11 +169,6 @@ function LinkInProgressView({
         </Stack>
       )}
       <Text variant="body-sm">{hint ?? pendingHint}</Text>
-      {appLink && (
-        <Button variant="outline" tone="neutral" render={<a href={appLink} />}>
-          Open BankID on this device
-        </Button>
-      )}
       <Button variant="minimal" tone="neutral" onClick={onCancel}>
         Cancel
       </Button>

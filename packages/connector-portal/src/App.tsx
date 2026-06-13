@@ -1,9 +1,11 @@
+import { useState } from 'react';
 import { Authenticated, AuthLoading, Unauthenticated } from 'convex/react';
 import { useAuthActions } from '@convex-dev/auth/react';
-import { Button, Card, Stack, Tabs, Text } from '@wordpress/ui';
+import { Button, Card, Notice, Stack, Tabs, Text } from '@wordpress/ui';
 import { ConnectPanel } from './features/ConnectPanel';
 import { ReceiptsPanel } from './features/ReceiptsPanel';
 import { DevPortal } from './features/DevPortal';
+import { errMsg } from './lib/format';
 
 export function App() {
   return (
@@ -57,10 +59,28 @@ export function App() {
   );
 }
 
-/** Sign-in gate: the connector is its own identity authority, so a GitHub login
- * establishes the connector account that scopes every store link and read. */
+/** Sign-in gate: the connector is its own identity authority, so a login
+ * establishes the connector account that scopes every store link and read.
+ * Either provider (a guest login or GitHub OAuth) lands on the same connector
+ * account, keyed off the authenticated identity. */
 function SignIn() {
   const { signIn } = useAuthActions();
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const guest = async () => {
+    setPending(true);
+    setError(null);
+    try {
+      await signIn('anonymous');
+    } catch (e) {
+      setError(errMsg(e));
+      setPending(false);
+    }
+    // On success the component unmounts (auth flips to <Authenticated>), so
+    // there's no state to reset.
+  };
+
   return (
     <Card.Root>
       <Card.Header>
@@ -72,9 +92,29 @@ function SignIn() {
             Sign in to link a store and view your receipts. Your login is the
             connector account everything is scoped to.
           </Text>
-          <Button variant="solid" onClick={() => void signIn('github')}>
+          {error && (
+            <Notice.Root intent="error">
+              <Notice.Title>Couldn’t sign in</Notice.Title>
+              <Notice.Description>{error}</Notice.Description>
+            </Notice.Root>
+          )}
+          <Button variant="solid" loading={pending} onClick={() => void guest()}>
+            Continue as guest
+          </Button>
+          <Text variant="body-sm" style={{ textAlign: 'center' }}>
+            or
+          </Text>
+          <Button
+            variant="outline"
+            tone="neutral"
+            onClick={() => void signIn('github')}
+          >
             Sign in with GitHub
           </Button>
+          <Text variant="body-sm">
+            Guest accounts are temporary — linked stores and receipts may be
+            cleared after a few days. Sign in with GitHub to keep them.
+          </Text>
         </Stack>
       </Card.Content>
     </Card.Root>
