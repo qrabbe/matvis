@@ -98,7 +98,11 @@ function SignIn() {
               <Notice.Description>{error}</Notice.Description>
             </Notice.Root>
           )}
-          <Button variant="solid" loading={pending} onClick={() => void guest()}>
+          <Button
+            variant="solid"
+            loading={pending}
+            onClick={() => void guest()}
+          >
             Continue as guest
           </Button>
           <Text variant="body-sm" style={{ textAlign: 'center' }}>

@@ -150,11 +150,7 @@ function LinkInProgressView({
     <Stack direction="column" gap="md" align="center">
       {appLink ? (
         <>
-          <Button
-            variant="solid"
-            tone="brand"
-            render={<a href={appLink} />}
-          >
+          <Button variant="solid" tone="brand" render={<a href={appLink} />}>
             Open the BankID app on this device
           </Button>
           <Text variant="body-sm">
