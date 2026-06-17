@@ -43,7 +43,7 @@ export class CoopConnector implements Connector {
   }
 
   startAuth(): Promise<BankIdStart> {
-    return startBankId(this.#fetch, this.#config);
+    return startBankId(this.#fetch, {}, this.#config);
   }
 
   pollAuth(orderRef: string): Promise<BankIdPoll> {

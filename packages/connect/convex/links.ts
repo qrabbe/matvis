@@ -12,14 +12,20 @@ import { storeValidator } from './validators';
 
 /** Begin a BankID link for a store under the caller's connector account. */
 export const start = action({
-  args: { subject: v.optional(v.string()), store: storeValidator },
+  args: {
+    subject: v.optional(v.string()),
+    store: storeValidator,
+    // `true` = same-device flow (autoStartToken for a bankid:// deep link);
+    // default/`false` = cross-device flow (poll yields a QR to scan).
+    sameDevice: v.optional(v.boolean()),
+  },
   returns: v.object({
     pendingLinkId: v.id('pendingLinks'),
     orderRef: v.string(),
     autoStartToken: v.optional(v.string()),
   }),
-  handler: async (ctx, { subject, store }) => {
-    const started = await startBankId(defaultFetch);
+  handler: async (ctx, { subject, store, sameDevice }) => {
+    const started = await startBankId(defaultFetch, { sameDevice });
     const pendingLinkId: Id<'pendingLinks'> = await ctx.runMutation(
       internal.links.createPendingLink,
       { subject, store, orderRef: started.orderRef },
@@ -39,7 +45,11 @@ export const poll = action({
     subject: v.optional(v.string()),
   },
   returns: v.union(
-    v.object({ status: v.literal('pending'), qrCode: v.optional(v.string()) }),
+    v.object({
+      status: v.literal('pending'),
+      qrCode: v.optional(v.string()),
+      autoStartToken: v.optional(v.string()),
+    }),
     v.object({
       status: v.literal('complete'),
       connectionId: v.id('connections'),
@@ -56,7 +66,11 @@ export const poll = action({
 
     const result = await pollBankId(defaultFetch, link.orderRef);
     if (result.status === 'pending') {
-      return { status: 'pending' as const, qrCode: result.qrCode };
+      return {
+        status: 'pending' as const,
+        qrCode: result.qrCode,
+        autoStartToken: result.autoStartToken,
+      };
     }
     if (result.status === 'failed') {
       await ctx.runMutation(internal.links.failLink, {

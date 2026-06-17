@@ -5,6 +5,7 @@ import { api, type Id } from '../lib/convexApi';
 import {
   bankIdAppLink,
   failedHintMessage,
+  launchBankIdApp,
   pendingHint,
 } from '../lib/bankid-copy';
 import { errMsg } from '../lib/format';
@@ -32,10 +33,23 @@ export function useBankIdLink(onComplete: (connectionId: string) => void) {
   const [qr, setQr] = useState<string | null>(null);
   const [hint, setHint] = useState<string | null>(null);
   const [appLink, setAppLink] = useState<string | null>(null);
+  const [sameDevice, setSameDevice] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const activeRef = useRef(false);
+  // Same-device launch bookkeeping, read inside the poll loop's stable closure.
+  const sameDeviceRef = useRef(false);
+  const launchedRef = useRef(false);
 
   useEffect(() => () => void (activeRef.current = false), []);
+
+  /** Launch the BankID app once for a same-device flow (idempotent). */
+  const launchOnce = useCallback((token: string) => {
+    if (launchedRef.current) return;
+    launchedRef.current = true;
+    const link = bankIdAppLink(token);
+    setAppLink(link);
+    launchBankIdApp(link);
+  }, []);
 
   const runPoll = useCallback(
     async (pendingLinkId: Id<'pendingLinks'>) => {
@@ -55,6 +69,11 @@ export function useBankIdLink(onComplete: (connectionId: string) => void) {
         if (!activeRef.current) return;
 
         if (res.status === 'pending') {
+          // Same-device: the autostart token may arrive on the poll rather than
+          // the start — launch the app the moment it does.
+          if (sameDeviceRef.current && res.autoStartToken) {
+            launchOnce(res.autoStartToken);
+          }
           if (res.qrCode) setQr(res.qrCode);
           setHint(pendingHint);
           await delay(POLL_INTERVAL_MS);
@@ -72,29 +91,35 @@ export function useBankIdLink(onComplete: (connectionId: string) => void) {
         }
       }
     },
-    [convex, onComplete],
+    [convex, onComplete, launchOnce],
   );
 
   const login = useCallback(
-    async (store: StoreSlug) => {
+    async (store: StoreSlug, onThisDevice = false) => {
       setError(null);
       setQr(null);
       setHint(pendingHint);
       setAppLink(null);
+      setSameDevice(onThisDevice);
+      sameDeviceRef.current = onThisDevice;
+      launchedRef.current = false;
       setPhase('starting');
       try {
         const { pendingLinkId, autoStartToken } = await convex.action(
           api.links.start,
-          { store },
+          { store, sameDevice: onThisDevice },
         );
-        if (autoStartToken) setAppLink(bankIdAppLink(autoStartToken));
+        // Same-device: launch as soon as the start carries the token (the button
+        // tap is the user gesture). If it doesn't, the poll loop launches when
+        // the token arrives there instead — see `runPoll`.
+        if (onThisDevice && autoStartToken) launchOnce(autoStartToken);
         await runPoll(pendingLinkId);
       } catch (e) {
         setError(errMsg(e));
         setPhase('error');
       }
     },
-    [convex, runPoll],
+    [convex, runPoll, launchOnce],
   );
 
   /** Stop the loop but keep any error visible (Cancel button). */
@@ -113,5 +138,16 @@ export function useBankIdLink(onComplete: (connectionId: string) => void) {
   }, [cancel]);
 
   const active = phase === 'starting' || phase === 'polling';
-  return { phase, active, qr, hint, appLink, error, login, cancel, reset };
+  return {
+    phase,
+    active,
+    qr,
+    hint,
+    appLink,
+    sameDevice,
+    error,
+    login,
+    cancel,
+    reset,
+  };
 }

@@ -55,6 +55,8 @@ export const BankIdPoll = z.discriminatedUnion('status', [
     status: z.literal('pending'),
     qrCode: z.string().optional(),
     hintCode: z.string().optional(),
+    /** Same-device: present if the poll (not the start) carries the autostart token. */
+    autoStartToken: z.string().optional(),
   }),
   z.object({
     status: z.literal('complete'),

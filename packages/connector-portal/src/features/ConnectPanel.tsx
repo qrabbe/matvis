@@ -44,7 +44,7 @@ export function ConnectPanel() {
     setConnectionId(id);
   }, []);
 
-  const { active, qr, hint, appLink, error, login, cancel, reset } =
+  const { active, qr, hint, appLink, sameDevice, error, login, cancel, reset } =
     useBankIdLink(onComplete);
 
   const relink = useCallback(() => {
@@ -78,13 +78,14 @@ export function ConnectPanel() {
               qr={qr}
               hint={hint}
               appLink={appLink}
+              sameDevice={sameDevice}
               onCancel={cancel}
             />
           ) : (
             <StorePickerView
               store={store}
               onStore={setStore}
-              onLink={() => login(store)}
+              onLink={(onThisDevice) => login(store, onThisDevice)}
             />
           )}
         </Stack>
@@ -100,7 +101,7 @@ function StorePickerView({
 }: {
   store: StoreSlug;
   onStore: (s: StoreSlug) => void;
-  onLink: () => void;
+  onLink: (sameDevice: boolean) => void;
 }) {
   return (
     <Stack direction="column" gap="md" align="start">
@@ -126,7 +127,14 @@ function StorePickerView({
           );
         })}
       </Stack>
-      <Button onClick={onLink}>Link with BankID</Button>
+      <Stack direction="column" gap="sm" align="start">
+        <Button onClick={() => onLink(false)}>
+          Log in with BankID on a different device
+        </Button>
+        <Button variant="outline" tone="neutral" onClick={() => onLink(true)}>
+          Open BankID on this device
+        </Button>
+      </Stack>
     </Stack>
   );
 }
@@ -135,28 +143,42 @@ function LinkInProgressView({
   qr,
   hint,
   appLink,
+  sameDevice,
   onCancel,
 }: {
   qr: string | null;
   hint: string | null;
   appLink: string | null;
+  sameDevice: boolean;
   onCancel: () => void;
 }) {
-  // Same-device is the primary path: on the phone you tap straight into the
-  // BankID app (the deep link), so it leads. The QR is the fallback for when
-  // you're on a desktop and scan with a phone. `appLink` arrives from
-  // `links.start`'s autoStartToken, before the first `qr` from polling.
+  // Two flows, one poll loop. Same-device shows a deep-link button to launch the
+  // BankID app on this phone (`appLink` from the start's autoStartToken);
+  // different-device shows the animated QR to scan from another phone.
   return (
     <Stack direction="column" gap="md" align="center">
-      {appLink ? (
+      {sameDevice ? (
+        appLink ? (
+          <>
+            <Text variant="body-md">Opening the BankID app…</Text>
+            <Button
+              variant="solid"
+              tone="brand"
+              render={<a href={appLink} referrerPolicy="origin" />}
+            >
+              Didn’t open? Tap to open BankID
+            </Button>
+          </>
+        ) : (
+          <Stack direction="row" gap="sm" align="center">
+            <Spinner />
+            <Text variant="body-md">Starting BankID…</Text>
+          </Stack>
+        )
+      ) : qr ? (
         <>
-          <Button variant="solid" tone="brand" render={<a href={appLink} />}>
-            Open the BankID app on this device
-          </Button>
-          <Text variant="body-sm">
-            On another device? Scan this with the BankID app instead:
-          </Text>
-          {qr ? <QrCode value={qr} /> : <Spinner />}
+          <QrCode value={qr} />
+          <Text variant="body-sm">{hint ?? pendingHint}</Text>
         </>
       ) : (
         <Stack direction="row" gap="sm" align="center">
@@ -164,7 +186,6 @@ function LinkInProgressView({
           <Text variant="body-md">Starting BankID…</Text>
         </Stack>
       )}
-      <Text variant="body-sm">{hint ?? pendingHint}</Text>
       <Button variant="minimal" tone="neutral" onClick={onCancel}>
         Cancel
       </Button>

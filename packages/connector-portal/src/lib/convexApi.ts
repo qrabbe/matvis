@@ -52,7 +52,7 @@ export type ReceiptItemDoc = {
 type LinkStart = FunctionReference<
   'action',
   'public',
-  { subject?: string; store: StoreSlug },
+  { subject?: string; store: StoreSlug; sameDevice?: boolean },
   {
     pendingLinkId: GenericId<'pendingLinks'>;
     orderRef: string;
@@ -64,7 +64,7 @@ type LinkPoll = FunctionReference<
   'action',
   'public',
   { pendingLinkId: GenericId<'pendingLinks'>; subject?: string },
-  | { status: 'pending'; qrCode?: string }
+  | { status: 'pending'; qrCode?: string; autoStartToken?: string }
   | { status: 'complete'; connectionId: GenericId<'connections'> }
   | { status: 'failed'; error?: string }
 >;

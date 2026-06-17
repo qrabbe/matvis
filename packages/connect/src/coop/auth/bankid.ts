@@ -73,27 +73,70 @@ export function isAccessTokenValid(
   return tokens.expiresAt === 0 ? true : tokens.expiresAt > now;
 }
 
-/** Begin a BankID login. Returns an `orderRef` to poll with {@link pollBankId}. */
+/**
+ * Begin a BankID login. Returns an `orderRef` to poll with {@link pollBankId}.
+ *
+ * `sameDevice` picks the flow: the default (`false`) is Coop's cross-device flow
+ * (`other_device: 'true'`) — poll yields an animated QR to scan with a phone.
+ * `true` requests the same-device flow (`other_device: 'false'`), where the
+ * start response carries an `autoStartToken` for a `bankid://` deep link.
+ */
 export async function startBankId(
   fetchImpl: FetchLike,
+  opts: { sameDevice?: boolean } = {},
   config: CoopConfig = DEFAULT_COOP_CONFIG,
 ): Promise<BankIdStart> {
   const res = await fetchImpl(tokenUrl(config), {
     method: 'POST',
     headers: ssoHeaders(),
-    body: new URLSearchParams(START_BODY).toString(),
+    body: new URLSearchParams({
+      ...START_BODY,
+      other_device: opts.sameDevice ? 'false' : 'true',
+    }).toString(),
   });
   if (!res.ok) {
     throw new Error(`startBankId failed: ${res.status} ${res.statusText}`);
   }
-  const json = (await res.json()) as {
-    orderRef?: string;
-    autoStartToken?: string;
-  };
-  if (!json.orderRef) {
+  const json = (await res.json()) as Record<string, unknown>;
+  // Coop returns the same-device token as all-lowercase `autostarttoken`
+  // (confirmed from a live start response); the other spellings are kept as a
+  // cheap hedge against the endpoint changing.
+  const autoStartToken = firstString(json, [
+    'autostarttoken',
+    'autoStartToken',
+    'auto_start_token',
+    'autostartToken',
+    'autostart_token',
+  ]);
+  const orderRef = firstString(json, ['orderRef', 'order_ref']);
+  if (!orderRef) {
+    // Log the shape (keys only — no token values) so a same-device flow that
+    // returns an unexpected field name is diagnosable from the Convex logs.
+    console.error(
+      'startBankId: no orderRef; response keys =',
+      Object.keys(json),
+    );
     throw new Error('startBankId: response did not contain an orderRef');
   }
-  return { orderRef: json.orderRef, autoStartToken: json.autoStartToken };
+  if (opts.sameDevice && !autoStartToken) {
+    console.error(
+      'startBankId(sameDevice): no autostart token; response keys =',
+      Object.keys(json),
+    );
+  }
+  return { orderRef, autoStartToken };
+}
+
+/** First value at any of `keys` in `obj` that is a non-empty string. */
+function firstString(
+  obj: Record<string, unknown>,
+  keys: readonly string[],
+): string | undefined {
+  for (const key of keys) {
+    const value = obj[key];
+    if (typeof value === 'string' && value.length > 0) return value;
+  }
+  return undefined;
 }
 
 /**
@@ -121,27 +164,36 @@ export async function pollBankId(
     };
   }
 
-  const json = (await res.json()) as {
-    access_token?: string;
-    qrCode?: string;
-    error?: string;
-    hintCode?: string;
-  };
+  const json = (await res.json()) as Record<string, unknown>;
 
-  if (json.access_token) {
+  if (typeof json.access_token === 'string') {
     return {
       status: 'complete',
-      tokens: toTokenSet(json as KeycloakTokenResponse),
+      tokens: toTokenSet(json as unknown as KeycloakTokenResponse),
     };
   }
   if (json.error) {
     return {
       status: 'failed',
       error: String(json.error),
-      hintCode: json.hintCode,
+      hintCode: json.hintCode as string | undefined,
     };
   }
-  return { status: 'pending', qrCode: json.qrCode, hintCode: json.hintCode };
+  // Some flows surface the same-device autostart token here (not at start), so
+  // pick it up from the poll too — same key spellings as the start response.
+  const autoStartToken = firstString(json, [
+    'autostarttoken',
+    'autoStartToken',
+    'auto_start_token',
+    'autostartToken',
+    'autostart_token',
+  ]);
+  return {
+    status: 'pending',
+    qrCode: json.qrCode as string | undefined,
+    hintCode: json.hintCode as string | undefined,
+    autoStartToken,
+  };
 }
 
 /** Exchange a refresh token for a fresh {@link TokenSet}. */
