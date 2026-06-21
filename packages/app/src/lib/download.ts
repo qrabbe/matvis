@@ -6,8 +6,14 @@ function downloadBlob(blob: Blob, filename: string): void {
   const a = document.createElement('a');
   a.href = url;
   a.download = filename;
+  a.style.display = 'none';
+  // Some engines (Firefox) ignore a click on a detached anchor.
+  document.body.appendChild(a);
   a.click();
-  URL.revokeObjectURL(url);
+  a.remove();
+  // Revoke on the next tick — revoking synchronously can abort an in-flight
+  // download of a large blob on WebKit/Firefox.
+  setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
 /** Download raw bytes as a file (defaults to PDF). */

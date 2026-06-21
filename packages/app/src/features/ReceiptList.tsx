@@ -152,6 +152,7 @@ function ReceiptRow({
 }) {
   const [busy, setBusy] = useState<RowBusy>('idle');
   const [receipt, setReceipt] = useState<Receipt | null>(null);
+  const [showItems, setShowItems] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   /** Parse once and cache; both preview and JSON export share the result. */
@@ -168,7 +169,7 @@ function ReceiptRow({
     setError(null);
     try {
       const bytes = await connector.fetchReceiptPdf(accessToken, summary.id);
-      downloadBytes(bytes, `coop-receipt-${summary.id}.pdf`);
+      downloadBytes(bytes, pdfFileName(summary));
     } catch (e) {
       setError(errMsg(e));
     } finally {
@@ -177,20 +178,23 @@ function ReceiptRow({
   }, [accessToken, summary.id]);
 
   const preview = useCallback(async () => {
-    if (receipt) {
-      setReceipt(null);
+    // Toggle visibility only; keep the parsed receipt cached so re-showing (or a
+    // later JSON export) doesn't re-fetch and re-parse the PDF.
+    if (showItems) {
+      setShowItems(false);
       return;
     }
     setBusy('preview');
     setError(null);
     try {
       await ensureParsed();
+      setShowItems(true);
     } catch (e) {
       setError(errMsg(e));
     } finally {
       setBusy('idle');
     }
-  }, [receipt, ensureParsed]);
+  }, [showItems, ensureParsed]);
 
   const exportJson = useCallback(async () => {
     setBusy('json');
@@ -236,7 +240,7 @@ function ReceiptRow({
                 onClick={preview}
                 loading={busy === 'preview'}
               >
-                {receipt ? 'Hide items' : 'Preview items'}
+                {showItems ? 'Hide items' : 'Preview items'}
               </Button>
               <Button
                 variant="outline"
@@ -258,7 +262,7 @@ function ReceiptRow({
             </Notice.Root>
           )}
 
-          {receipt && <ReceiptItems receipt={receipt} />}
+          {showItems && receipt && <ReceiptItems receipt={receipt} />}
         </Stack>
       </Card.Content>
     </Card.Root>

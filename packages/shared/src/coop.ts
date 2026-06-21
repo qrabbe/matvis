@@ -4,17 +4,24 @@ import { z } from 'zod';
 export const ReceiptSummary = z.object({
   /** Coop's receipt id. Pass to the download endpoint. */
   id: z.string(),
-  purchasePlace: z.string().optional(),
-  purchaseAmount: z.number().optional(),
-  purchasedAt: z.string().optional(),
+  // `.nullish()` (not `.optional()`) because the raw API sends JSON `null` for
+  // absent fields; `.optional()` would reject that and drop the whole page.
+  purchasePlace: z.string().nullish(),
+  purchaseAmount: z.number().nullish(),
+  purchasedAt: z.string().nullish(),
   /** Coop member/loyalty key associated with the receipt. */
-  mmkid: z.string().optional(),
+  mmkid: z.string().nullish(),
 });
 export type ReceiptSummary = z.infer<typeof ReceiptSummary>;
 
 /** Raw list endpoint envelope: `{ data, current_page, total }`. */
 export const ReceiptListResponse = z.object({
-  data: z.array(ReceiptSummary).default([]),
+  // The error envelope sends `data: null`; coerce both null and a missing key
+  // to `[]` so the list step doesn't throw on the very case it's meant to model.
+  data: z
+    .array(ReceiptSummary)
+    .nullish()
+    .transform((rows) => rows ?? []),
   current_page: z.number().optional(),
   total: z.number().optional(),
   error: z.string().optional(),
@@ -28,11 +35,15 @@ export const TokenSet = z.object({
   idToken: z.string().optional(),
   tokenType: z.string().optional(),
   scope: z.string().optional(),
-  /** ms epoch when the access token expires (0 = unknown/none). */
+  /**
+   * ms epoch when the access token expires. Sentinel `0` = no known expiry and
+   * is treated as non-expiring (see `isAccessTokenValid`) — never do arithmetic
+   * on it or compare it as a real timestamp.
+   */
   expiresAt: z.number().default(0),
   /** ms epoch when the refresh token expires, if known. */
   refreshExpiresAt: z.number().optional(),
-  /** ms epoch when this set was obtained. */
+  /** ms epoch when this set was obtained. Informational only (never read for expiry math). */
   obtainedAt: z.number().default(0),
 });
 export type TokenSet = z.infer<typeof TokenSet>;

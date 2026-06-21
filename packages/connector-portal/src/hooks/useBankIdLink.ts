@@ -104,17 +104,21 @@ export function useBankIdLink(onComplete: (connectionId: string) => void) {
       sameDeviceRef.current = onThisDevice;
       launchedRef.current = false;
       setPhase('starting');
+      activeRef.current = true; // so cancel() during the start await is honored
       try {
         const { pendingLinkId, autoStartToken } = await convex.action(
           api.links.start,
           { store, sameDevice: onThisDevice },
         );
-        // Same-device: launch as soon as the start carries the token (the button
-        // tap is the user gesture). If it doesn't, the poll loop launches when
-        // the token arrives there instead — see `runPoll`.
+        if (!activeRef.current) return; // cancelled while starting
+        // Same-device: best-effort launch once the start carries the token. This
+        // runs after an await, so it's outside the tap's gesture — iOS Safari may
+        // block it; the "Tap to open BankID" fallback link is what reliably
+        // launches there. If the token arrives on a poll instead, see `runPoll`.
         if (onThisDevice && autoStartToken) launchOnce(autoStartToken);
         await runPoll(pendingLinkId);
       } catch (e) {
+        if (!activeRef.current) return; // cancelled — the abort isn't an error
         setError(errMsg(e));
         setPhase('error');
       }

@@ -11,7 +11,11 @@ export function failedHintMessage(error?: string): string {
 /** Rough mobile-browser check — selects the same-device launch URL form below. */
 function isMobileBrowser(): boolean {
   if (typeof navigator === 'undefined') return false;
-  return /android|iphone|ipad|ipod|mobile/i.test(navigator.userAgent);
+  const ua = navigator.userAgent;
+  // iPadOS 13+ defaults to a desktop "Macintosh" UA, so the `ipad` token is
+  // absent; a Mac reporting multi-touch is really an iPad.
+  if (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1) return true;
+  return /android|iphone|ipad|ipod|mobile/i.test(ua);
 }
 
 /**

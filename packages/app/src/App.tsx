@@ -8,7 +8,6 @@ import { loadTokens } from './lib/tokenStore';
 
 export function App() {
   const [tokens, setTokens] = useState<TokenSet | null>(() => loadTokens());
-  const canListReceipts = tokens ? isAccessTokenValid(tokens) : false;
 
   return (
     <Stack
@@ -23,7 +22,7 @@ export function App() {
 
       <AuthPanel tokens={tokens} onTokens={setTokens} />
 
-      {canListReceipts && tokens && (
+      {tokens && isAccessTokenValid(tokens) && (
         <ReceiptList accessToken={tokens.accessToken} />
       )}
     </Stack>

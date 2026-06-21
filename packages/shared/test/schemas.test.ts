@@ -4,6 +4,8 @@ import {
   LineItem,
   Receipt,
   ReceiptListResponse,
+  ReceiptSource,
+  ReceiptSummary,
   TokenSet,
 } from '../src/index';
 
@@ -29,8 +31,23 @@ describe('schema defaults', () => {
     expect(r.vat).toEqual([]);
   });
 
-  it('ReceiptListResponse defaults data to []', () => {
+  it('ReceiptListResponse coerces missing and null data to []', () => {
     expect(ReceiptListResponse.parse({}).data).toEqual([]);
+    expect(
+      ReceiptListResponse.parse({ error: 'boom', data: null }).data,
+    ).toEqual([]);
+  });
+
+  it('ReceiptSummary accepts JSON null for optional fields', () => {
+    const s = ReceiptSummary.parse({ id: 'r1', purchaseAmount: null });
+    expect(s.purchaseAmount).toBeNull();
+  });
+});
+
+describe('ReceiptSource store slugs', () => {
+  it('accepts a known slug and rejects an unknown one', () => {
+    expect(ReceiptSource.safeParse('coop').success).toBe(true);
+    expect(ReceiptSource.safeParse('notastore').success).toBe(false);
   });
 });
 

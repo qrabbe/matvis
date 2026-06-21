@@ -38,6 +38,17 @@ const POLL_BODY: Record<string, string> = {
   user_visible_data: '',
 };
 
+// Coop returns the same-device token as all-lowercase `autostarttoken`
+// (confirmed from a live start response); the other spellings are kept as a
+// cheap hedge against the endpoint changing. Used by both start and poll.
+const AUTOSTART_TOKEN_KEYS = [
+  'autostarttoken',
+  'autoStartToken',
+  'auto_start_token',
+  'autostartToken',
+  'autostart_token',
+] as const;
+
 function tokenUrl(config: CoopConfig, query?: Record<string, string>): string {
   const params = new URLSearchParams({ origin: 'scanpay', ...query });
   return `${config.ssoBaseUrl}/auth/realms/coop/protocol/openid-connect/token?${params}`;
@@ -98,16 +109,7 @@ export async function startBankId(
     throw new Error(`startBankId failed: ${res.status} ${res.statusText}`);
   }
   const json = (await res.json()) as Record<string, unknown>;
-  // Coop returns the same-device token as all-lowercase `autostarttoken`
-  // (confirmed from a live start response); the other spellings are kept as a
-  // cheap hedge against the endpoint changing.
-  const autoStartToken = firstString(json, [
-    'autostarttoken',
-    'autoStartToken',
-    'auto_start_token',
-    'autostartToken',
-    'autostart_token',
-  ]);
+  const autoStartToken = firstString(json, AUTOSTART_TOKEN_KEYS);
   const orderRef = firstString(json, ['orderRef', 'order_ref']);
   if (!orderRef) {
     // Log the shape (keys only — no token values) so a same-device flow that
@@ -180,14 +182,8 @@ export async function pollBankId(
     };
   }
   // Some flows surface the same-device autostart token here (not at start), so
-  // pick it up from the poll too — same key spellings as the start response.
-  const autoStartToken = firstString(json, [
-    'autostarttoken',
-    'autoStartToken',
-    'auto_start_token',
-    'autostartToken',
-    'autostart_token',
-  ]);
+  // pick it up from the poll too.
+  const autoStartToken = firstString(json, AUTOSTART_TOKEN_KEYS);
   return {
     status: 'pending',
     qrCode: json.qrCode as string | undefined,

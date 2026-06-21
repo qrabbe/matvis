@@ -11,8 +11,8 @@ import { ReceiptSource } from './stores';
 export const SCHEMA_VERSION = 1;
 
 /**
- * A single printed line on the receipt. `gtin` / `matchedProductId` stay empty
- * for the connector and are populated later by the catalog layer.
+ * A single printed line on the receipt. `gtin` stays empty for the connector
+ * and is populated later by the catalog layer.
  */
 export const LineItem = z.object({
   /** Raw description as printed, e.g. "PESTO PEPERONICO 32,95". */
@@ -27,8 +27,6 @@ export const LineItem = z.object({
   unit: z.string().optional(),
   /** GTIN/EAN, the cross-system join key. Populated later by the catalog. */
   gtin: z.string().optional(),
-  /** Catalog product id once the line has been matched. Populated later. */
-  matchedProductId: z.string().optional(),
 });
 export type LineItem = z.infer<typeof LineItem>;
 

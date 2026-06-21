@@ -1,5 +1,8 @@
-import { STORES } from '@matvis/shared';
-import { v } from 'convex/values';
+import { STORES, type Store, type VatLine } from '@matvis/shared';
+import { v, type Infer } from 'convex/values';
+
+/** Compile-time equality guard: errors unless `A` and `B` are mutually assignable. */
+type AssertEqual<A extends B, B extends A> = true;
 
 // Store slug validator, derived from the canonical STORES list in
 // @matvis/shared so it can't drift from the zod ReceiptSource. Shared by the
@@ -30,6 +33,13 @@ export const vatLineValidator = v.object({
   net: v.number(),
   gross: v.number(),
 });
+
+// These sub-objects are hand-mirrored from the shared zod contract. The guards
+// below fail the build if either side drifts from the other (type-only — erased
+// at runtime). `Receipt` header/items are intentionally reshaped for storage
+// (system fields added, `rawText` dropped) so aren't checked here.
+type _StoreMatches = AssertEqual<Infer<typeof storeObjectValidator>, Store>;
+type _VatMatches = AssertEqual<Infer<typeof vatLineValidator>, VatLine>;
 
 /** One receipt line to INSERT. `gtin`/`matchConfidence` are omitted here —
  * filled by a later matching pass (see `receiptItemDocValidator`). */

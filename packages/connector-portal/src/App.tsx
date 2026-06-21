@@ -5,6 +5,7 @@ import { Button, Card, Notice, Stack, Tabs, Text } from '@wordpress/ui';
 import { ConnectPanel } from './features/ConnectPanel';
 import { ReceiptsPanel } from './features/ReceiptsPanel';
 import { DevPortal } from './features/DevPortal';
+import { clearConnectionId } from './lib/connectionStore';
 import { errMsg } from './lib/format';
 
 export function App() {
@@ -65,20 +66,20 @@ export function App() {
  * account, keyed off the authenticated identity. */
 function SignIn() {
   const { signIn } = useAuthActions();
-  const [pending, setPending] = useState(false);
+  const [pending, setPending] = useState<'anonymous' | 'github' | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const guest = async () => {
-    setPending(true);
+  const start = async (provider: 'anonymous' | 'github') => {
+    setPending(provider);
     setError(null);
     try {
-      await signIn('anonymous');
+      await signIn(provider);
+      // On success the component unmounts (guest) or the page redirects to the
+      // provider (GitHub OAuth), so there's no state to reset here.
     } catch (e) {
       setError(errMsg(e));
-      setPending(false);
+      setPending(null);
     }
-    // On success the component unmounts (auth flips to <Authenticated>), so
-    // there's no state to reset.
   };
 
   return (
@@ -100,8 +101,9 @@ function SignIn() {
           )}
           <Button
             variant="solid"
-            loading={pending}
-            onClick={() => void guest()}
+            loading={pending === 'anonymous'}
+            disabled={pending !== null}
+            onClick={() => void start('anonymous')}
           >
             Continue as guest
           </Button>
@@ -111,7 +113,9 @@ function SignIn() {
           <Button
             variant="outline"
             tone="neutral"
-            onClick={() => void signIn('github')}
+            loading={pending === 'github'}
+            disabled={pending !== null}
+            onClick={() => void start('github')}
           >
             Sign in with GitHub
           </Button>
@@ -127,8 +131,19 @@ function SignIn() {
 
 function SignOutButton() {
   const { signOut } = useAuthActions();
+  const handleSignOut = async () => {
+    // Drop the cached connectionId before the identity changes — otherwise the
+    // next account to sign in on this browser inherits a connection it doesn't
+    // own (ConnectPanel shows it "connected"; Sync then throws not-found).
+    clearConnectionId();
+    await signOut();
+  };
   return (
-    <Button variant="minimal" tone="neutral" onClick={() => void signOut()}>
+    <Button
+      variant="minimal"
+      tone="neutral"
+      onClick={() => void handleSignOut()}
+    >
       Sign out
     </Button>
   );

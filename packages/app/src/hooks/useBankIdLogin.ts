@@ -71,11 +71,14 @@ export function useBankIdLogin(onComplete: (tokens: TokenSet) => void) {
     setHint(pendingHintMessage());
     setAppLink(null);
     setPhase('starting');
+    activeRef.current = true; // so cancel() during the start await is honored
     try {
       const { orderRef, autoStartToken } = await connector.startAuth();
+      if (!activeRef.current) return; // cancelled while starting
       if (autoStartToken) setAppLink(bankIdAppLink(autoStartToken));
       await runPoll(orderRef);
     } catch (e) {
+      if (!activeRef.current) return; // cancelled — the abort isn't an error
       setError(errMsg(e));
       setPhase('error');
     }
