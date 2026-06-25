@@ -155,6 +155,22 @@ function ReceiptRow({
   const [showItems, setShowItems] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  /** Run one row action under the shared busy/error scaffolding. */
+  const run = useCallback(
+    async (kind: Exclude<RowBusy, 'idle'>, fn: () => Promise<void>) => {
+      setBusy(kind);
+      setError(null);
+      try {
+        await fn();
+      } catch (e) {
+        setError(errMsg(e));
+      } finally {
+        setBusy('idle');
+      }
+    },
+    [],
+  );
+
   /** Parse once and cache; both preview and JSON export share the result. */
   const ensureParsed = useCallback(async (): Promise<Receipt> => {
     if (receipt) return receipt;
@@ -164,18 +180,14 @@ function ReceiptRow({
     return parsed;
   }, [accessToken, summary.id, receipt]);
 
-  const download = useCallback(async () => {
-    setBusy('download');
-    setError(null);
-    try {
-      const bytes = await connector.fetchReceiptPdf(accessToken, summary.id);
-      downloadBytes(bytes, pdfFileName(summary));
-    } catch (e) {
-      setError(errMsg(e));
-    } finally {
-      setBusy('idle');
-    }
-  }, [accessToken, summary.id]);
+  const download = useCallback(
+    () =>
+      run('download', async () => {
+        const bytes = await connector.fetchReceiptPdf(accessToken, summary.id);
+        downloadBytes(bytes, pdfFileName(summary));
+      }),
+    [run, accessToken, summary],
+  );
 
   const preview = useCallback(async () => {
     // Toggle visibility only; keep the parsed receipt cached so re-showing (or a
@@ -184,30 +196,19 @@ function ReceiptRow({
       setShowItems(false);
       return;
     }
-    setBusy('preview');
-    setError(null);
-    try {
+    await run('preview', async () => {
       await ensureParsed();
       setShowItems(true);
-    } catch (e) {
-      setError(errMsg(e));
-    } finally {
-      setBusy('idle');
-    }
-  }, [showItems, ensureParsed]);
+    });
+  }, [run, showItems, ensureParsed]);
 
-  const exportJson = useCallback(async () => {
-    setBusy('json');
-    setError(null);
-    try {
-      const parsed = await ensureParsed();
-      downloadJson(parsed, `coop-receipt-${summary.id}.json`);
-    } catch (e) {
-      setError(errMsg(e));
-    } finally {
-      setBusy('idle');
-    }
-  }, [ensureParsed, summary.id]);
+  const exportJson = useCallback(
+    () =>
+      run('json', async () => {
+        downloadJson(await ensureParsed(), `coop-receipt-${summary.id}.json`);
+      }),
+    [run, ensureParsed, summary.id],
+  );
 
   return (
     <Card.Root>

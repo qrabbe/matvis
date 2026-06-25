@@ -95,13 +95,9 @@ export function useBankIdLogin(onComplete: (tokens: TokenSet) => void) {
 
   /** Stop the loop and wipe all state, including errors (used on Clear tokens) */
   const reset = useCallback(() => {
-    activeRef.current = false;
-    setPhase('idle');
-    setQr(null);
-    setHint(null);
-    setAppLink(null);
+    cancel();
     setError(null);
-  }, []);
+  }, [cancel]);
 
   const active = phase === 'starting' || phase === 'polling';
   return { phase, active, qr, hint, appLink, error, login, cancel, reset };

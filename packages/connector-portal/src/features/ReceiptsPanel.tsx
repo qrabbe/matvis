@@ -6,13 +6,10 @@ import {
   Button,
   Card,
   EmptyState,
-  Notice,
   Stack,
   Tabs,
   Text,
 } from '@wordpress/ui';
-// Fallback: `@wordpress/ui` has no spinner (only `skeleton`) — see UI-component policy.
-import { Spinner } from '@wordpress/components';
 // The receipts list is a `@wordpress/dataviews` table — `@wordpress/ui` has no
 // data-grid equivalent, so this is a justified fallback (like `Spinner`). It
 // renders in the classic `@wordpress/components` style; its stylesheet is loaded
@@ -25,6 +22,8 @@ import {
   type View,
 } from '@wordpress/dataviews';
 import { CopyButton } from '../components/CopyButton';
+import { ErrorNotice } from '../components/ErrorNotice';
+import { InlineSpinner } from '../components/InlineSpinner';
 import { api } from '../lib/convexApi';
 import { errMsg, formatAmount, formatPurchasedAt } from '../lib/format';
 
@@ -150,10 +149,7 @@ export function ReceiptsPanel() {
             </Button>
           )}
           {page.status === 'LoadingMore' && (
-            <Stack direction="row" gap="sm" align="center">
-              <Spinner />
-              <Text variant="body-sm">Loading more…</Text>
-            </Stack>
+            <InlineSpinner label="Loading more…" />
           )}
         </Stack>
       </Card.Content>
@@ -220,20 +216,13 @@ function ReceiptModal({ header }: { header: ReceiptHeader }) {
       </Stack>
 
       {(loadError || pdfError) && (
-        <Notice.Root intent="error">
-          <Notice.Description>{loadError ?? pdfError}</Notice.Description>
-        </Notice.Root>
+        <ErrorNotice>{loadError ?? pdfError}</ErrorNotice>
       )}
 
       {detail ? (
         <ReceiptDetailView detail={detail} header={header} />
       ) : (
-        !loadError && (
-          <Stack direction="row" gap="sm" align="center">
-            <Spinner />
-            <Text variant="body-sm">Loading items…</Text>
-          </Stack>
-        )
+        !loadError && <InlineSpinner label="Loading items…" />
       )}
     </Stack>
   );

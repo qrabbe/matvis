@@ -2,10 +2,10 @@ import { useCallback, useState } from 'react';
 import { useConvex } from 'convex/react';
 import type { FunctionReturnType } from 'convex/server';
 import { Badge, Button, Card, Notice, Stack, Text } from '@wordpress/ui';
-// Fallback: `@wordpress/ui` has no spinner (only `skeleton`) — see UI-component policy.
-import { Spinner } from '@wordpress/components';
 import { STORES, STORE_LABELS, type StoreSlug } from '@matvis/shared';
 import { CopyButton } from '../components/CopyButton';
+import { ErrorNotice } from '../components/ErrorNotice';
+import { InlineSpinner } from '../components/InlineSpinner';
 import { api, type Id } from '../lib/convexApi';
 import {
   clearConnectionId,
@@ -61,10 +61,7 @@ export function ConnectPanel() {
       <Card.Content>
         <Stack direction="column" gap="md">
           {error && (
-            <Notice.Root intent="error">
-              <Notice.Title>Something went wrong</Notice.Title>
-              <Notice.Description>{error}</Notice.Description>
-            </Notice.Root>
+            <ErrorNotice title="Something went wrong">{error}</ErrorNotice>
           )}
 
           {connectionId ? (
@@ -170,10 +167,7 @@ function LinkInProgressView({
             </Button>
           </>
         ) : (
-          <Stack direction="row" gap="sm" align="center">
-            <Spinner />
-            <Text variant="body-md">Starting BankID…</Text>
-          </Stack>
+          <InlineSpinner label="Starting BankID…" variant="body-md" />
         )
       ) : qr ? (
         <>
@@ -181,10 +175,7 @@ function LinkInProgressView({
           <Text variant="body-sm">{hint ?? pendingHint}</Text>
         </>
       ) : (
-        <Stack direction="row" gap="sm" align="center">
-          <Spinner />
-          <Text variant="body-md">Starting BankID…</Text>
-        </Stack>
+        <InlineSpinner label="Starting BankID…" variant="body-md" />
       )}
       <Button variant="minimal" tone="neutral" onClick={onCancel}>
         Cancel
@@ -241,12 +232,7 @@ function ConnectedView({
         </Notice.Root>
       )}
 
-      {error && (
-        <Notice.Root intent="error">
-          <Notice.Title>Sync failed</Notice.Title>
-          <Notice.Description>{error}</Notice.Description>
-        </Notice.Root>
-      )}
+      {error && <ErrorNotice title="Sync failed">{error}</ErrorNotice>}
 
       {result && !needsReauth && (
         <Text variant="body-sm">

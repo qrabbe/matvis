@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { Authenticated, AuthLoading, Unauthenticated } from 'convex/react';
 import { useAuthActions } from '@convex-dev/auth/react';
-import { Button, Card, Notice, Stack, Tabs, Text } from '@wordpress/ui';
+import { Button, Card, Stack, Tabs, Text } from '@wordpress/ui';
 import { ConnectPanel } from './features/ConnectPanel';
 import { ReceiptsPanel } from './features/ReceiptsPanel';
 import { DevPortal } from './features/DevPortal';
+import { ErrorNotice } from './components/ErrorNotice';
 import { clearConnectionId } from './lib/connectionStore';
 import { errMsg } from './lib/format';
 
@@ -93,12 +94,7 @@ function SignIn() {
             Sign in to link a store and view your receipts. Your login is the
             connector account everything is scoped to.
           </Text>
-          {error && (
-            <Notice.Root intent="error">
-              <Notice.Title>Couldn’t sign in</Notice.Title>
-              <Notice.Description>{error}</Notice.Description>
-            </Notice.Root>
-          )}
+          {error && <ErrorNotice title="Couldn’t sign in">{error}</ErrorNotice>}
           <Button
             variant="solid"
             loading={pending === 'anonymous'}

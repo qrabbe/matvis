@@ -57,9 +57,6 @@ export const BankIdStart = z.object({
 });
 export type BankIdStart = z.infer<typeof BankIdStart>;
 
-/** A BankID progress hint. Open string so unknown codes don't break validation. */
-export type BankIdHintCode = string;
-
 /** The outcome of a single BankID poll, discriminated on `status`. */
 export const BankIdPoll = z.discriminatedUnion('status', [
   z.object({
@@ -80,11 +77,3 @@ export const BankIdPoll = z.discriminatedUnion('status', [
   }),
 ]);
 export type BankIdPoll = z.infer<typeof BankIdPoll>;
-
-/** Named BankID tokens as stored, mirroring the original `external_api_tokens`. */
-export const BankIdTokenName = z.enum([
-  'bank_id_access_token',
-  'bank_id_refresh_token',
-  'bank_id_id_token',
-]);
-export type BankIdTokenName = z.infer<typeof BankIdTokenName>;
