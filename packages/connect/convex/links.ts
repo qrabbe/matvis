@@ -5,7 +5,7 @@ import { internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
 import { action, internalMutation, internalQuery } from './_generated/server';
 import { requireAccount, requireAccountRead } from './model/auth';
-import { storeValidator } from './validators';
+import { pendingLinkStatusValidator, storeValidator } from './validators';
 
 // Every entry point resolves the caller's account through the `model/auth`
 // seam. `subject` is an optional arg that a real auth provider will supersede.
@@ -73,10 +73,7 @@ export const poll = action({
       };
     }
     if (result.status === 'failed') {
-      await ctx.runMutation(internal.links.failLink, {
-        pendingLinkId,
-        error: result.error,
-      });
+      await ctx.runMutation(internal.links.failLink, { pendingLinkId });
       return { status: 'failed' as const, error: result.error };
     }
     const connectionId: Id<'connections'> = await ctx.runMutation(
@@ -127,11 +124,7 @@ export const getPendingLink = internalQuery({
       accountId: v.id('accounts'),
       store: storeValidator,
       orderRef: v.string(),
-      status: v.union(
-        v.literal('pending'),
-        v.literal('complete'),
-        v.literal('failed'),
-      ),
+      status: pendingLinkStatusValidator,
     }),
   ),
   handler: async (ctx, { pendingLinkId, subject }) => {
@@ -162,12 +155,12 @@ export const finishLink = internalMutation({
 
     // Upsert the (account, store) connection: refresh tokens if one exists,
     // otherwise create it. Kept in the mutation so it's transactional.
-    const existing = (
-      await ctx.db
-        .query('connections')
-        .withIndex('by_account', (q) => q.eq('accountId', link.accountId))
-        .collect()
-    ).find((c) => c.store === link.store);
+    const existing = await ctx.db
+      .query('connections')
+      .withIndex('by_account_store', (q) =>
+        q.eq('accountId', link.accountId).eq('store', link.store),
+      )
+      .unique();
 
     const tokenFields = {
       accessToken: tokens.accessToken,
@@ -194,8 +187,7 @@ export const finishLink = internalMutation({
 });
 
 export const failLink = internalMutation({
-  // `error` is accepted for future logging; not persisted (no field for it).
-  args: { pendingLinkId: v.id('pendingLinks'), error: v.optional(v.string()) },
+  args: { pendingLinkId: v.id('pendingLinks') },
   returns: v.null(),
   handler: async (ctx, { pendingLinkId }) => {
     await ctx.db.patch(pendingLinkId, { status: 'failed' });

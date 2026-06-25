@@ -1,10 +1,10 @@
 import { v } from 'convex/values';
 import { internalMutation, internalQuery } from '../_generated/server';
 import {
+  connectionStatusValidator,
+  receiptContentFields,
   receiptItemInsertValidator as receiptItem,
-  storeObjectValidator as storeObject,
   storeValidator,
-  vatLineValidator as vatLine,
 } from '../validators';
 import { requireAccountRead } from './auth';
 
@@ -26,11 +26,7 @@ export const getConnectionForSync = internalQuery({
       accessToken: v.string(),
       accessTokenExpiresAt: v.number(),
       refreshToken: v.string(),
-      status: v.union(
-        v.literal('active'),
-        v.literal('needs_reauth'),
-        v.literal('revoked'),
-      ),
+      status: connectionStatusValidator,
     }),
   ),
   handler: async (ctx, { connectionId, subject }) => {
@@ -71,21 +67,7 @@ export const insertReceipt = internalMutation({
   args: {
     connectionId: v.id('connections'),
     accountId: v.id('accounts'),
-    source: storeValidator,
-    externalId: v.string(),
-    schemaVersion: v.number(),
-    store: storeObject,
-    receiptNumber: v.optional(v.string()),
-    purchasedAt: v.optional(v.string()),
-    purchasedAtMs: v.optional(v.number()),
-    currency: v.string(),
-    total: v.optional(v.number()),
-    itemCount: v.optional(v.number()),
-    discountsTotal: v.optional(v.number()),
-    pointsAmount: v.optional(v.number()),
-    vat: v.array(vatLine),
-    loyaltyCardId: v.optional(v.string()),
-    pdfStorageId: v.optional(v.id('_storage')),
+    ...receiptContentFields,
     rawText: v.optional(v.string()),
     items: v.array(receiptItem),
   },

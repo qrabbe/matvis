@@ -3,8 +3,8 @@ import {
   paginationResultValidator,
 } from 'convex/server';
 import { v } from 'convex/values';
-import type { Doc } from './_generated/dataModel';
-import { query } from './_generated/server';
+import type { Doc, Id } from './_generated/dataModel';
+import { query, type QueryCtx } from './_generated/server';
 import { requireAccountRead } from './model/auth';
 import { receiptHeaderValidator, receiptItemDocValidator } from './validators';
 
@@ -16,6 +16,24 @@ import { receiptHeaderValidator, receiptItemDocValidator } from './validators';
 function trim(doc: Doc<'receipts'>) {
   const { rawText: _rawText, ...header } = doc;
   return header;
+}
+
+/** Load a receipt the caller owns, or `null` when it's missing or owned by
+ * another account (indistinguishable — no existence leak). The account lookup
+ * and the fetch run concurrently. */
+async function loadOwnedReceipt(
+  ctx: QueryCtx,
+  subject: string | undefined,
+  receiptId: Id<'receipts'>,
+): Promise<Doc<'receipts'> | null> {
+  const [accountId, receipt] = await Promise.all([
+    requireAccountRead(ctx, subject),
+    ctx.db.get(receiptId),
+  ]);
+  if (accountId === null || receipt === null || receipt.accountId !== accountId) {
+    return null;
+  }
+  return receipt;
 }
 
 /** Paginated receipt headers for one account, newest first. */
@@ -51,18 +69,8 @@ export const getReceipt = query({
     }),
   ),
   handler: async (ctx, { subject, receiptId }) => {
-    const [accountId, receipt] = await Promise.all([
-      requireAccountRead(ctx, subject),
-      ctx.db.get(receiptId),
-    ]);
-    // Ownership: never leak another account's row.
-    if (
-      accountId === null ||
-      receipt === null ||
-      receipt.accountId !== accountId
-    ) {
-      return null;
-    }
+    const receipt = await loadOwnedReceipt(ctx, subject, receiptId);
+    if (receipt === null) return null;
     const items = await ctx.db
       .query('receiptItems')
       .withIndex('by_receipt', (q) => q.eq('receiptId', receiptId))
@@ -79,18 +87,8 @@ export const getPdf = query({
   args: { subject: v.optional(v.string()), receiptId: v.id('receipts') },
   returns: v.union(v.null(), v.string()),
   handler: async (ctx, { subject, receiptId }) => {
-    const [accountId, receipt] = await Promise.all([
-      requireAccountRead(ctx, subject),
-      ctx.db.get(receiptId),
-    ]);
-    if (
-      accountId === null ||
-      receipt === null ||
-      receipt.accountId !== accountId
-    ) {
-      return null;
-    }
-    if (!receipt.pdfStorageId) return null;
+    const receipt = await loadOwnedReceipt(ctx, subject, receiptId);
+    if (receipt === null || !receipt.pdfStorageId) return null;
     return await ctx.storage.getUrl(receipt.pdfStorageId);
   },
 });

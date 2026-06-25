@@ -9,6 +9,20 @@ type AssertEqual<A extends B, B extends A> = true;
 // schema and by function argument validators.
 export const storeValidator = v.union(...STORES.map((slug) => v.literal(slug)));
 
+/** A `connections.status` value. Shared by the schema and query returns. */
+export const connectionStatusValidator = v.union(
+  v.literal('active'),
+  v.literal('needs_reauth'),
+  v.literal('revoked'),
+);
+
+/** A `pendingLinks.status` value. Shared by the schema and query returns. */
+export const pendingLinkStatusValidator = v.union(
+  v.literal('pending'),
+  v.literal('complete'),
+  v.literal('failed'),
+);
+
 // ── Receipt shape (single source of truth) ────────────────────────────────
 // These object validators mirror the `receipts` / `receiptItems` schema
 // columns. They live here so both the sync engine (`model/receipts.ts`, which
@@ -64,14 +78,11 @@ export const receiptItemDocValidator = v.object({
   matchConfidence: v.optional(v.number()),
 });
 
-/** A stored `receipts` header row WITHOUT `rawText` (which can be large), as
- * returned to a caller by `list` / `changes` / `getReceipt`. Includes the
- * system fields. Built from the same object validators the schema uses. */
-export const receiptHeaderValidator = v.object({
-  _id: v.id('receipts'),
-  _creationTime: v.number(),
-  connectionId: v.id('connections'),
-  accountId: v.id('accounts'),
+/** The content columns of a `receipts` row (everything except the system
+ * fields, the `connectionId`/`accountId` relations, and the large `rawText`).
+ * Single source of truth spread into the schema table, the `insertReceipt`
+ * mutation args, and the returned header validator so the three can't drift. */
+export const receiptContentFields = {
   source: storeValidator,
   externalId: v.string(),
   schemaVersion: v.number(),
@@ -87,5 +98,16 @@ export const receiptHeaderValidator = v.object({
   vat: v.array(vatLineValidator),
   loyaltyCardId: v.optional(v.string()),
   pdfStorageId: v.optional(v.id('_storage')),
+} as const;
+
+/** A stored `receipts` header row WITHOUT `rawText` (which can be large), as
+ * returned to a caller by `list` / `changes` / `getReceipt`. Includes the
+ * system fields. Built from the same content fields the schema uses. */
+export const receiptHeaderValidator = v.object({
+  _id: v.id('receipts'),
+  _creationTime: v.number(),
+  connectionId: v.id('connections'),
+  accountId: v.id('accounts'),
+  ...receiptContentFields,
   // `rawText` intentionally dropped from the header.
 });

@@ -1,5 +1,5 @@
 import type { BankIdPoll, BankIdStart, TokenSet } from '@matvis/shared';
-import type { FetchLike } from '../../http';
+import { assertOk, type FetchLike } from '../../http';
 import {
   DEFAULT_COOP_CONFIG,
   SCANPAY_CLIENT_ID,
@@ -19,35 +19,27 @@ interface KeycloakTokenResponse {
   session_state?: string;
 }
 
-const START_BODY: Record<string, string> = {
+// Shared BankID grant params. `startBankId` adds `other_device`; the poll adds
+// its own two fields (below).
+const BASE_BODY: Record<string, string> = {
   grant_type: 'password',
   scope: 'openid offline_access',
   username: '',
   response_type: 'id_token token',
   client_id: SCANPAY_CLIENT_ID,
-  other_device: 'true',
 };
 
 const POLL_BODY: Record<string, string> = {
-  grant_type: 'password',
-  scope: 'openid offline_access',
-  username: '',
-  response_type: 'id_token token',
-  client_id: SCANPAY_CLIENT_ID,
+  ...BASE_BODY,
   required_personal_number: '',
   user_visible_data: '',
 };
 
 // Coop returns the same-device token as all-lowercase `autostarttoken`
-// (confirmed from a live start response); the other spellings are kept as a
-// cheap hedge against the endpoint changing. Used by both start and poll.
-const AUTOSTART_TOKEN_KEYS = [
-  'autostarttoken',
-  'autoStartToken',
-  'auto_start_token',
-  'autostartToken',
-  'autostart_token',
-] as const;
+// (confirmed from a live start response). Read via `firstString` so an empty
+// value is treated as absent; the `console.error` diagnostics below surface the
+// response keys if the endpoint ever renames it.
+const AUTOSTART_TOKEN_KEYS = ['autostarttoken'] as const;
 
 function tokenUrl(config: CoopConfig, query?: Record<string, string>): string {
   const params = new URLSearchParams({ origin: 'scanpay', ...query });
@@ -76,9 +68,10 @@ export function toTokenSet(
   };
 }
 
-/** True when a token set's access token is still valid at `now` (0 = no expiry). */
+/** True when an access token with absolute `expiresAt` (epoch ms) is still
+ * valid at `now`. `expiresAt: 0` means no expiry (always valid). */
 export function isAccessTokenValid(
-  tokens: TokenSet,
+  tokens: Pick<TokenSet, 'expiresAt'>,
   now = Date.now(),
 ): boolean {
   return tokens.expiresAt === 0 ? true : tokens.expiresAt > now;
@@ -101,13 +94,11 @@ export async function startBankId(
     method: 'POST',
     headers: ssoHeaders(),
     body: new URLSearchParams({
-      ...START_BODY,
+      ...BASE_BODY,
       other_device: opts.sameDevice ? 'false' : 'true',
     }).toString(),
   });
-  if (!res.ok) {
-    throw new Error(`startBankId failed: ${res.status} ${res.statusText}`);
-  }
+  assertOk(res, 'startBankId');
   const json = (await res.json()) as Record<string, unknown>;
   const autoStartToken = firstString(json, AUTOSTART_TOKEN_KEYS);
   const orderRef = firstString(json, ['orderRef', 'order_ref']);
@@ -207,8 +198,6 @@ export async function refreshBankId(
       client_id: SCANPAY_CLIENT_ID,
     }).toString(),
   });
-  if (!res.ok) {
-    throw new Error(`refreshBankId failed: ${res.status} ${res.statusText}`);
-  }
+  assertOk(res, 'refreshBankId');
   return toTokenSet((await res.json()) as KeycloakTokenResponse);
 }

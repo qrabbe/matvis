@@ -63,26 +63,14 @@ export const sync = action({
             }),
           ),
         insertReceipt: async (row, pdfStorageId) => {
+          // `row` (a `ReceiptRow`) is exactly the mutation's content shape; the
+          // connection-derived fields + storage id are the only additions.
           await ctx.runMutation(internal.model.receipts.insertReceipt, {
+            ...row,
             connectionId,
             accountId: connection.accountId,
             source: connection.store,
-            externalId: row.externalId,
-            schemaVersion: row.schemaVersion,
-            store: row.store,
-            receiptNumber: row.receiptNumber,
-            purchasedAt: row.purchasedAt,
-            purchasedAtMs: row.purchasedAtMs,
-            currency: row.currency,
-            total: row.total,
-            itemCount: row.itemCount,
-            discountsTotal: row.discountsTotal,
-            pointsAmount: row.pointsAmount,
-            vat: row.vat,
-            loyaltyCardId: row.loyaltyCardId,
             pdfStorageId: pdfStorageId as Id<'_storage'>,
-            rawText: row.rawText,
-            items: row.items,
           });
         },
         touchLastSynced: async () => {

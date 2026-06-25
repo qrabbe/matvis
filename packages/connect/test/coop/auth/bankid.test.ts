@@ -52,7 +52,7 @@ describe('isAccessTokenValid', () => {
 describe('startBankId', () => {
   it('returns orderRef + autoStartToken and posts to the scanpay token endpoint', async () => {
     const { fetch, calls } = stubFetch(
-      jsonResponse({ orderRef: 'order-1', autoStartToken: 'ast-1' }),
+      jsonResponse({ orderRef: 'order-1', autostarttoken: 'ast-1' }),
     );
     const res = await startBankId(fetch);
     expect(res).toEqual({ orderRef: 'order-1', autoStartToken: 'ast-1' });

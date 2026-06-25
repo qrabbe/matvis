@@ -29,3 +29,13 @@ export interface HttpResponse {
  */
 export const defaultFetch: FetchLike = (input, init) =>
   fetch(input, init) as unknown as Promise<HttpResponse>;
+
+/**
+ * Throw a labelled error unless the response is OK. `label` names the call so a
+ * failure reads e.g. `startBankId failed: 401 Unauthorized`.
+ */
+export function assertOk(res: HttpResponse, label: string): void {
+  if (!res.ok) {
+    throw new Error(`${label} failed: ${res.status} ${res.statusText}`);
+  }
+}

@@ -2,9 +2,10 @@ import { defineSchema, defineTable } from 'convex/server';
 import { v } from 'convex/values';
 import { authTables } from '@convex-dev/auth/server';
 import {
-  storeObjectValidator,
+  connectionStatusValidator,
+  pendingLinkStatusValidator,
+  receiptContentFields,
   storeValidator as store,
-  vatLineValidator,
 } from './validators';
 
 export default defineSchema({
@@ -35,13 +36,12 @@ export default defineSchema({
     accessToken: v.string(),
     accessTokenExpiresAt: v.number(), // epoch ms
     refreshToken: v.string(),
-    status: v.union(
-      v.literal('active'),
-      v.literal('needs_reauth'),
-      v.literal('revoked'),
-    ),
+    status: connectionStatusValidator,
     lastSyncedAt: v.optional(v.number()), // sync bookkeeping
-  }).index('by_account', ['accountId']),
+  })
+    .index('by_account', ['accountId'])
+    // Natural key of the (account, store) upsert in `finishLink`.
+    .index('by_account_store', ['accountId', 'store']),
 
   // In-flight BankID link attempts. Short-lived; deleted once resolved.
   // (The old repo's `bankid_sessions`.)
@@ -49,11 +49,7 @@ export default defineSchema({
     accountId: v.id('accounts'),
     store,
     orderRef: v.string(),
-    status: v.union(
-      v.literal('pending'),
-      v.literal('complete'),
-      v.literal('failed'),
-    ),
+    status: pendingLinkStatusValidator,
   })
     .index('by_account', ['accountId'])
     .index('by_order_ref', ['orderRef']),
@@ -64,25 +60,9 @@ export default defineSchema({
     connectionId: v.id('connections'),
     // Denormalized for ownership scoping + the subscribe cursor.
     accountId: v.id('accounts'),
-    source: store,
-    // The store's own id for this receipt — the DEDUP key.
-    externalId: v.string(),
-    schemaVersion: v.number(),
-
-    store: storeObjectValidator,
-    receiptNumber: v.optional(v.string()),
-    purchasedAt: v.optional(v.string()), // ISO 8601
-    purchasedAtMs: v.optional(v.number()), // for range/sort
-    currency: v.string(),
-    total: v.optional(v.number()),
-    itemCount: v.optional(v.number()),
-    discountsTotal: v.optional(v.number()),
-    pointsAmount: v.optional(v.number()),
-    vat: v.array(vatLineValidator),
-    loyaltyCardId: v.optional(v.string()),
-
-    // Raw source of truth — kept for re-parse + the download feature.
-    pdfStorageId: v.optional(v.id('_storage')),
+    // `source` (store slug + DEDUP key `externalId`), the parsed header columns,
+    // and `pdfStorageId` — the raw source of truth kept for re-parse + download.
+    ...receiptContentFields,
     rawText: v.optional(v.string()),
   })
     // Dedup: at most one receipt per (connection, externalId).
