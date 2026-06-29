@@ -11,6 +11,7 @@
     "jsx": "react-jsx",
     "skipLibCheck": true,
     "allowSyntheticDefaultImports": true,
+    "types": ["node"], // for `process.env` (e.g. auth.config.ts)
 
     /* These compiler options are required by Convex */
     "target": "ESNext",

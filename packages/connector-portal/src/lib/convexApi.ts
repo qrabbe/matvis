@@ -46,13 +46,12 @@ export type ReceiptItemDoc = {
   quantity?: number;
   unit?: string;
   gtin?: string;
-  matchConfidence?: number;
 };
 
 type LinkStart = FunctionReference<
   'action',
   'public',
-  { subject?: string; store: StoreSlug; sameDevice?: boolean },
+  { store: StoreSlug; sameDevice?: boolean },
   {
     pendingLinkId: GenericId<'pendingLinks'>;
     orderRef: string;
@@ -63,7 +62,7 @@ type LinkStart = FunctionReference<
 type LinkPoll = FunctionReference<
   'action',
   'public',
-  { pendingLinkId: GenericId<'pendingLinks'>; subject?: string },
+  { pendingLinkId: GenericId<'pendingLinks'> },
   | { status: 'pending'; qrCode?: string; autoStartToken?: string }
   | { status: 'complete'; connectionId: GenericId<'connections'> }
   | { status: 'failed'; error?: string }
@@ -72,35 +71,35 @@ type LinkPoll = FunctionReference<
 type SyncSync = FunctionReference<
   'action',
   'public',
-  { connectionId: GenericId<'connections'>; subject?: string },
+  { connectionId: GenericId<'connections'> },
   { synced: number; skipped: number; status: 'active' | 'needs_reauth' }
 >;
 
 type ReceiptsList = FunctionReference<
   'query',
   'public',
-  { subject?: string; paginationOpts: PaginationOptions },
+  { paginationOpts: PaginationOptions },
   PaginationResult<ReceiptHeader>
 >;
 
 type ReceiptsGetReceipt = FunctionReference<
   'query',
   'public',
-  { subject?: string; receiptId: GenericId<'receipts'> },
+  { receiptId: GenericId<'receipts'> },
   { receipt: ReceiptHeader; items: ReceiptItemDoc[] } | null
 >;
 
 type ReceiptsGetPdf = FunctionReference<
   'query',
   'public',
-  { subject?: string; receiptId: GenericId<'receipts'> },
+  { receiptId: GenericId<'receipts'> },
   string | null
 >;
 
 type ReceiptsChanges = FunctionReference<
   'query',
   'public',
-  { subject?: string; since: number; limit?: number },
+  { since: number; limit?: number },
   { receipts: ReceiptHeader[]; cursor: number; hasMore: boolean }
 >;
 

@@ -9,9 +9,6 @@ export default defineConfig({
   test: {
     environment: 'edge-runtime',
     include: ['convex/**/*.vitest.ts'],
-    // The read API resolves callers through the dev-subject fallback, so the
-    // seam must allow it under test (production leaves this unset).
-    env: { ALLOW_DEV_SUBJECT: 'true' },
     server: { deps: { inline: ['convex-test'] } },
   },
 });

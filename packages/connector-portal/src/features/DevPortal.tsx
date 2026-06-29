@@ -65,22 +65,22 @@ type Endpoint = { sig: string; desc: string; live: boolean };
 
 const READ_ENDPOINTS: Endpoint[] = [
   {
-    sig: 'receipts.list({ subject?, paginationOpts })',
+    sig: 'receipts.list({ paginationOpts })',
     desc: 'Reactive, paginated receipt headers, newest first. Re-runs live as a sync inserts rows.',
     live: true,
   },
   {
-    sig: 'receipts.getReceipt({ subject?, receiptId })',
+    sig: 'receipts.getReceipt({ receiptId })',
     desc: 'One header + its line items, or null if missing / owned by another account.',
     live: true,
   },
   {
-    sig: 'receipts.getPdf({ subject?, receiptId })',
+    sig: 'receipts.getPdf({ receiptId })',
     desc: 'Signed URL for the stored PDF (fetch the bytes directly), or null.',
     live: true,
   },
   {
-    sig: 'receipts.changes({ subject?, since, limit? })',
+    sig: 'receipts.changes({ since, limit? })',
     desc: 'Incremental cursor-pull: pass the previous `cursor` back as `since` for new receipts. `since: 0` backfills from the start. Reactive too.',
     live: true,
   },
@@ -142,14 +142,7 @@ export function DevPortal() {
               You&rsquo;re signed in with GitHub — the connector is its own
               identity authority, and your login resolves to a connector{' '}
               <Code>account</Code> that scopes every read and store link. The
-              endpoints below infer that account from your session, so no{' '}
-              <Code>subject</Code> needs to be passed.
-            </Text>
-            <Text variant="body-sm">
-              The <Code>subject</Code> arg the signatures list is optional and
-              ignored while a session is present; it&rsquo;s reserved for the
-              future per-app grant-token flow (a subscribing app authorizing
-              against a connector account).
+              endpoints below infer that account from your session.
             </Text>
           </Stack>
         </Card.Content>

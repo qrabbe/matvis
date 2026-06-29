@@ -5,8 +5,7 @@ import { v, type Infer } from 'convex/values';
 type AssertEqual<A extends B, B extends A> = true;
 
 // Store slug validator, derived from the canonical STORES list in
-// @matvis/shared so it can't drift from the zod ReceiptSource. Shared by the
-// schema and by function argument validators.
+// @matvis/shared
 export const storeValidator = v.union(...STORES.map((slug) => v.literal(slug)));
 
 /** A `connections.status` value. Shared by the schema and query returns. */
@@ -16,6 +15,12 @@ export const connectionStatusValidator = v.union(
   v.literal('revoked'),
 );
 
+/** The status a sync run can leave a connection in (never `revoked`). */
+export const syncStatusValidator = v.union(
+  v.literal('active'),
+  v.literal('needs_reauth'),
+);
+
 /** A `pendingLinks.status` value. Shared by the schema and query returns. */
 export const pendingLinkStatusValidator = v.union(
   v.literal('pending'),
@@ -23,12 +28,7 @@ export const pendingLinkStatusValidator = v.union(
   v.literal('failed'),
 );
 
-// ── Receipt shape (single source of truth) ────────────────────────────────
-// These object validators mirror the `receipts` / `receiptItems` schema
-// columns. They live here so both the sync engine (`model/receipts.ts`, which
-// writes rows) and the public read API (`receipts.ts`, which returns them)
-// describe the SAME shape — the header validator can't silently drift from
-// what `insertReceipt` actually persists.
+// ── Receipt shape ────────────────────────────────
 
 /** The store identity object, matching the `receipts.store` schema column. */
 export const storeObjectValidator = v.object({
@@ -48,15 +48,12 @@ export const vatLineValidator = v.object({
   gross: v.number(),
 });
 
-// These sub-objects are hand-mirrored from the shared zod contract. The guards
-// below fail the build if either side drifts from the other (type-only — erased
-// at runtime). `Receipt` header/items are intentionally reshaped for storage
-// (system fields added, `rawText` dropped) so aren't checked here.
+// Guards fail the build if these validators drift from the shared zod contract
+// (type-only, erased at runtime).
 type _StoreMatches = AssertEqual<Infer<typeof storeObjectValidator>, Store>;
 type _VatMatches = AssertEqual<Infer<typeof vatLineValidator>, VatLine>;
 
-/** One receipt line to INSERT. `gtin`/`matchConfidence` are omitted here —
- * filled by a later matching pass (see `receiptItemDocValidator`). */
+/** One receipt line to INSERT. `gtin` is filled by a later matching pass. */
 export const receiptItemInsertValidator = v.object({
   text: v.string(),
   price: v.number(),
@@ -65,9 +62,8 @@ export const receiptItemInsertValidator = v.object({
   unit: v.optional(v.string()),
 });
 
-/** A full stored `receiptItems` document, as returned to a caller. Includes
- * the system fields plus `gtin`/`matchConfidence`, which a later matching pass
- * fills — optional so a matched row doesn't fail returns-validation. */
+/** A full stored `receiptItems` document, as returned to a caller. `gtin` is
+ * optional — a later matching pass fills it (its presence means "matched"). */
 export const receiptItemDocValidator = v.object({
   _id: v.id('receiptItems'),
   _creationTime: v.number(),
@@ -75,13 +71,11 @@ export const receiptItemDocValidator = v.object({
   lineNo: v.number(),
   ...receiptItemInsertValidator.fields,
   gtin: v.optional(v.string()),
-  matchConfidence: v.optional(v.number()),
 });
 
-/** The content columns of a `receipts` row (everything except the system
- * fields, the `connectionId`/`accountId` relations, and the large `rawText`).
- * Single source of truth spread into the schema table, the `insertReceipt`
- * mutation args, and the returned header validator so the three can't drift. */
+/** The content columns of a `receipts` row (no system fields, relations, or
+ * `rawText`). Single source spread into the schema, `insertReceipt`, and the
+ * header validator so the three can't drift. */
 export const receiptContentFields = {
   source: storeValidator,
   externalId: v.string(),
@@ -100,9 +94,8 @@ export const receiptContentFields = {
   pdfStorageId: v.optional(v.id('_storage')),
 } as const;
 
-/** A stored `receipts` header row WITHOUT `rawText` (which can be large), as
- * returned to a caller by `list` / `changes` / `getReceipt`. Includes the
- * system fields. Built from the same content fields the schema uses. */
+/** A stored `receipts` header row (system fields + content, minus `rawText`),
+ * as returned by `list` / `changes` / `getReceipt`. */
 export const receiptHeaderValidator = v.object({
   _id: v.id('receipts'),
   _creationTime: v.number(),

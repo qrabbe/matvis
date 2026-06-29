@@ -6,18 +6,15 @@ import {
   receiptItemInsertValidator as receiptItem,
   storeValidator,
 } from '../validators';
-import { requireAccountRead } from './auth';
+import { readAccountId } from './auth';
 
 // Registered DB helpers for the sync engine. They live here in the default
-// Convex runtime, not in the `"use node"` `convex/sync.ts` (which may export
-// only actions). The orchestration itself is in `../src/sync.ts`.
+// Convex runtime because the `"use node"` `convex/sync.ts` may export only
+// actions. The orchestration itself is in `../src/sync.ts`.
 
 /** Load the connection fields the sync action needs. `null` if it's gone. */
 export const getConnectionForSync = internalQuery({
-  args: {
-    connectionId: v.id('connections'),
-    subject: v.optional(v.string()),
-  },
+  args: { connectionId: v.id('connections') },
   returns: v.union(
     v.null(),
     v.object({
@@ -29,12 +26,12 @@ export const getConnectionForSync = internalQuery({
       status: connectionStatusValidator,
     }),
   ),
-  handler: async (ctx, { connectionId, subject }) => {
+  handler: async (ctx, { connectionId }) => {
     const c = await ctx.db.get(connectionId);
     if (!c) return null;
-    // Ownership check: only sync a connection the caller's account owns. Return
-    // null for a foreign connection so it's indistinguishable from a missing one.
-    const accountId = await requireAccountRead(ctx, subject);
+    // Ownership: return null for a foreign connection so it's indistinguishable
+    // from a missing one.
+    const accountId = await readAccountId(ctx);
     if (accountId === null || c.accountId !== accountId) return null;
     return {
       accountId: c.accountId,
@@ -75,7 +72,7 @@ export const insertReceipt = internalMutation({
   handler: async (ctx, args) => {
     const { items, ...header } = args;
     const receiptId = await ctx.db.insert('receipts', header);
-    // `gtin`/`matchConfidence` are intentionally omitted; a later pass fills them.
+    // `gtin` is omitted — filled by the later matching pass.
     await Promise.all(
       items.map((it, lineNo) =>
         ctx.db.insert('receiptItems', {
@@ -100,6 +97,7 @@ export const applyRefreshedTokens = internalMutation({
     accessToken: v.string(),
     accessTokenExpiresAt: v.number(),
     refreshToken: v.string(),
+    refreshTokenExpiresAt: v.optional(v.number()),
   },
   returns: v.null(),
   handler: async (ctx, { connectionId, ...tokens }) => {

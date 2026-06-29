@@ -4,16 +4,14 @@ import { defaultFetch } from '../src/http';
 import { internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
 import { action, internalMutation, internalQuery } from './_generated/server';
-import { requireAccount, requireAccountRead } from './model/auth';
+import { getOrCreateAccountId, readAccountId } from './model/auth';
 import { pendingLinkStatusValidator, storeValidator } from './validators';
 
-// Every entry point resolves the caller's account through the `model/auth`
-// seam. `subject` is an optional arg that a real auth provider will supersede.
+// Every entry point resolves the caller's account through the `model/auth` seam.
 
 /** Begin a BankID link for a store under the caller's connector account. */
 export const start = action({
   args: {
-    subject: v.optional(v.string()),
     store: storeValidator,
     // `true` = same-device flow (autoStartToken for a bankid:// deep link);
     // default/`false` = cross-device flow (poll yields a QR to scan).
@@ -24,11 +22,11 @@ export const start = action({
     orderRef: v.string(),
     autoStartToken: v.optional(v.string()),
   }),
-  handler: async (ctx, { subject, store, sameDevice }) => {
+  handler: async (ctx, { store, sameDevice }) => {
     const started = await startBankId(defaultFetch, { sameDevice });
     const pendingLinkId: Id<'pendingLinks'> = await ctx.runMutation(
       internal.links.createPendingLink,
-      { subject, store, orderRef: started.orderRef },
+      { store, orderRef: started.orderRef },
     );
     return {
       pendingLinkId,
@@ -42,7 +40,6 @@ export const start = action({
 export const poll = action({
   args: {
     pendingLinkId: v.id('pendingLinks'),
-    subject: v.optional(v.string()),
   },
   returns: v.union(
     v.object({
@@ -56,10 +53,10 @@ export const poll = action({
     }),
     v.object({ status: v.literal('failed'), error: v.optional(v.string()) }),
   ),
-  handler: async (ctx, { pendingLinkId, subject }) => {
+  handler: async (ctx, { pendingLinkId }) => {
     const link: Doc<'pendingLinks'> | null = await ctx.runQuery(
       internal.links.getPendingLink,
-      { pendingLinkId, subject },
+      { pendingLinkId },
     );
     if (!link)
       return { status: 'failed' as const, error: 'unknown pending link' };
@@ -84,6 +81,7 @@ export const poll = action({
           accessToken: result.tokens.accessToken,
           refreshToken: result.tokens.refreshToken,
           expiresAt: result.tokens.expiresAt,
+          refreshExpiresAt: result.tokens.refreshExpiresAt,
         },
       },
     );
@@ -95,13 +93,12 @@ export const poll = action({
 
 export const createPendingLink = internalMutation({
   args: {
-    subject: v.optional(v.string()),
     store: storeValidator,
     orderRef: v.string(),
   },
   returns: v.id('pendingLinks'),
-  handler: async (ctx, { subject, store, orderRef }) => {
-    const accountId = await requireAccount(ctx, subject);
+  handler: async (ctx, { store, orderRef }) => {
+    const accountId = await getOrCreateAccountId(ctx);
     return await ctx.db.insert('pendingLinks', {
       accountId,
       store,
@@ -114,7 +111,6 @@ export const createPendingLink = internalMutation({
 export const getPendingLink = internalQuery({
   args: {
     pendingLinkId: v.id('pendingLinks'),
-    subject: v.optional(v.string()),
   },
   returns: v.union(
     v.null(),
@@ -127,13 +123,12 @@ export const getPendingLink = internalQuery({
       status: pendingLinkStatusValidator,
     }),
   ),
-  handler: async (ctx, { pendingLinkId, subject }) => {
+  handler: async (ctx, { pendingLinkId }) => {
     const link = await ctx.db.get(pendingLinkId);
     if (!link) return null;
-    // Ownership check: never poll a pending link owned by another account.
-    // Return null (not the row) so a foreign link is indistinguishable from a
-    // missing one — no existence leak.
-    const accountId = await requireAccountRead(ctx, subject);
+    // Ownership: return null (not the row) for a foreign link so it can't be
+    // distinguished from a missing one.
+    const accountId = await readAccountId(ctx);
     if (accountId === null || link.accountId !== accountId) return null;
     return link;
   },
@@ -146,6 +141,7 @@ export const finishLink = internalMutation({
       accessToken: v.string(),
       refreshToken: v.string(),
       expiresAt: v.number(), // epoch ms
+      refreshExpiresAt: v.optional(v.number()), // epoch ms
     }),
   },
   returns: v.id('connections'),
@@ -166,6 +162,7 @@ export const finishLink = internalMutation({
       accessToken: tokens.accessToken,
       accessTokenExpiresAt: tokens.expiresAt,
       refreshToken: tokens.refreshToken,
+      refreshTokenExpiresAt: tokens.refreshExpiresAt,
       status: 'active' as const,
     };
 

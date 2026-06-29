@@ -10,37 +10,31 @@ import {
 
 export default defineSchema({
   // ── Login (Convex Auth) ───────────────────────────────────────────────
-  // `users`, `authAccounts`, `authSessions`, … — the connector is its own
-  // identity authority (plan §5). A logged-in user's identity becomes the
-  // `accounts.subject` below via the auth seam (model/auth.ts). Distinct from
-  // the connector's `accounts` table — Convex Auth uses `authAccounts`.
+  // `users`, `authAccounts`, `authSessions`, …. A logged-in user's identity
+  // becomes an `accounts.subject` below via the auth seam (model/auth.ts).
   ...authTables,
 
   // ── Identity ──────────────────────────────────────────────────────────
-  // A connector principal: the opaque owner of connections + receipts. This is
-  // the connector service's OWN account, separate from any consuming app's
-  // user. An app links to one of these via a grant token (service auth, later).
+  // A connector principal — the opaque owner of connections + receipts,
+  // resolved from the authenticated identity's stable id.
   accounts: defineTable({
-    // Opaque auth subject — whatever authenticates to the connector. Keeps the
-    // connector from being welded to a single auth provider.
-    subject: v.string(),
+    subject: v.string(), // opaque auth id; keeps us off a single provider
   }).index('by_subject', ['subject']),
 
   // ── Store links ───────────────────────────────────────────────────────
   // A linked store account (e.g. one Coop login) under one connector account.
-  // Folds the old repo's `external_api_tokens` onto the connection row.
   connections: defineTable({
     accountId: v.id('accounts'),
     store,
-    // Secrets. Encrypt at rest before real tokens ever land here.
+    // Secrets. TODO: encrypt at rest before real tokens land here.
     accessToken: v.string(),
     accessTokenExpiresAt: v.number(), // epoch ms
     refreshToken: v.string(),
+    refreshTokenExpiresAt: v.optional(v.number()), // epoch ms; absent = no expiry
     status: connectionStatusValidator,
-    lastSyncedAt: v.optional(v.number()), // sync bookkeeping
+    lastSyncedAt: v.optional(v.number()), // epoch ms
   })
     .index('by_account', ['accountId'])
-    // Natural key of the (account, store) upsert in `finishLink`.
     .index('by_account_store', ['accountId', 'store']),
 
   // In-flight BankID link attempts. Short-lived; deleted once resolved.
@@ -58,21 +52,14 @@ export default defineSchema({
   // Normalized receipt header — one row per real-world purchase.
   receipts: defineTable({
     connectionId: v.id('connections'),
-    // Denormalized for ownership scoping + the subscribe cursor.
     accountId: v.id('accounts'),
-    // `source` (store slug + DEDUP key `externalId`), the parsed header columns,
-    // and `pdfStorageId` — the raw source of truth kept for re-parse + download.
     ...receiptContentFields,
     rawText: v.optional(v.string()),
   })
-    // Dedup: at most one receipt per (connection, externalId).
+    // Deduplication: at most one receipt per (connection, externalId).
     .index('by_connection_external', ['connectionId', 'externalId'])
-    // Subscribe cursor: receipts for an account, ordered by _creationTime
-    // (Convex appends _creationTime to every index automatically).
     .index('by_account', ['accountId']),
 
-  // One printed line. `gtin` is the connector's deliverable, filled by its
-  // per-store matcher; empty when no confident match is found (never dropped).
   receiptItems: defineTable({
     receiptId: v.id('receipts'),
     lineNo: v.number(), // preserve on-receipt order
@@ -81,7 +68,6 @@ export default defineSchema({
     isDiscount: v.boolean(),
     quantity: v.optional(v.number()),
     unit: v.optional(v.string()),
-    gtin: v.optional(v.string()), // the EAN
-    matchConfidence: v.optional(v.number()), // how sure the match is
+    gtin: v.optional(v.string()), // the EAN; present once matched
   }).index('by_receipt', ['receiptId']),
 });

@@ -10,27 +10,26 @@ import { internal } from './_generated/api';
 import { action } from './_generated/server';
 import { defaultFetch } from '../src/http';
 import { syncConnection } from '../src/sync';
+import { syncStatusValidator } from './validators';
 
 /**
- * Sync one linked connection: pull its receipts (list → fetch PDF → parse →
- * dedup → store), refreshing the BankID token first if stale. Returns how many
- * receipts were newly stored vs. skipped as duplicates, plus the connection's
- * resulting status (`needs_reauth` when a token refresh failed).
+ * Pull one linked store account's receipts INTO Convex: refresh the BankID
+ * token if stale, list receipts from the store's API, then for each new one
+ * fetch its PDF → parse → store. Returns how many were newly stored vs. skipped
+ * as duplicates, plus the connection's resulting status (`needs_reauth` when a
+ * token refresh failed).
  */
 export const sync = action({
-  args: {
-    connectionId: v.id('connections'),
-    subject: v.optional(v.string()),
-  },
+  args: { connectionId: v.id('connections') },
   returns: v.object({
     synced: v.number(),
     skipped: v.number(),
-    status: v.union(v.literal('active'), v.literal('needs_reauth')),
+    status: syncStatusValidator,
   }),
-  handler: async (ctx, { connectionId, subject }) => {
+  handler: async (ctx, { connectionId }) => {
     const connection = await ctx.runQuery(
       internal.model.receipts.getConnectionForSync,
-      { connectionId, subject },
+      { connectionId },
     );
     if (!connection) throw new Error('connection not found');
 
@@ -44,6 +43,7 @@ export const sync = action({
             accessToken: tokens.accessToken,
             accessTokenExpiresAt: tokens.expiresAt,
             refreshToken: tokens.refreshToken,
+            refreshTokenExpiresAt: tokens.refreshExpiresAt,
           });
         },
         markNeedsReauth: async () => {

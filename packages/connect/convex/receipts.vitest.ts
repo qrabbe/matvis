@@ -6,6 +6,11 @@ import schema from './schema';
 
 const modules = import.meta.glob('./**/*.ts');
 
+// Bind a test client to an account. `tokenIdentifier` is what the auth seam
+// reads (see model/auth.ts), and it matches the seeded `accounts.subject`.
+const as = (t: ReturnType<typeof convexTest>, subject: string) =>
+  t.withIdentity({ tokenIdentifier: subject });
+
 // Seed two accounts (A, B). Account A gets three receipts (a-1, a-2, a-3 in
 // creation order — a-3 newest), a-3 carrying two line items and a stored PDF.
 // Account B gets one receipt (b-1) to exercise cross-account scoping/ownership.
@@ -72,8 +77,7 @@ describe('receipts read API', () => {
   test('list paginates one account newest-first, trimmed', async () => {
     const t = convexTest(schema, modules);
     await seed(t);
-    const page = await t.query(api.receipts.list, {
-      subject: 'sub-a',
+    const page = await as(t, 'sub-a').query(api.receipts.list, {
       paginationOpts: { numItems: 10, cursor: null },
     });
     expect(page.page.map((r) => r.externalId)).toEqual(['a-3', 'a-2', 'a-1']);
@@ -83,11 +87,10 @@ describe('receipts read API', () => {
     expect(page.page.every((r) => !('rawText' in r))).toBe(true);
   });
 
-  test('unknown subject yields an empty page', async () => {
+  test('unknown account yields an empty page', async () => {
     const t = convexTest(schema, modules);
     await seed(t);
-    const page = await t.query(api.receipts.list, {
-      subject: 'nobody',
+    const page = await as(t, 'nobody').query(api.receipts.list, {
       paginationOpts: { numItems: 10, cursor: null },
     });
     expect(page.page).toEqual([]);
@@ -97,8 +100,7 @@ describe('receipts read API', () => {
   test('changes returns all from since:0 then nothing at the cursor', async () => {
     const t = convexTest(schema, modules);
     await seed(t);
-    const first = await t.query(api.receipts.changes, {
-      subject: 'sub-a',
+    const first = await as(t, 'sub-a').query(api.receipts.changes, {
       since: 0,
     });
     expect(first.receipts.map((r) => r.externalId)).toEqual([
@@ -107,8 +109,7 @@ describe('receipts read API', () => {
       'a-3',
     ]);
     expect(first.hasMore).toBe(false);
-    const second = await t.query(api.receipts.changes, {
-      subject: 'sub-a',
+    const second = await as(t, 'sub-a').query(api.receipts.changes, {
       since: first.cursor,
     });
     expect(second.receipts).toEqual([]);
@@ -119,15 +120,13 @@ describe('receipts read API', () => {
   test('changes honors limit and reports hasMore', async () => {
     const t = convexTest(schema, modules);
     await seed(t);
-    const first = await t.query(api.receipts.changes, {
-      subject: 'sub-a',
+    const first = await as(t, 'sub-a').query(api.receipts.changes, {
       since: 0,
       limit: 2,
     });
     expect(first.receipts.map((r) => r.externalId)).toEqual(['a-1', 'a-2']);
     expect(first.hasMore).toBe(true);
-    const rest = await t.query(api.receipts.changes, {
-      subject: 'sub-a',
+    const rest = await as(t, 'sub-a').query(api.receipts.changes, {
       since: first.cursor,
       limit: 2,
     });
@@ -138,8 +137,7 @@ describe('receipts read API', () => {
   test('getReceipt returns header + items in lineNo order for the owner', async () => {
     const t = convexTest(schema, modules);
     const { r3 } = await seed(t);
-    const got = await t.query(api.receipts.getReceipt, {
-      subject: 'sub-a',
+    const got = await as(t, 'sub-a').query(api.receipts.getReceipt, {
       receiptId: r3,
     });
     expect(got?.receipt.externalId).toBe('a-3');
@@ -149,8 +147,7 @@ describe('receipts read API', () => {
   test('getReceipt does not leak another account row', async () => {
     const t = convexTest(schema, modules);
     const { r3 } = await seed(t);
-    const cross = await t.query(api.receipts.getReceipt, {
-      subject: 'sub-b',
+    const cross = await as(t, 'sub-b').query(api.receipts.getReceipt, {
       receiptId: r3,
     });
     expect(cross).toBeNull();
@@ -159,18 +156,15 @@ describe('receipts read API', () => {
   test('getPdf: signed URL for owner, null cross-account, null when no PDF', async () => {
     const t = convexTest(schema, modules);
     const { r1, r3 } = await seed(t);
-    const url = await t.query(api.receipts.getPdf, {
-      subject: 'sub-a',
+    const url = await as(t, 'sub-a').query(api.receipts.getPdf, {
       receiptId: r3,
     });
     expect(typeof url).toBe('string');
-    const cross = await t.query(api.receipts.getPdf, {
-      subject: 'sub-b',
+    const cross = await as(t, 'sub-b').query(api.receipts.getPdf, {
       receiptId: r3,
     });
     expect(cross).toBeNull();
-    const noPdf = await t.query(api.receipts.getPdf, {
-      subject: 'sub-a',
+    const noPdf = await as(t, 'sub-a').query(api.receipts.getPdf, {
       receiptId: r1,
     });
     expect(noPdf).toBeNull();

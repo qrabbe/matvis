@@ -164,5 +164,5 @@ Available endpoints (all scoped to one account):
 | `receipts.changes`    | Incremental cursor-pull of new receipts | ✅ Live    |
 | webhooks / push       | Server-push on new receipts             | 🚧 Planned |
 
-> During development, every call takes an optional `subject` id that scopes reads to
-> your account. Per-app grant tokens land when auth is wired.
+> Every call is scoped to the caller's account, resolved server-side from the
+> authenticated identity. Per-app grant tokens land later.
