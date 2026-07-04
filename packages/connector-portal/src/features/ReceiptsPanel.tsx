@@ -77,12 +77,13 @@ const DEFAULT_VIEW: View = {
   layout: { styles: { total: { align: 'end' } } },
 };
 
-export function ReceiptsPanel() {
-  const page = usePaginatedQuery(
-    api.receipts.list,
-    {},
-    { initialNumItems: 20 },
-  );
+/** Receipts for one account. With no `token` the reads are scoped to the login
+ * session (the portal's own view). Pass a `token` and the exact same component
+ * reads purely through it, the decoupled path a third-party service uses. */
+export function ReceiptsPanel({ token }: { token?: string } = {}) {
+  const page = usePaginatedQuery(api.receipts.list, token ? { token } : {}, {
+    initialNumItems: 20,
+  });
   const [view, setView] = useState<View>(DEFAULT_VIEW);
 
   const loading = page.status === 'LoadingFirstPage';
@@ -104,10 +105,10 @@ export function ReceiptsPanel() {
         isPrimary: true,
         modalHeader: (items) => items[0]?.store.name ?? 'Purchase',
         RenderModal: ({ items }) =>
-          items[0] ? <ReceiptModal header={items[0]} /> : <></>,
+          items[0] ? <ReceiptModal header={items[0]} token={token} /> : <></>,
       },
     ],
-    [],
+    [token],
   );
 
   return (
@@ -160,7 +161,13 @@ export function ReceiptsPanel() {
 /** Modal body for one purchase: a Download-PDF control plus a tab switcher
  * between the readable item list and the raw JSON. The line-item detail is
  * fetched lazily when the modal opens. */
-function ReceiptModal({ header }: { header: ReceiptHeader }) {
+function ReceiptModal({
+  header,
+  token,
+}: {
+  header: ReceiptHeader;
+  token?: string;
+}) {
   const convex = useConvex();
   const [detail, setDetail] = useState<ReceiptDetail | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -170,7 +177,7 @@ function ReceiptModal({ header }: { header: ReceiptHeader }) {
   useEffect(() => {
     let active = true;
     convex
-      .query(api.receipts.getReceipt, { receiptId: header._id })
+      .query(api.receipts.getReceipt, { receiptId: header._id, token })
       .then((d) => {
         if (active) setDetail(d ?? { receipt: header, items: [] });
       })
@@ -180,7 +187,7 @@ function ReceiptModal({ header }: { header: ReceiptHeader }) {
     return () => {
       active = false;
     };
-  }, [convex, header]);
+  }, [convex, header, token]);
 
   const downloadPdf = useCallback(async () => {
     setPdfBusy(true);
@@ -188,6 +195,7 @@ function ReceiptModal({ header }: { header: ReceiptHeader }) {
     try {
       const url = await convex.query(api.receipts.getPdf, {
         receiptId: header._id,
+        token,
       });
       if (url) window.open(url, '_blank', 'noopener');
       else setPdfError('No PDF stored for this receipt.');
@@ -196,7 +204,7 @@ function ReceiptModal({ header }: { header: ReceiptHeader }) {
     } finally {
       setPdfBusy(false);
     }
-  }, [convex, header._id]);
+  }, [convex, header._id, token]);
 
   return (
     <Stack direction="column" gap="md">

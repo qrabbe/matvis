@@ -34,6 +34,18 @@ export type ReceiptHeader = Omit<Receipt, 'items' | 'rawText'> & {
   pdfStorageId?: GenericId<'_storage'>;
 };
 
+/** A store connection minus its secrets, as `connections.list` returns it.
+ * Expiry timestamps are epoch ms. The UI derives validity against the clock. */
+export type ConnectionPublic = {
+  _id: GenericId<'connections'>;
+  _creationTime: number;
+  store: StoreSlug;
+  status: 'active' | 'needs_reauth' | 'revoked';
+  accessTokenExpiresAt: number;
+  refreshTokenExpiresAt?: number;
+  lastSyncedAt?: number;
+};
+
 /** A full stored `receiptItems` document, as `getReceipt` returns it. */
 export type ReceiptItemDoc = {
   _id: GenericId<'receiptItems'>;
@@ -75,37 +87,56 @@ type SyncSync = FunctionReference<
   { synced: number; skipped: number; status: 'active' | 'needs_reauth' }
 >;
 
+// Every read takes an optional `token`: pass it and the read is scoped by that
+// token alone (the decoupled third-party path, no login). Omit it and the read
+// falls back to the caller's login session (the portal's own reads).
 type ReceiptsList = FunctionReference<
   'query',
   'public',
-  { paginationOpts: PaginationOptions },
+  { paginationOpts: PaginationOptions; token?: string },
   PaginationResult<ReceiptHeader>
 >;
 
 type ReceiptsGetReceipt = FunctionReference<
   'query',
   'public',
-  { receiptId: GenericId<'receipts'> },
+  { receiptId: GenericId<'receipts'>; token?: string },
   { receipt: ReceiptHeader; items: ReceiptItemDoc[] } | null
 >;
 
 type ReceiptsGetPdf = FunctionReference<
   'query',
   'public',
-  { receiptId: GenericId<'receipts'> },
+  { receiptId: GenericId<'receipts'>; token?: string },
   string | null
 >;
 
 type ReceiptsChanges = FunctionReference<
   'query',
   'public',
-  { since: number; limit?: number },
+  { since: number; limit?: number; token?: string },
   { receipts: ReceiptHeader[]; cursor: number; hasMore: boolean }
 >;
+
+// The store connections behind a token (or the login session): no secrets,
+// just enough to show which stores are linked and whether each is still valid.
+type ConnectionsList = FunctionReference<
+  'query',
+  'public',
+  { token?: string },
+  ConnectionPublic[]
+>;
+
+// The account-wide API token: `get` reveals the caller's (or null), `create`
+// mints it. Both are session-scoped, so only the owner sees or mints their own.
+type AccessTokenGet = FunctionReference<'query', 'public', {}, string | null>;
+type AccessTokenCreate = FunctionReference<'mutation', 'public', {}, string>;
 
 type ConnectorApi = {
   links: { start: LinkStart; poll: LinkPoll };
   sync: { sync: SyncSync };
+  accessToken: { get: AccessTokenGet; create: AccessTokenCreate };
+  connections: { list: ConnectionsList };
   receipts: {
     list: ReceiptsList;
     getReceipt: ReceiptsGetReceipt;

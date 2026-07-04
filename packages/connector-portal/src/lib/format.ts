@@ -19,3 +19,8 @@ export function formatPurchasedAt(
 ): string | null {
   return iso ? new Date(iso).toLocaleString() : null;
 }
+
+/** Format an epoch-ms timestamp for display, or `null` if absent. */
+export function formatDateTime(ms: number | null | undefined): string | null {
+  return ms == null ? null : new Date(ms).toLocaleString();
+}

@@ -19,7 +19,14 @@ export default defineSchema({
   // resolved from the authenticated identity's stable id.
   accounts: defineTable({
     subject: v.string(), // opaque auth id; keeps us off a single provider
-  }).index('by_subject', ['subject']),
+    // Account-wide API read token: the ONLY credential a third-party service
+    // needs (with the deployment's public URL) to read this account's receipts.
+    // Opaque secret, minted on first reveal. Optional so existing accounts stay
+    // valid until they mint one. TODO: hash at rest before real traffic.
+    token: v.optional(v.string()),
+  })
+    .index('by_subject', ['subject'])
+    .index('by_token', ['token']),
 
   // ── Store links ───────────────────────────────────────────────────────
   // A linked store account (e.g. one Coop login) under one connector account.

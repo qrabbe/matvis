@@ -3,7 +3,8 @@ import { Authenticated, AuthLoading, Unauthenticated } from 'convex/react';
 import { useAuthActions } from '@convex-dev/auth/react';
 import { Button, Card, Stack, Tabs, Text } from '@wordpress/ui';
 import { ConnectPanel } from './features/ConnectPanel';
-import { ReceiptsPanel } from './features/ReceiptsPanel';
+import { TokenPanel } from './features/TokenPanel';
+import { DemoPanel } from './features/DemoPanel';
 import { DevPortal } from './features/DevPortal';
 import { ErrorNotice } from './components/ErrorNotice';
 import { clearConnectionId } from './lib/connectionStore';
@@ -41,18 +42,25 @@ export function App() {
           <Tabs.List>
             <Tabs.Tab value="connect">Connect</Tabs.Tab>
             <Tabs.Tab value="developers">Developers</Tabs.Tab>
+            <Tabs.Tab value="demo">Try a token</Tabs.Tab>
           </Tabs.List>
 
           <Tabs.Panel value="connect">
             <Stack direction="column" gap="xl" style={{ paddingTop: 20 }}>
               <ConnectPanel />
-              <ReceiptsPanel />
+              <TokenPanel />
             </Stack>
           </Tabs.Panel>
 
           <Tabs.Panel value="developers">
             <Stack direction="column" gap="xl" style={{ paddingTop: 20 }}>
               <DevPortal />
+            </Stack>
+          </Tabs.Panel>
+
+          <Tabs.Panel value="demo">
+            <Stack direction="column" gap="xl" style={{ paddingTop: 20 }}>
+              <DemoPanel />
             </Stack>
           </Tabs.Panel>
         </Tabs.Root>

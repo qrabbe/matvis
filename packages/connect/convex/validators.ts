@@ -21,6 +21,19 @@ export const syncStatusValidator = v.union(
   v.literal('needs_reauth'),
 );
 
+/** A `connections` row minus its secrets, as the public read API returns it.
+ * Access and refresh tokens are never exposed. The expiry timestamps are, so a
+ * reader can judge validity (the caller derives "expired" against the clock). */
+export const connectionPublicValidator = v.object({
+  _id: v.id('connections'),
+  _creationTime: v.number(),
+  store: storeValidator,
+  status: connectionStatusValidator,
+  accessTokenExpiresAt: v.number(), // epoch ms
+  refreshTokenExpiresAt: v.optional(v.number()), // epoch ms, absent = no expiry
+  lastSyncedAt: v.optional(v.number()), // epoch ms
+});
+
 /** A `pendingLinks.status` value. Shared by the schema and query returns. */
 export const pendingLinkStatusValidator = v.union(
   v.literal('pending'),

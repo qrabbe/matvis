@@ -5,11 +5,13 @@ import {
 import { v } from 'convex/values';
 import type { Doc, Id } from './_generated/dataModel';
 import { query, type QueryCtx } from './_generated/server';
-import { readAccountId } from './model/auth';
+import { readScopedAccountId } from './model/auth';
 import { receiptHeaderValidator, receiptItemDocValidator } from './validators';
 
-// Public read API for stored receipts. Every handler is scoped to the caller's
-// account; an account that doesn't exist yet yields `null` and an empty result.
+// Public read API for stored receipts. Every handler is scoped to one account,
+// resolved either from an explicit API `token` (the decoupled third-party path,
+// no login needed) or, when no token is passed, from the caller's login session
+// (the portal's own reads). An unresolved account yields an empty result.
 
 /** Drop `rawText` (can be large) from a stored receipt to make a header. */
 function toHeader(doc: Doc<'receipts'>) {
@@ -22,9 +24,10 @@ function toHeader(doc: Doc<'receipts'>) {
 async function loadOwnedReceipt(
   ctx: QueryCtx,
   receiptId: Id<'receipts'>,
+  token?: string,
 ): Promise<Doc<'receipts'> | null> {
   const [accountId, receipt] = await Promise.all([
-    readAccountId(ctx),
+    readScopedAccountId(ctx, token),
     ctx.db.get(receiptId),
   ]);
   if (
@@ -39,10 +42,13 @@ async function loadOwnedReceipt(
 
 /** Paginated receipt headers for one account, newest first. */
 export const list = query({
-  args: { paginationOpts: paginationOptsValidator },
+  args: {
+    paginationOpts: paginationOptsValidator,
+    token: v.optional(v.string()),
+  },
   returns: paginationResultValidator(receiptHeaderValidator),
-  handler: async (ctx, { paginationOpts }) => {
-    const accountId = await readAccountId(ctx);
+  handler: async (ctx, { paginationOpts, token }) => {
+    const accountId = await readScopedAccountId(ctx, token);
     if (accountId === null) {
       return { page: [], isDone: true, continueCursor: '' };
     }
@@ -58,7 +64,7 @@ export const list = query({
 /** One receipt header plus its line items (ordered by on-receipt `lineNo`).
  * Returns `null` when the receipt is missing or owned by another account. */
 export const getReceipt = query({
-  args: { receiptId: v.id('receipts') },
+  args: { receiptId: v.id('receipts'), token: v.optional(v.string()) },
   returns: v.union(
     v.null(),
     v.object({
@@ -66,8 +72,8 @@ export const getReceipt = query({
       items: v.array(receiptItemDocValidator),
     }),
   ),
-  handler: async (ctx, { receiptId }) => {
-    const receipt = await loadOwnedReceipt(ctx, receiptId);
+  handler: async (ctx, { receiptId, token }) => {
+    const receipt = await loadOwnedReceipt(ctx, receiptId, token);
     if (receipt === null) return null;
     const items = await ctx.db
       .query('receiptItems')
@@ -80,10 +86,10 @@ export const getReceipt = query({
 
 /** Signed URL for a receipt's stored PDF, or `null` */
 export const getPdf = query({
-  args: { receiptId: v.id('receipts') },
+  args: { receiptId: v.id('receipts'), token: v.optional(v.string()) },
   returns: v.union(v.null(), v.string()),
-  handler: async (ctx, { receiptId }) => {
-    const receipt = await loadOwnedReceipt(ctx, receiptId);
+  handler: async (ctx, { receiptId, token }) => {
+    const receipt = await loadOwnedReceipt(ctx, receiptId, token);
     if (receipt === null || !receipt.pdfStorageId) return null;
     return await ctx.storage.getUrl(receipt.pdfStorageId);
   },
@@ -97,14 +103,15 @@ export const changes = query({
   args: {
     since: v.number(),
     limit: v.optional(v.number()),
+    token: v.optional(v.string()),
   },
   returns: v.object({
     receipts: v.array(receiptHeaderValidator),
     cursor: v.number(),
     hasMore: v.boolean(),
   }),
-  handler: async (ctx, { since, limit }) => {
-    const accountId = await readAccountId(ctx);
+  handler: async (ctx, { since, limit, token }) => {
+    const accountId = await readScopedAccountId(ctx, token);
     const n = Math.min(limit ?? 100, 200);
     if (accountId === null) {
       return { receipts: [], cursor: since, hasMore: false };

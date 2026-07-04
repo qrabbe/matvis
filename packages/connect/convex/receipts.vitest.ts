@@ -6,10 +6,10 @@ import schema from './schema';
 
 const modules = import.meta.glob('./**/*.ts');
 
-// Bind a test client to an account. `tokenIdentifier` is what the auth seam
-// reads (see model/auth.ts), and it matches the seeded `accounts.subject`.
+// Bind a test client to an account. `subject` is what the auth seam reads (via
+// getAuthUserId in model/auth.ts), and it matches the seeded `accounts.subject`.
 const as = (t: ReturnType<typeof convexTest>, subject: string) =>
-  t.withIdentity({ tokenIdentifier: subject });
+  t.withIdentity({ subject });
 
 // Seed two accounts (A, B). Account A gets three receipts (a-1, a-2, a-3 in
 // creation order — a-3 newest), a-3 carrying two line items and a stored PDF.
