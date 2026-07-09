@@ -17,5 +17,8 @@
   },
   "scripts": {
     "typecheck": "tsc -b"
+  },
+  "dependencies": {
+    "convex": "^1.42.3"
   }
 }
