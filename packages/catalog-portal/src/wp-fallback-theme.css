@@ -1,0 +1,202 @@
+/**
+ * Dark-theme bridge for the classic `@wordpress/components` + `@wordpress/dataviews`
+ * fallbacks (Spinner, the receipts table and its modal — see ReceiptsPanel and the
+ * UI-component policy). Those libraries are styled for the light WP-admin palette:
+ * they read the `--wp-components-color-*` token family, which `MatvisThemeProvider`
+ * never sets, and the Modal hardcodes `#fff` / `#1e1e1e`. Without this, table
+ * header/menu text renders dark-on-dark (invisible until hover) and the popup is a
+ * white island.
+ *
+ * We map that token family onto the Matvis dark palette (`--wpds-*`) and repaint the
+ * few hardcoded Modal colors. Defined on `:root` (not `.matvis-theme`) so the
+ * body-portaled action menus and modal inherit it too. Loaded last in `main.tsx`.
+ */
+:root {
+  /* Brand accent — buttons, links, focus rings, active column header. Tied to the
+     `--wpds-*` brand tokens so it follows the theme seed automatically. */
+  --wp-admin-theme-color: var(
+    --wpds-color-background-interactive-brand-strong,
+    #435ab8
+  );
+  --wp-components-color-accent: var(
+    --wpds-color-background-interactive-brand-strong,
+    #435ab8
+  );
+  --wp-components-color-accent-darker-10: var(
+    --wpds-color-background-interactive-brand-strong-active,
+    #556cc9
+  );
+  --wp-components-color-accent-darker-20: var(
+    --wpds-color-stroke-interactive-brand-active,
+    #6b81de
+  );
+  --wp-components-color-accent-inverted: var(
+    --wpds-color-foreground-interactive-brand-strong,
+    #07173f
+  );
+
+  /* Foreground / background, tied to the Matvis surface + content tokens. */
+  --wp-components-color-foreground: var(
+    --wpds-color-foreground-content-neutral,
+    #f0f0f0
+  );
+  --wp-components-color-foreground-inverted: var(
+    --wpds-color-background-surface-neutral,
+    #000000
+  );
+  --wp-components-color-background: var(
+    --wpds-color-background-surface-neutral,
+    #000000
+  );
+
+  /* Gray ramp mapped onto the neutral surface/stroke/content tokens: low = subtle
+     fills/hover, mid = borders, high = text. */
+  --wp-components-color-gray-100: var(
+    --wpds-color-background-surface-neutral-strong,
+    #1a1a1a
+  );
+  --wp-components-color-gray-400: var(
+    --wpds-color-stroke-surface-neutral,
+    #343434
+  );
+  --wp-components-color-gray-600: var(
+    --wpds-color-stroke-surface-neutral-strong,
+    #6e6e6e
+  );
+  --wp-components-color-gray-700: var(
+    --wpds-color-foreground-content-neutral-weak,
+    #b4b4b4
+  );
+  --wp-components-color-gray-800: var(
+    --wpds-color-foreground-content-neutral,
+    #f0f0f0
+  );
+}
+
+/*
+ * The Modal frame hardcodes a white background + dark text (no token). Repaint it
+ * on the elevated dark surface so our `@wordpress/ui` content (light text) is
+ * readable. `!important` beats the library's equal-specificity rule regardless of
+ * stylesheet order under HMR.
+ */
+.components-modal__frame {
+  background: var(
+    --wpds-color-background-surface-neutral-strong,
+    #262626
+  ) !important;
+  color: var(--wpds-color-foreground-content-neutral, #e0e0e0) !important;
+}
+
+/*
+ * DataViews column headers (and other classic-components internals) are plain
+ * `<button>`s. This app ships no CSS reset, so form controls keep the browser
+ * default `serif`. Give `body` the design-system font and make form controls
+ * inherit it — `@wordpress/ui` components set their own font, so they're
+ * unaffected; only the un-styled fallbacks change.
+ */
+body {
+  font-family: var(
+    --wpds-typography-font-family-body,
+    -apple-system,
+    system-ui,
+    'Segoe UI',
+    Roboto,
+    'Helvetica Neue',
+    sans-serif
+  );
+}
+
+button,
+input,
+optgroup,
+select,
+textarea {
+  font-family: inherit;
+}
+
+/*
+ * Every remaining white surface below is a classic `@wordpress/components` element
+ * that hardcodes `#fff` (and a light `#ccc` border) instead of reading a token, so
+ * it ignores the dark palette entirely. These are the ones that can surface in the
+ * receipts table + its modal: popovers/menus (row-action & view-options dropdowns),
+ * the modal header, and the toggles/checkboxes inside the view-options dropdown.
+ * `!important` is required — we're beating the library's own hardcoded declaration.
+ */
+
+/* Popovers = every dropdown/menu (portaled to <body>). */
+.components-popover__content {
+  background: var(
+    --wpds-color-background-surface-neutral-strong,
+    #242424
+  ) !important;
+  color: var(--wpds-color-foreground-content-neutral, #f0f0f0);
+  box-shadow:
+    0 0 0 1px var(--wpds-color-stroke-surface-neutral, #343434),
+    0 8px 24px rgba(0, 0, 0, 0.4) !important;
+}
+.components-popover__header {
+  background: var(
+    --wpds-color-background-surface-neutral-strong,
+    #242424
+  ) !important;
+  color: var(--wpds-color-foreground-content-neutral, #f0f0f0);
+}
+.components-popover__arrow::before {
+  background: var(
+    --wpds-color-background-surface-neutral-strong,
+    #242424
+  ) !important;
+}
+
+/* Modal header/close bar (frame itself is repainted above). */
+.components-modal__header {
+  background: transparent !important;
+  color: var(--wpds-color-foreground-content-neutral, #f0f0f0);
+}
+
+/* Surfaces some components render onto. */
+.components-panel {
+  background: transparent !important;
+}
+.components-placeholder.components-placeholder {
+  background: var(
+    --wpds-color-background-surface-neutral-weak,
+    #171717
+  ) !important;
+  color: var(--wpds-color-foreground-content-neutral, #f0f0f0);
+}
+
+/* Unchecked toggles/checkboxes/radios in the view-options dropdown. */
+.components-form-toggle .components-form-toggle__track {
+  background-color: var(
+    --wpds-color-background-track-neutral,
+    #343434
+  ) !important;
+  border-color: var(
+    --wpds-color-stroke-surface-neutral-strong,
+    #6e6e6e
+  ) !important;
+}
+.components-checkbox-control__input[type='checkbox']:not(:checked),
+.components-radio-control__input[type='radio']:not(:checked) {
+  background: var(
+    --wpds-color-background-surface-neutral-strong,
+    #242424
+  ) !important;
+  border-color: var(
+    --wpds-color-stroke-surface-neutral-strong,
+    #6e6e6e
+  ) !important;
+}
+
+/*
+ * DataViews hides row-action buttons (`opacity: 0`) until the row is hovered — a
+ * dense-table convention. We keep our single "View purchase" action always
+ * visible instead.
+ */
+.dataviews-view-table
+  tr
+  .dataviews-item-actions
+  .components-button:not(.dataviews-all-actions-button) {
+  opacity: 1;
+}
