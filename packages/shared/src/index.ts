@@ -5,3 +5,4 @@
 export * from './stores';
 export * from './receipt';
 export * from './coop';
+export * from './catalog';

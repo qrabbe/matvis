@@ -22,15 +22,17 @@ If you're a developer, head to [Getting started](#getting-started).
 
 ## The projects
 
-The repo is one monorepo containing **four systems** plus **two shared libraries**.
+The repo is one monorepo containing **six systems** plus **two shared libraries**.
 Not everything is built yet — status is called out per system.
 
-| Package                                         | What it is                                                                                                                                                                                                             | Status                |
-| ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------- |
-| [`connect`](packages/connect)                   | **The receipt connector.** A standalone service that links a store account and syncs purchases into normalized data which gets exposed through an API.                                                                 | ✅ Live               |
-| [`connector-portal`](packages/connector-portal) | **The connector's web UI.** A link/setup flow (BankID QR, connection status) plus a "for developers" portal documenting the API and the versioned `Receipt` contract. Talks only to the connector's Convex deployment. | ✅ Live               |
-| [`app`](packages/app)                           | **The Matvis user app.** The consumer-facing frontend for nutrition, pantry and charts built on top of the connector.                                                                                                  | 🚧 In progress        |
-| [`catalog`](packages/catalog)                   | **Product-data mirror.** A database that hosts GTIN/EAN, product, nutrition, price data, focusing on swedish grocery store items                                                                                       | 🚧 Not started (stub) |
+| Package                                         | What it is                                                                                                                                                                                                             | Status         |
+| ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
+| [`connect`](packages/connect)                   | **The receipt connector.** A standalone service that links a store account and syncs purchases into normalized data which gets exposed through an API.                                                                 | ✅ Live        |
+| [`connector-portal`](packages/connector-portal) | **The connector's web UI.** A link/setup flow (BankID QR, connection status) plus a "for developers" portal documenting the API and the versioned `Receipt` contract. Talks only to the connector's Convex deployment. | ✅ Live        |
+| [`app`](packages/app)                           | **The Matvis user app.** The consumer-facing frontend for nutrition, pantry and charts built on top of the connector.                                                                                                  | 🚧 In progress |
+| [`catalog`](packages/catalog)                   | **Product-data mirror.** A database that hosts GTIN/EAN, product, nutrition, price data, focusing on swedish grocery store items                                                                                       | 🚧 In progress |
+| [`catalog-portal`](packages/catalog-portal)     | **The catalog's web UI.** A search box + table over the clean, EAN-keyed catalog table, plus a "for developers" tab documenting the read API and the versioned `CatalogItem` contract. No auth — public read-only.     | 🚧 In progress |
+| [`landing`](packages/landing)                   | **The distributor page.** A static landing page (no build) served at the Pages root, with a big card linking to each portal. Room for a third card once the app ships.                                                 | ✅ Live        |
 
 ### Shared libraries
 
@@ -103,6 +105,9 @@ bunx convex dev --once
 # Connector portal (link a store, browse receipts, read the API docs)
 bun run --filter @matvis/connector-portal dev   # http://localhost:5273
 
+# Catalog portal (search the product catalog, read the API docs)
+bun run --filter @matvis/catalog-portal dev     # http://localhost:5373
+
 # Matvis user app (in progress)
 bun run --filter @matvis/app dev                 # http://localhost:5173
 ```
@@ -127,6 +132,41 @@ bun run --filter @matvis/ui storybook            # http://localhost:6006
 | `bun run clean`        | `tsc -b --clean`                             |
 
 Per-package tasks use Bun's filter, e.g. `bun run --filter @matvis/connect test`.
+
+---
+
+## Deployment
+
+CI is one pipeline ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)). On a push
+to `main`, after format · typecheck · build · test · secret-scan all pass, the deploy
+job ships each portal's Convex backend to production and builds the portal against the
+URL it just deployed. GitHub Pages serves **one site per repo**, so a static landing
+page and both portals ship in a single artifact:
+
+| URL                                  | Content                           | Convex project     | Deploy-key secret           |
+| ------------------------------------ | --------------------------------- | ------------------ | --------------------------- |
+| `qrabbe.github.io/matvis/`           | landing page (`packages/landing`) | —                  | —                           |
+| `qrabbe.github.io/matvis/connector/` | connector-portal                  | (connector)        | `CONVEX_DEPLOY_KEY`         |
+| `qrabbe.github.io/matvis/catalog/`   | catalog-portal                    | `matvis-catalogue` | `CONVEX_DEPLOY_KEY_CATALOG` |
+
+The root is a static distributor page ([`packages/landing/index.html`](packages/landing/index.html))
+with a card linking to each portal. Each portal's `vite build` runs with `PORTAL_BASE`
+set to its sub-path so asset URLs resolve under Pages, and the landing page plus both
+`dist/` folders are combined into one artifact (landing at the root, connector under
+`/connector/`, catalog under `/catalog/`) before upload.
+
+### Seeding the catalog's production data
+
+The `catalog` table is derived: Coop products land in `raw_coop`, and
+[`backfill.rebuildCleanFromRaw`](packages/catalog/convex/backfill.ts) projects them into
+the clean `catalog` table the portal reads. A fresh production deployment starts empty.
+The simplest fill is a snapshot copy from the dev deployment — from `packages/catalog`
+(where `--prod` resolves to `matvis-catalogue`'s production deployment):
+
+```bash
+bunx convex export --path catalog-snapshot.zip   # from dev (giant-yak-747)
+bunx convex import --prod catalog-snapshot.zip    # into production
+```
 
 ---
 

@@ -63,20 +63,43 @@ jobs:
 
       # `convex deploy` (authenticated by CONVEX_DEPLOY_KEY → production) ships
       # the backend, then runs the build with VITE_CONVEX_URL set to the prod
-      # URL, so the portal is always built against the deployment just shipped.
-      - name: Deploy Convex (prod) and build portal
+      # URL, so each portal is always built against the deployment just shipped.
+      # The two portals have separate Convex projects and separate deploy keys.
+      - name: Deploy connector Convex (prod) and build connector portal
         working-directory: packages/connect
         env:
           CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
-          PORTAL_BASE: /matvis/
+          PORTAL_BASE: /matvis/connector/
         run: >
           bunx convex deploy
           --cmd-url-env-var-name VITE_CONVEX_URL
           --cmd 'cd ../connector-portal && bun run build'
 
+      - name: Deploy catalog Convex (prod) and build catalog portal
+        working-directory: packages/catalog
+        env:
+          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY_CATALOG }}
+          PORTAL_BASE: /matvis/catalog/
+        run: >
+          bunx convex deploy
+          --cmd-url-env-var-name VITE_CONVEX_URL
+          --cmd 'cd ../catalog-portal && bun run build'
+
+      # GitHub Pages serves one site per repo, so everything ships in a single
+      # artifact: a static landing page at the root, and each portal nested
+      # under its own sub-path (built with the matching PORTAL_BASE above) — the
+      # connector under /connector/, the catalog under /catalog/.
+      - name: Assemble Pages artifact
+        run: |
+          rm -rf _site
+          mkdir -p _site/connector _site/catalog
+          cp -r packages/landing/. _site/
+          cp -r packages/connector-portal/dist/. _site/connector/
+          cp -r packages/catalog-portal/dist/. _site/catalog/
+
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: packages/connector-portal/dist
+          path: _site
       - id: pages
         uses: actions/deploy-pages@v4

@@ -6,9 +6,10 @@ import { defineConfig } from 'vite';
 // src/lib/convexApi.ts) and never touches Coop directly, so there is no dev
 // proxy here (unlike @matvis/app).
 export default defineConfig({
-  // Served under a sub-path on GitHub Pages (https://qrabbe.github.io/matvis/),
-  // so the CI build sets PORTAL_BASE=/matvis/. Local dev and a future root host
-  // (e.g. Vercel + custom domain) leave it unset → '/'.
+  // Nested under the landing page on the repo's single Pages site
+  // (https://qrabbe.github.io/matvis/connector/), so the CI build sets
+  // PORTAL_BASE=/matvis/connector/. Local dev and a future root host (e.g.
+  // Vercel + custom domain) leave it unset → '/'.
   base: process.env.PORTAL_BASE || '/',
   plugins: [react()],
   server: { port: 5273 },

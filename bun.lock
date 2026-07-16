@@ -32,6 +32,29 @@
     "packages/catalog": {
       "name": "@matvis/catalog",
       "version": "0.0.0",
+      "dependencies": {
+        "convex": "^1.42.3",
+      },
+    },
+    "packages/catalog-portal": {
+      "name": "@matvis/catalog-portal",
+      "version": "0.0.0",
+      "dependencies": {
+        "@matvis/shared": "workspace:*",
+        "@matvis/ui": "workspace:*",
+        "@wordpress/components": "^37.0.0",
+        "@wordpress/compose": "^8.4.0",
+        "@wordpress/dataviews": "^17.2.0",
+        "convex": "^1.42.3",
+        "react": "^18.3.1",
+        "react-dom": "^18.3.1",
+      },
+      "devDependencies": {
+        "@types/react": "^18",
+        "@types/react-dom": "^18",
+        "@vitejs/plugin-react": "^6.0.3",
+        "vite": "^8.1.5",
+      },
     },
     "packages/connect": {
       "name": "@matvis/connect",
@@ -282,6 +305,8 @@
     "@matvis/app": ["@matvis/app@workspace:packages/app"],
 
     "@matvis/catalog": ["@matvis/catalog@workspace:packages/catalog"],
+
+    "@matvis/catalog-portal": ["@matvis/catalog-portal@workspace:packages/catalog-portal"],
 
     "@matvis/connect": ["@matvis/connect@workspace:packages/connect"],
 
