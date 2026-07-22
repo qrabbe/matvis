@@ -22,6 +22,8 @@ If you're a developer, head to [Getting started](#getting-started).
 
 ## The projects
 
+![Matvis architecture: catalogue, app and connector systems with shared UI and logic libraries](docs/assets/architecture.png)
+
 The repo is one monorepo containing **six systems** plus **two shared libraries**.
 Not everything is built yet — status is called out per system.
 
