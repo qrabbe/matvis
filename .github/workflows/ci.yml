@@ -2,16 +2,16 @@ name: CI + Deploy
 
 # One pipeline. On pull requests it only verifies (format · typecheck · build ·
 # test · secret scan). On a push to main, the same checks run first and the
-# deploy job runs ONLY if every check passes — so a broken build, a failing
-# test, a formatting slip, or a leaked secret blocks the Convex + Pages +
-# statichost release.
+# deploy job runs ONLY if every check passes, so a broken build, a failing
+# test, a formatting slip, or a leaked secret blocks the Convex + statichost
+# release.
 on:
   push:
     branches: [main]
   pull_request:
   workflow_dispatch:
 
-# Default to read-only; the deploy job widens this for itself.
+# Nothing in this pipeline writes back to the repository.
 permissions:
   contents: read
 
@@ -39,22 +39,12 @@ jobs:
       - uses: gitleaks/gitleaks-action@v2
 
   deploy:
-    name: Convex prod + Pages + statichost
+    name: Convex prod + statichost
     # Gate: only after every check is green, and only for a real push to main
     # (never on pull_request runs, which can come from forks).
     needs: [verify, secrets]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pages: write # publish to GitHub Pages
-      id-token: write # OIDC token for deploy-pages
-    concurrency:
-      group: pages
-      cancel-in-progress: true
-    environment:
-      name: github-pages
-      url: ${{ steps.pages.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
@@ -62,59 +52,25 @@ jobs:
           bun-version: latest
       - run: bun install --frozen-lockfile
 
-      # `convex deploy` (authenticated by CONVEX_DEPLOY_KEY → production) ships
-      # the backend, then runs the build with VITE_CONVEX_URL set to the prod
-      # URL, so each portal is always built against the deployment just shipped.
-      # The two portals have separate Convex projects and separate deploy keys.
-      - name: Deploy connector Convex (prod) and build connector portal
+      # `convex deploy` (authenticated by CONVEX_DEPLOY_KEY, which selects the
+      # production deployment) ships the backend. The two portals have separate
+      # Convex projects and separate deploy keys. The frontends are not built
+      # here, statichost.eu builds them from this repo (see statichost.yml).
+      - name: Deploy connector Convex (prod)
         working-directory: packages/connector
         env:
           CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
-          PORTAL_BASE: /matvis/connector/
-        run: >
-          bunx convex deploy
-          --cmd-url-env-var-name VITE_CONVEX_URL
-          --cmd 'cd ../connector-portal && bun run build'
+        run: bunx convex deploy
 
-      - name: Deploy catalog Convex (prod) and build catalog portal
+      - name: Deploy catalog Convex (prod)
         working-directory: packages/catalog
         env:
           CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY_CATALOG }}
-          PORTAL_BASE: /matvis/catalog/
-        run: >
-          bunx convex deploy
-          --cmd-url-env-var-name VITE_CONVEX_URL
-          --cmd 'cd ../catalog-portal && bun run build'
+        run: bunx convex deploy
 
-      # The landing page has no backend, so it builds on its own. Same
-      # PORTAL_BASE mechanism as the portals, pointed at the Pages root.
-      - name: Build landing page
-        env:
-          PORTAL_BASE: /matvis/
-        run: bun run --filter @matvis/landing build
-
-      # GitHub Pages serves one site per repo, so everything ships in a single
-      # artifact: the landing page at the root, and each portal nested
-      # under its own sub-path (built with the matching PORTAL_BASE above) — the
-      # connector under /connector/, the catalog under /catalog/.
-      - name: Assemble Pages artifact
-        run: |
-          rm -rf _site
-          mkdir -p _site/connector _site/catalog
-          cp -r packages/landing/dist/. _site/
-          cp -r packages/connector-portal/dist/. _site/connector/
-          cp -r packages/catalog-portal/dist/. _site/catalog/
-
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: _site
-      - id: pages
-        uses: actions/deploy-pages@v4
-
-      # statichost.eu builds the same site from this repo on its own (see
-      # statichost.yml). Its build is triggered from here rather than from a raw
-      # push webhook on the repository, so it only starts after every check went
-      # green and after the Convex backends the portals talk to are already live.
+      # statichost.eu builds the site itself. Its build is triggered from here
+      # rather than from a raw push webhook on the repository, so it only starts
+      # after every check went green and after the Convex backends the portals
+      # talk to are already live.
       - name: Trigger statichost.eu build
         run: curl -fsS -X POST https://builder.statichost.eu/matvis

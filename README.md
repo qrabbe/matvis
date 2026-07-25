@@ -39,7 +39,7 @@ New systems follow the same pair.
 | [`app`](packages/app)                           | **The Matvis user app.** The consumer-facing frontend for nutrition, pantry and charts built on top of the connector.                                                                                                  | 🚧 In progress |
 | [`catalog`](packages/catalog)                   | **Product-data mirror.** A database that hosts GTIN/EAN, product, nutrition, price data, focusing on swedish grocery store items                                                                                       | 🚧 In progress |
 | [`catalog-portal`](packages/catalog-portal)     | **The catalog's web UI.** A search box + table over the clean, EAN-keyed catalog table, plus a "for developers" tab documenting the read API and the versioned `CatalogItem` contract. No auth — public read-only.     | 🚧 In progress |
-| [`landing`](packages/landing)                   | **The distributor page.** A static landing page (no build) served at the Pages root, with a big card linking to each portal. Room for a third card once the app ships.                                                 | ✅ Live        |
+| [`landing`](packages/landing)                   | **The distributor page.** A static landing page (no build) served at the site root, with a big card linking to each portal. Room for a third card once the app ships.                                                  | ✅ Live        |
 
 ### Shared libraries
 
@@ -144,23 +144,31 @@ Per-package tasks use Bun's filter, e.g. `bun run --filter @matvis/connector tes
 
 ## Deployment
 
-CI is one pipeline ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)). On a push
-to `main`, after format · typecheck · build · test · secret-scan all pass, the deploy
-job ships each portal's Convex backend to production and builds the portal against the
-URL it just deployed. GitHub Pages serves **one site per repo**, so a static landing
-page and both portals ship in a single artifact:
+Backend and frontend ship from two different places.
 
-| URL                                  | Content                           | Convex project     | Deploy-key secret           |
-| ------------------------------------ | --------------------------------- | ------------------ | --------------------------- |
-| `qrabbe.github.io/matvis/`           | landing page (`packages/landing`) | —                  | —                           |
-| `qrabbe.github.io/matvis/connector/` | connector-portal                  | (connector)        | `CONVEX_DEPLOY_KEY`         |
-| `qrabbe.github.io/matvis/catalog/`   | catalog-portal                    | `matvis-catalogue` | `CONVEX_DEPLOY_KEY_CATALOG` |
+**Backends** deploy from CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)). On a
+push to `main`, after format · typecheck · build · test · secret-scan all pass, the deploy
+job runs `convex deploy` for each project against its production deployment, then triggers
+the statichost build so the site is never rebuilt ahead of the backends it talks to.
 
-The root is a static distributor page ([`packages/landing/index.html`](packages/landing/index.html))
-with a card linking to each portal. Each portal's `vite build` runs with `PORTAL_BASE`
-set to its sub-path so asset URLs resolve under Pages, and the landing page plus both
-`dist/` folders are combined into one artifact (landing at the root, connector under
-`/connector/`, catalog under `/catalog/`) before upload.
+| Path          | Content                           | Convex project     | Deploy-key secret           |
+| ------------- | --------------------------------- | ------------------ | --------------------------- |
+| `/`           | landing page (`packages/landing`) | —                  | —                           |
+| `/connector/` | connector-portal                  | (connector)        | `CONVEX_DEPLOY_KEY`         |
+| `/catalog/`   | catalog-portal                    | `matvis-catalogue` | `CONVEX_DEPLOY_KEY_CATALOG` |
+
+**The site** is built by statichost.eu from this repo ([`statichost.yml`](statichost.yml)),
+which runs [`tools/build-site.ts`](tools/build-site.ts). That script builds each frontend
+with `PORTAL_BASE` set to its sub-path so asset URLs resolve, hands the portals their
+Convex URLs from `CONNECTOR_CONVEX_URL` / `CATALOG_CONVEX_URL` (set in the site's settings),
+and assembles everything into `_site`: the landing page at the root, each portal under its
+own path. The root is a static distributor page
+([`packages/landing/index.html`](packages/landing/index.html)) with a card linking to each
+portal.
+
+Because the site tracks whichever branch statichost is pointed at while the backends only
+move on a push to `main`, building the site from a feature branch serves that branch's
+frontend against production's backend.
 
 ### Seeding the catalog's production data
 
