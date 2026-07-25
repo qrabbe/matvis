@@ -3,6 +3,7 @@ import { v } from 'convex/values';
 import { authTables } from '@convex-dev/auth/server';
 import {
   connectionStatusValidator,
+  encryptedSecretValidator,
   pendingLinkStatusValidator,
   receiptContentFields,
   storeValidator as store,
@@ -33,10 +34,12 @@ export default defineSchema({
   connections: defineTable({
     accountId: v.id('accounts'),
     store,
-    // Secrets. TODO: encrypt at rest before real tokens land here.
-    accessToken: v.string(),
+    // Secrets, encrypted at rest (AES-256-GCM, see src/crypto.ts). They are
+    // decrypted only inside the sync action, right before the store API call.
+    // The expiry timestamps stay plaintext so queries can judge validity.
+    accessToken: encryptedSecretValidator,
     accessTokenExpiresAt: v.number(), // epoch ms
-    refreshToken: v.string(),
+    refreshToken: encryptedSecretValidator,
     refreshTokenExpiresAt: v.optional(v.number()), // epoch ms; absent = no expiry
     status: connectionStatusValidator,
     lastSyncedAt: v.optional(v.number()), // epoch ms

@@ -18,13 +18,16 @@ async function seed(t: ReturnType<typeof convexTest>) {
   return await t.run(async (ctx) => {
     const accountA = await ctx.db.insert('accounts', { subject: 'sub-a' });
     const accountB = await ctx.db.insert('accounts', { subject: 'sub-b' });
+    // Token columns hold ciphertext. These tests never decrypt, so a stand-in
+    // blob of the right shape is enough.
+    const sealed = { keyVersion: 1, iv: 'aXY=', ciphertext: 'Y3Q=' };
     const conn = (accountId: typeof accountA) =>
       ctx.db.insert('connections', {
         accountId,
         store: 'coop',
-        accessToken: 'x',
+        accessToken: sealed,
         accessTokenExpiresAt: 0,
-        refreshToken: 'y',
+        refreshToken: sealed,
         status: 'active' as const,
       });
     const connA = await conn(accountA);

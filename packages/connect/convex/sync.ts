@@ -8,6 +8,7 @@ import { v } from 'convex/values';
 import type { Id } from './_generated/dataModel';
 import { internal } from './_generated/api';
 import { action } from './_generated/server';
+import { decryptTokenPair, encryptTokenPair } from '../src/crypto';
 import { defaultFetch } from '../src/http';
 import { syncConnection } from '../src/sync';
 import { syncStatusValidator } from './validators';
@@ -33,16 +34,21 @@ export const sync = action({
     );
     if (!connection) throw new Error('connection not found');
 
+    // The stored tokens are ciphertext. Decrypt them here, in the action, so the
+    // plaintext exists only in memory for the length of this sync.
+    const plaintextTokens = await decryptTokenPair(connection);
+
     return await syncConnection({
       fetch: defaultFetch,
-      connection,
+      connection: { ...connection, ...plaintextTokens },
       db: {
         applyRefreshedTokens: async (tokens) => {
+          const sealed = await encryptTokenPair(tokens);
           await ctx.runMutation(internal.model.receipts.applyRefreshedTokens, {
             connectionId,
-            accessToken: tokens.accessToken,
+            accessToken: sealed.accessToken,
             accessTokenExpiresAt: tokens.expiresAt,
-            refreshToken: tokens.refreshToken,
+            refreshToken: sealed.refreshToken,
             refreshTokenExpiresAt: tokens.refreshExpiresAt,
           });
         },

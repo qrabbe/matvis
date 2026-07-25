@@ -2,6 +2,7 @@ import { v } from 'convex/values';
 import { internalMutation, internalQuery } from '../_generated/server';
 import {
   connectionStatusValidator,
+  encryptedSecretValidator,
   receiptContentFields,
   receiptItemInsertValidator as receiptItem,
   storeValidator,
@@ -12,7 +13,8 @@ import { readAccountId } from './auth';
 // Convex runtime because the `"use node"` `convex/sync.ts` may export only
 // actions. The orchestration itself is in `../src/sync.ts`.
 
-/** Load the connection fields the sync action needs. `null` if it's gone. */
+/** Load the connection fields the sync action needs. `null` if it's gone. The
+ * tokens stay encrypted here. Only the action decrypts them. */
 export const getConnectionForSync = internalQuery({
   args: { connectionId: v.id('connections') },
   returns: v.union(
@@ -20,9 +22,9 @@ export const getConnectionForSync = internalQuery({
     v.object({
       accountId: v.id('accounts'),
       store: storeValidator,
-      accessToken: v.string(),
+      accessToken: encryptedSecretValidator,
       accessTokenExpiresAt: v.number(),
-      refreshToken: v.string(),
+      refreshToken: encryptedSecretValidator,
       status: connectionStatusValidator,
     }),
   ),
@@ -90,13 +92,14 @@ export const insertReceipt = internalMutation({
   },
 });
 
-/** Persist a refreshed token set and reactivate the connection. */
+/** Persist a refreshed token set and reactivate the connection. The tokens
+ * arrive already encrypted from the sync action. */
 export const applyRefreshedTokens = internalMutation({
   args: {
     connectionId: v.id('connections'),
-    accessToken: v.string(),
+    accessToken: encryptedSecretValidator,
     accessTokenExpiresAt: v.number(),
-    refreshToken: v.string(),
+    refreshToken: encryptedSecretValidator,
     refreshTokenExpiresAt: v.optional(v.number()),
   },
   returns: v.null(),

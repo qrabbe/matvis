@@ -1,8 +1,21 @@
 import { STORES, type Store, type VatLine } from '@matvis/shared';
 import { v, type Infer } from 'convex/values';
+import type { EncryptedSecret } from '../src/crypto';
 
 /** Compile-time equality guard: errors unless `A` and `B` are mutually assignable. */
 type AssertEqual<A extends B, B extends A> = true;
+
+/** A secret stored as AES-256-GCM ciphertext. See `src/crypto.ts`. */
+export const encryptedSecretValidator = v.object({
+  keyVersion: v.number(),
+  iv: v.string(),
+  ciphertext: v.string(),
+});
+
+type _EncryptedSecretMatches = AssertEqual<
+  Infer<typeof encryptedSecretValidator>,
+  EncryptedSecret
+>;
 
 // Store slug validator, derived from the canonical STORES list in
 // @matvis/shared

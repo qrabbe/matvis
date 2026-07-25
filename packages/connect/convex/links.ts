@@ -1,11 +1,16 @@
 import { v } from 'convex/values';
 import { pollBankId, startBankId } from '../src/coop/auth/bankid';
+import { encryptTokenPair } from '../src/crypto';
 import { defaultFetch } from '../src/http';
 import { internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
 import { action, internalMutation, internalQuery } from './_generated/server';
 import { getOrCreateAccountId, readAccountId } from './model/auth';
-import { pendingLinkStatusValidator, storeValidator } from './validators';
+import {
+  encryptedSecretValidator,
+  pendingLinkStatusValidator,
+  storeValidator,
+} from './validators';
 
 // Every entry point resolves the caller's account through the `model/auth` seam.
 
@@ -73,13 +78,15 @@ export const poll = action({
       await ctx.runMutation(internal.links.failLink, { pendingLinkId });
       return { status: 'failed' as const, error: result.error };
     }
+    // Encrypt here, in the action, so the mutation only ever sees ciphertext.
+    const sealed = await encryptTokenPair(result.tokens);
     const connectionId: Id<'connections'> = await ctx.runMutation(
       internal.links.finishLink,
       {
         pendingLinkId,
         tokens: {
-          accessToken: result.tokens.accessToken,
-          refreshToken: result.tokens.refreshToken,
+          accessToken: sealed.accessToken,
+          refreshToken: sealed.refreshToken,
           expiresAt: result.tokens.expiresAt,
           refreshExpiresAt: result.tokens.refreshExpiresAt,
         },
@@ -137,9 +144,10 @@ export const getPendingLink = internalQuery({
 export const finishLink = internalMutation({
   args: {
     pendingLinkId: v.id('pendingLinks'),
+    // Already encrypted by the caller (the `poll` action).
     tokens: v.object({
-      accessToken: v.string(),
-      refreshToken: v.string(),
+      accessToken: encryptedSecretValidator,
+      refreshToken: encryptedSecretValidator,
       expiresAt: v.number(), // epoch ms
       refreshExpiresAt: v.optional(v.number()), // epoch ms
     }),

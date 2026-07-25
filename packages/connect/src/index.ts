@@ -7,6 +7,20 @@ export { defaultFetch } from './http';
 
 export type { Connector } from './connector';
 
+// Token encryption at rest
+export {
+  decryptSecret,
+  decryptTokenPair,
+  encryptSecret,
+  encryptTokenPair,
+  generateTokenKey,
+  importTokenKey,
+  TOKEN_KEY_ENV_VAR,
+  TOKEN_KEY_VERSION,
+  tokenEncryptionKey,
+} from './crypto';
+export type { EncryptedSecret } from './crypto';
+
 // Coop connector
 export { CoopConnector } from './coop/connector';
 export type { CoopConnectorOptions } from './coop/connector';
