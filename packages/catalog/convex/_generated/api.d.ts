@@ -11,6 +11,7 @@
 import type * as backfill from "../backfill.js";
 import type * as catalog from "../catalog.js";
 import type * as model_counters from "../model/counters.js";
+import type * as model_fields from "../model/fields.js";
 import type * as model_project from "../model/project.js";
 import type * as raw from "../raw.js";
 import type * as schemes_coop from "../schemes/coop.js";
@@ -25,6 +26,7 @@ declare const fullApi: ApiFromModules<{
   backfill: typeof backfill;
   catalog: typeof catalog;
   "model/counters": typeof model_counters;
+  "model/fields": typeof model_fields;
   "model/project": typeof model_project;
   raw: typeof raw;
   "schemes/coop": typeof schemes_coop;

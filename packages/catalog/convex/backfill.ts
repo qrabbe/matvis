@@ -1,6 +1,15 @@
 import { v } from 'convex/values';
 import { internalAction } from './_generated/server';
 import { internal } from './_generated/api';
+import type { CleanFields } from './model/project';
+
+/** One page of `pageRawCoop`. Spelled out because inferring it here would run
+ * back through the loop's own `cursor`, which TypeScript refuses to resolve. */
+type CleanPage = {
+  items: CleanFields[];
+  continueCursor: string;
+  isDone: boolean;
+};
 
 /**
  * Rebuild the clean `catalog` table from every `raw_coop` row. Idempotent: reruns
@@ -20,7 +29,7 @@ export const rebuildCleanFromRaw = internalAction({
     let pages = 0;
     let inserted = 0;
     for (;;) {
-      const page = await ctx.runQuery(internal.raw.pageRawCoop, {
+      const page: CleanPage = await ctx.runQuery(internal.raw.pageRawCoop, {
         cursor,
         numItems,
       });

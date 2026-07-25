@@ -1,16 +1,11 @@
 import { v } from 'convex/values';
 import { internalMutation, internalQuery } from './_generated/server';
 import { coopProductInformationFields } from './schemes/coop';
+import { catalogFields } from './model/fields';
 import { project, upsertClean } from './model/project';
 
 /** One clean row as it travels between the paging query and the batch upsert. */
-const cleanFields = v.object({
-  ean: v.string(),
-  name: v.string(),
-  store: v.string(),
-  sourceTable: v.string(),
-  sourceId: v.string(),
-});
+const cleanFields = v.object(catalogFields);
 
 /**
  * Ingest one Coop product: upsert `raw_coop` by EAN, then project into the clean

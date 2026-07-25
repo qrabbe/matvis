@@ -5,7 +5,7 @@ import type {
 } from 'convex/server';
 import { anyApi } from 'convex/server';
 import type { GenericId } from 'convex/values';
-import type { CatalogItem } from '@matvis/shared';
+import type { CatalogItem, StoreSlug } from '@matvis/shared';
 
 // ── Typed facade over the catalog's public Convex API ────────────────────────
 // The portal is a separate package from @matvis/catalog, where the Convex
@@ -27,14 +27,41 @@ export type CatalogRow = CatalogItem & {
 type CatalogSearch = FunctionReference<
   'query',
   'public',
-  { q?: string; paginationOpts: PaginationOptions },
+  { q?: string; store?: StoreSlug; paginationOpts: PaginationOptions },
   PaginationResult<CatalogRow>
 >;
 
-type CatalogStats = FunctionReference<'query', 'public', {}, { total: number }>;
+/** Every store's row for one EAN — an array, since the catalog is keyed by
+ * (store, EAN) and the caller picks. */
+type CatalogGetByEan = FunctionReference<
+  'query',
+  'public',
+  { ean: string },
+  CatalogRow[]
+>;
+
+/** The same lookup for a whole receipt's worth of EANs, flat. */
+type CatalogGetManyByEan = FunctionReference<
+  'query',
+  'public',
+  { eans: string[] },
+  CatalogRow[]
+>;
+
+type CatalogStats = FunctionReference<
+  'query',
+  'public',
+  {},
+  { total: number; stores: StoreSlug[] }
+>;
 
 type CatalogApi = {
-  catalog: { search: CatalogSearch; stats: CatalogStats };
+  catalog: {
+    search: CatalogSearch;
+    getByEan: CatalogGetByEan;
+    getManyByEan: CatalogGetManyByEan;
+    stats: CatalogStats;
+  };
 };
 
 /** The catalog's public API, statically typed, backed by the runtime proxy. */

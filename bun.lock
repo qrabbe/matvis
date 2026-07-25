@@ -33,6 +33,7 @@
       "name": "@matvis/catalog",
       "version": "0.0.0",
       "dependencies": {
+        "@matvis/shared": "workspace:*",
         "convex": "^1.42.3",
       },
     },

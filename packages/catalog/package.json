@@ -19,6 +19,7 @@
     "typecheck": "tsc -b"
   },
   "dependencies": {
+    "@matvis/shared": "workspace:*",
     "convex": "^1.42.3"
   }
 }
