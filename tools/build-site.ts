@@ -50,6 +50,28 @@ if (missing.length > 0) {
   process.exit(1);
 }
 
+// Whatever these hold is baked into a public JS bundle, so a wrong value is not
+// just a broken page. A deploy key pasted here would be published as plain text
+// and hand anyone admin rights on the deployment, so refuse anything that is
+// not a plain https deployment URL.
+const invalid = BUILDS.filter((build) => {
+  if (!build.convexUrlVar) return false;
+  const value = process.env[build.convexUrlVar] as string;
+  return !/^https:\/\/[^\s|]+$/.test(value);
+});
+if (invalid.length > 0) {
+  for (const build of invalid) {
+    const value = process.env[build.convexUrlVar as string] as string;
+    const looksLikeKey = value.includes('|') || /^(dev|prod):/.test(value);
+    console.error(
+      `${build.convexUrlVar} is not a deployment URL` +
+        (looksLikeKey ? ' (that looks like a Convex deploy key)' : '') +
+        `.\nExpected something like https://your-deployment-123.convex.cloud`,
+    );
+  }
+  process.exit(1);
+}
+
 rmSync('_site', { recursive: true, force: true });
 mkdirSync('_site', { recursive: true });
 

@@ -3,7 +3,8 @@ name: CI + Deploy
 # One pipeline. On pull requests it only verifies (format · typecheck · build ·
 # test · secret scan). On a push to main, the same checks run first and the
 # deploy job runs ONLY if every check passes — so a broken build, a failing
-# test, a formatting slip, or a leaked secret blocks the Convex + Pages release.
+# test, a formatting slip, or a leaked secret blocks the Convex + Pages +
+# statichost release.
 on:
   push:
     branches: [main]
@@ -38,7 +39,7 @@ jobs:
       - uses: gitleaks/gitleaks-action@v2
 
   deploy:
-    name: Convex prod + Pages
+    name: Convex prod + Pages + statichost
     # Gate: only after every check is green, and only for a real push to main
     # (never on pull_request runs, which can come from forks).
     needs: [verify, secrets]
@@ -110,3 +111,10 @@ jobs:
           path: _site
       - id: pages
         uses: actions/deploy-pages@v4
+
+      # statichost.eu builds the same site from this repo on its own (see
+      # statichost.yml). Its build is triggered from here rather than from a raw
+      # push webhook on the repository, so it only starts after every check went
+      # green and after the Convex backends the portals talk to are already live.
+      - name: Trigger statichost.eu build
+        run: curl -fsS -X POST https://builder.statichost.eu/matvis
