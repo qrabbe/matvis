@@ -2,7 +2,13 @@ import { defineSchema, defineTable } from 'convex/server';
 import { v } from 'convex/values';
 import { coopProductInformationFields } from './schemes/coop';
 import { catalogFields } from './model/fields';
-import { queueKindValidator, queueStatusValidator } from './model/ingest';
+import {
+  queueKindValidator,
+  queueStatusValidator,
+  runKindValidator,
+  runStatusValidator,
+  runSummaryValidator,
+} from './model/ingest';
 
 export default defineSchema({
   // Raw Coop products, one table per chain. Shape mirrors the old repo's
@@ -80,4 +86,48 @@ export default defineSchema({
     key: v.string(),
     value: v.number(),
   }).index('by_key', ['key']),
+
+  // One row per ingest action INVOCATION, which is what makes a fire-and-forget
+  // run readable after the fact. `processQueue` and `refreshOldest` schedule
+  // their own continuations, so a nine-batch drain is nine rows here rather than
+  // one. Deliberately a flat log with no parent link: a run tree would need an
+  // id threaded through every continuation for a view nobody asked for.
+  //
+  // No index. The console reads the newest page, which is what the default
+  // `_creationTime` order descending already gives.
+  ingest_runs: defineTable({
+    kind: runKindValidator,
+    status: runStatusValidator,
+    startedAt: v.number(),
+    finishedAt: v.optional(v.number()),
+    summary: v.optional(runSummaryValidator),
+    error: v.optional(v.string()),
+  }),
+
+  // Singleton settings row, read with `.first()`. `paused` is checked at the top
+  // of every worker batch, which is the only way to stop a self-scheduling chain
+  // from outside: `scheduler.cancel` kills the next link, and the link after it
+  // does not exist yet.
+  ingest_settings: defineTable({
+    paused: v.boolean(),
+    updatedAt: v.number(),
+  }),
+
+  // Live admin console sessions. Stores the token's SHA-256, never the token, so
+  // a database leak hands over hashes rather than working credentials. Deleting
+  // every row is the whole revocation story ("sign out everywhere").
+  admin_sessions: defineTable({
+    tokenHash: v.string(),
+    createdAt: v.number(),
+    expiresAt: v.number(),
+  }).index('by_tokenHash', ['tokenHash']),
+
+  // Singleton failed-sign-in counter, read with `.first()`. One shared password
+  // with no lockout is a password anyone can grind, and this is the row that
+  // makes the eleventh wrong guess cost an hour.
+  admin_signin_guard: defineTable({
+    failures: v.number(),
+    windowStartedAt: v.number(),
+    lockedUntil: v.optional(v.number()),
+  }),
 });

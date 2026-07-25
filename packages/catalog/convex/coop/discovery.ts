@@ -7,6 +7,7 @@ import {
   DISCOVERY_DRAIN_MAX_BATCHES,
   ENQUEUE_CHUNK,
 } from '../model/ingest';
+import { loggedRun } from '../model/runs';
 
 /**
  * Coop's product sitemap, which is what the catalog discovers from. It is not
@@ -82,40 +83,45 @@ export const discoverFromSitemap = internalAction({
     known: v.number(),
     duplicate: v.number(),
   }),
-  handler: async (ctx, { sitemapUrl, drain }) => {
-    const url = sitemapUrl ?? COOP_PRODUCT_SITEMAP_URL;
-    const response = await fetch(url, {
-      headers: { Accept: 'application/xml' },
-    });
-    if (!response.ok) {
-      throw new Error(
-        `Coop sitemap fetch failed: ${response.status} ${response.statusText}`,
-      );
-    }
-    const eans = eansFromSitemap(await response.text());
-
-    let queued = 0;
-    let known = 0;
-    let duplicate = 0;
-    for (const batch of chunk(eans, ENQUEUE_CHUNK)) {
-      const result = await ctx.runMutation(internal.ingest.enqueueEans, {
-        eans: batch,
-        source: 'sitemap',
+  // Logged but not pause-gated: reading the sitemap and filling the queue costs
+  // one request and writes nothing Coop is asked about. What pause has to stop
+  // is the drain below, which is where the check sits.
+  handler: async (ctx, { sitemapUrl, drain }) =>
+    await loggedRun(ctx, 'discovery', null, async () => {
+      const url = sitemapUrl ?? COOP_PRODUCT_SITEMAP_URL;
+      const response = await fetch(url, {
+        headers: { Accept: 'application/xml' },
       });
-      queued += result.queued;
-      known += result.known;
-      duplicate += result.duplicate;
-    }
+      if (!response.ok) {
+        throw new Error(
+          `Coop sitemap fetch failed: ${response.status} ${response.statusText}`,
+        );
+      }
+      const eans = eansFromSitemap(await response.text());
 
-    if (queued > 0 && (drain ?? true)) {
-      await ctx.scheduler.runAfter(0, internal.ingest.processQueue, {
-        batches: Math.min(
-          Math.ceil(queued / COOP_BATCH_SIZE),
-          DISCOVERY_DRAIN_MAX_BATCHES,
-        ),
-      });
-    }
+      let queued = 0;
+      let known = 0;
+      let duplicate = 0;
+      for (const batch of chunk(eans, ENQUEUE_CHUNK)) {
+        const result = await ctx.runMutation(internal.ingest.enqueueEans, {
+          eans: batch,
+          source: 'sitemap',
+        });
+        queued += result.queued;
+        known += result.known;
+        duplicate += result.duplicate;
+      }
 
-    return { found: eans.length, queued, known, duplicate };
-  },
+      const paused = await ctx.runQuery(internal.ops.isPaused, {});
+      if (queued > 0 && (drain ?? true) && !paused) {
+        await ctx.scheduler.runAfter(0, internal.ingest.processQueue, {
+          batches: Math.min(
+            Math.ceil(queued / COOP_BATCH_SIZE),
+            DISCOVERY_DRAIN_MAX_BATCHES,
+          ),
+        });
+      }
+
+      return { found: eans.length, queued, known, duplicate };
+    }),
 });

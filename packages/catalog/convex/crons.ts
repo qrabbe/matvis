@@ -3,9 +3,15 @@ import { cronJobs } from 'convex/server';
 
 /**
  * Scheduled ingest. Registered but EMPTY for now — ingest runs on demand via
- * `bunx convex run` until the pipeline has been watched for a while against the
- * live Coop API. Uncomment the three jobs below (and the `internal` import) to
- * turn it on.
+ * `bunx convex run` or from the admin console until the pipeline has been
+ * watched for a while against the live Coop API. Uncomment the three jobs below
+ * (and the `internal` import) to turn it on.
+ *
+ * Two things a schedule needs in order to be safe now exist, which is what makes
+ * turning these on a decision rather than a leap: the console's pause switch,
+ * checked at the top of every worker batch, and the `ingest_runs` log, which is
+ * where a fire-and-forget run says what it did. A schedule that cannot be
+ * stopped from a browser is one that should not be turned on.
  *
  * Everything here calls an internal function; there is no public ingest surface
  * on this deployment (see `ingest.ts`). Each job spends a bounded budget and

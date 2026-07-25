@@ -90,6 +90,7 @@ Relevant vars:
 | `VITE_CONVEX_URL` / `VITE_CONVEX_SITE_URL`                | frontends       | Convex deployment the client talks to |
 | `CONVEX_SELF_HOSTED_URL` / `CONVEX_SELF_HOSTED_ADMIN_KEY` | `connector`     | self-hosted Convex backend            |
 | `COOP_EXTERNAL_API_KEY`                                   | product lookups | public product API key                |
+| `CATALOG_ADMIN_PASSWORD`                                  | catalog backend | ingest console sign-in (`#/admin`)    |
 | `VITE_SENTRY_DSN`                                         | frontends       | error reporting (optional)            |
 
 ### 3. Run the connector backend

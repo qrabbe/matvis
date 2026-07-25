@@ -3,6 +3,7 @@ import {
   internalAction,
   internalMutation,
   internalQuery,
+  type ActionCtx,
 } from './_generated/server';
 import { internal } from './_generated/api';
 import type { Id } from './_generated/dataModel';
@@ -13,22 +14,29 @@ import {
   DEFAULT_REFRESH_BATCHES,
   QUEUE_DEDUP_SCAN,
   QUEUE_MAINTENANCE_LIMIT,
-  QUEUE_STAT_CAP,
-  QUEUE_STATUSES,
+  QUEUE_PAGE_SIZE,
   REFRESH_BATCH_SIZE,
   SEARCH_HITS_PER_NAME,
   STALE_CLAIM_MS,
+  errorText,
+  freshnessStatsValidator,
   queueKindValidator,
+  queueRowValidator,
+  queueStatsValidator,
+  queueStatusValidator,
 } from './model/ingest';
+import { readFreshnessStats, readQueueStats } from './model/ops';
+import { loggedRun } from './model/runs';
 
 /**
  * Coop ingest: the queue, its worker, and the freshness sweep.
  *
  * EVERY function here is internal. The catalog deployment has no auth — it is a
  * public read-only backend — so a public ingest function would let anyone burn
- * Coop's API key and write to the raw tables. Ingest is driven by `crons.ts` or
- * by `bunx convex run`, never by a client. This is the one place the port
- * departs from the old repo, which gated the same functions behind `requireAdmin`.
+ * Coop's API key and write to the raw tables. Ingest is driven by `crons.ts`, by
+ * `bunx convex run`, or by the admin console through `admin.ts`, which holds the
+ * entire public surface and checks a session before it delegates to anything
+ * here. No client reaches this module directly.
  *
  * The HTTP calls themselves live in `coop/fetch.ts` and `coop/discovery.ts`,
  * which hold nothing else, so either can flip to the Node runtime without
@@ -61,15 +69,6 @@ const workerResultValidator = v.object({
 
 type ClaimedRow = Infer<typeof claimedRowValidator>;
 type WorkerResult = Infer<typeof workerResultValidator>;
-
-/** Longest error text kept on a queue row, so one huge upstream message can't
- * dominate the document. */
-const MAX_ERROR_LENGTH = 500;
-
-function errorText(error: unknown): string {
-  const message = error instanceof Error ? error.message : String(error);
-  return message.slice(0, MAX_ERROR_LENGTH);
-}
 
 // ── Queue writes ─────────────────────────────────────────────────────────────
 
@@ -260,39 +259,65 @@ export const markResults = internalMutation({
 
 // ── Queue reads and maintenance ──────────────────────────────────────────────
 
-/**
- * Rows per status, for a human checking on the queue with `convex run`. Counts
- * stop at {@link QUEUE_STAT_CAP} per status and set `capped`, so asking how the
- * queue is doing never turns into a scan of the whole thing.
- */
+/** Rows per status, for a human checking on the queue with `convex run`. Capped
+ * per status, see {@link readQueueStats}. */
 export const queueStats = internalQuery({
   args: {},
+  returns: queueStatsValidator,
+  handler: async (ctx) => await readQueueStats(ctx),
+});
+
+/** How stale the catalog is: never-fetched rows, and the oldest fetch stamp.
+ * See {@link readFreshnessStats}. */
+export const freshnessStats = internalQuery({
+  args: {},
+  returns: freshnessStatsValidator,
+  handler: async (ctx) => await readFreshnessStats(ctx),
+});
+
+/**
+ * One page of queue rows in a single status, newest first. The failed list is
+ * what this exists for: `lastError` is the only place the reason a row did not
+ * ingest is written down, and reading it used to take a hand-written
+ * `runOneoffQuery`. `by_status_kind` indexes it on its `status` prefix.
+ */
+export const listQueueRows = internalQuery({
+  args: {
+    status: queueStatusValidator,
+    cursor: v.optional(v.union(v.string(), v.null())),
+    numItems: v.optional(v.number()),
+  },
   returns: v.object({
-    pending: v.number(),
-    processing: v.number(),
-    done: v.number(),
-    skipped: v.number(),
-    failed: v.number(),
-    capped: v.boolean(),
+    rows: v.array(queueRowValidator),
+    continueCursor: v.string(),
+    isDone: v.boolean(),
   }),
-  handler: async (ctx) => {
-    const counts = {
-      pending: 0,
-      processing: 0,
-      done: 0,
-      skipped: 0,
-      failed: 0,
+  handler: async (ctx, { status, cursor, numItems }) => {
+    const page = await ctx.db
+      .query('coop_ingest_queue')
+      .withIndex('by_status_kind', (q) => q.eq('status', status))
+      .order('desc')
+      .paginate({
+        cursor: cursor ?? null,
+        numItems: Math.min(numItems ?? QUEUE_PAGE_SIZE, QUEUE_PAGE_SIZE),
+      });
+    return {
+      rows: page.page.map((row) => ({
+        _id: row._id,
+        _creationTime: row._creationTime,
+        kind: row.kind,
+        ean: row.ean,
+        query: row.query,
+        status: row.status,
+        attempts: row.attempts,
+        lastError: row.lastError,
+        source: row.source,
+        enqueuedAt: row.enqueuedAt,
+        processedAt: row.processedAt,
+      })),
+      continueCursor: page.continueCursor,
+      isDone: page.isDone,
     };
-    let capped = false;
-    for (const status of QUEUE_STATUSES) {
-      const rows = await ctx.db
-        .query('coop_ingest_queue')
-        .withIndex('by_status_kind', (q) => q.eq('status', status))
-        .take(QUEUE_STAT_CAP + 1);
-      counts[status] = Math.min(rows.length, QUEUE_STAT_CAP);
-      if (rows.length > QUEUE_STAT_CAP) capped = true;
-    }
-    return { ...counts, capped };
   },
 });
 
@@ -375,6 +400,172 @@ type QueueTotals = {
   failed: number;
 };
 
+/** What a drain reports when it did nothing, which is both an empty queue and a
+ * paused one. */
+const NO_QUEUE_WORK: QueueTotals = {
+  claimed: 0,
+  added: 0,
+  skipped: 0,
+  failed: 0,
+};
+
+/**
+ * One drain batch, extracted from {@link processQueue} so the action's handler
+ * is nothing but the run-log and pause wrapper around it.
+ */
+async function drainOneBatch(
+  ctx: ActionCtx,
+  batches: number | undefined,
+  batchSize: number | undefined,
+): Promise<QueueTotals> {
+  const limit = Math.min(batchSize ?? COOP_BATCH_SIZE, COOP_BATCH_SIZE);
+  const claimed: ClaimedRow[] = await ctx.runMutation(
+    internal.ingest.claimBatch,
+    { limit },
+  );
+  if (claimed.length === 0) {
+    return { claimed: 0, added: 0, skipped: 0, failed: 0 };
+  }
+
+  const results: WorkerResult[] = [];
+  let added = 0;
+  let skipped = 0;
+  let failed = 0;
+
+  // Split the claim by how each row resolves. An `ean` row that somehow has no
+  // EAN can't resolve at all, so it settles here rather than reaching Coop.
+  const eanRows: { id: Id<'coop_ingest_queue'>; ean: string }[] = [];
+  const nameRows: ClaimedRow[] = [];
+  for (const row of claimed) {
+    if (row.kind === 'name') {
+      nameRows.push(row);
+    } else if (row.ean) {
+      eanRows.push({ id: row.id, ean: row.ean });
+    } else {
+      results.push({
+        id: row.id,
+        status: 'failed',
+        error: 'ean row carries no EAN',
+      });
+      failed += 1;
+    }
+  }
+
+  // EAN half: one request for the lot, results matched back by EAN.
+  if (eanRows.length > 0) {
+    try {
+      const items: Record<string, unknown>[] = await ctx.runAction(
+        internal.coop.fetch.fetchByEan,
+        { eans: eanRows.map((row) => row.ean) },
+      );
+      const byEan = new Map(items.map((item) => [item.ean as string, item]));
+      for (const row of eanRows) {
+        const item = byEan.get(row.ean);
+        if (!item) {
+          // Coop answers only for what it stocks, with no placeholder for the
+          // rest, so a missing result IS the answer.
+          results.push({
+            id: row.id,
+            status: 'skipped',
+            error: 'not stocked by Coop',
+          });
+          skipped += 1;
+          continue;
+        }
+        try {
+          await ctx.runMutation(internal.raw.upsertCoopByEan, {
+            data: sanitizeCoopProduct(item),
+          });
+          results.push({ id: row.id, status: 'done' });
+          added += 1;
+        } catch (error) {
+          results.push({
+            id: row.id,
+            status: 'failed',
+            error: errorText(error),
+          });
+          failed += 1;
+        }
+      }
+    } catch (error) {
+      // The request itself failed. Settle the rows as failed rather than let
+      // them sit in `processing` until the stale-claim timeout.
+      for (const row of eanRows) {
+        results.push({
+          id: row.id,
+          status: 'failed',
+          error: errorText(error),
+        });
+        failed += 1;
+      }
+    }
+  }
+
+  // Name half: one search each, every hit ingested, the top hit recorded as
+  // what the row resolved to.
+  for (const row of nameRows) {
+    const text = row.query?.trim();
+    if (!text) {
+      results.push({
+        id: row.id,
+        status: 'failed',
+        error: 'name row carries no query text',
+      });
+      failed += 1;
+      continue;
+    }
+    try {
+      const hits: Record<string, unknown>[] = await ctx.runAction(
+        internal.coop.fetch.searchByName,
+        { query: text, take: SEARCH_HITS_PER_NAME },
+      );
+      const top = hits[0];
+      if (!top) {
+        results.push({
+          id: row.id,
+          status: 'skipped',
+          error: `no Coop results for "${text}"`,
+        });
+        skipped += 1;
+        continue;
+      }
+      for (const hit of hits) {
+        try {
+          await ctx.runMutation(internal.raw.upsertCoopByEan, {
+            data: sanitizeCoopProduct(hit),
+          });
+          added += 1;
+        } catch {
+          // Best effort: one unwritable hit must not fail the row, whose
+          // resolution succeeded.
+        }
+      }
+      results.push({
+        id: row.id,
+        status: 'done',
+        ean: top.ean as string,
+      });
+    } catch (error) {
+      results.push({ id: row.id, status: 'failed', error: errorText(error) });
+      failed += 1;
+    }
+  }
+
+  await ctx.runMutation(internal.ingest.markResults, { results });
+
+  // A short claim means the queue is drained, so stop early rather than spend
+  // the rest of the budget on empty batches.
+  const remaining = (batches ?? DEFAULT_QUEUE_BATCHES) - 1;
+  if (remaining > 0 && claimed.length === limit) {
+    await ctx.scheduler.runAfter(0, internal.ingest.processQueue, {
+      batches: remaining,
+      batchSize,
+    });
+  }
+
+  return { claimed: claimed.length, added, skipped, failed };
+}
+
 /**
  * Drain the queue: claim a batch, resolve it, write it through
  * `raw.upsertCoopByEan`, settle the rows, and schedule a continuation while
@@ -383,6 +574,11 @@ type QueueTotals = {
  *
  * `added` counts products written, which for a name row can exceed one: the
  * search endpoint returns near-complete payloads, so every hit is ingested.
+ *
+ * One invocation is one batch, so the pause check {@link loggedRun} performs
+ * before the body runs is a check at the top of every batch. That is what stops
+ * a running drain: cancelling the schedule cannot, because the next link in the
+ * chain does not exist until the current one writes it.
  */
 export const processQueue = internalAction({
   args: { batches: v.optional(v.number()), batchSize: v.optional(v.number()) },
@@ -394,154 +590,10 @@ export const processQueue = internalAction({
   }),
   // Explicit return type: this action calls internal functions from its own
   // module, which TypeScript cannot infer through without help.
-  handler: async (ctx, { batches, batchSize }): Promise<QueueTotals> => {
-    const limit = Math.min(batchSize ?? COOP_BATCH_SIZE, COOP_BATCH_SIZE);
-    const claimed: ClaimedRow[] = await ctx.runMutation(
-      internal.ingest.claimBatch,
-      { limit },
-    );
-    if (claimed.length === 0) {
-      return { claimed: 0, added: 0, skipped: 0, failed: 0 };
-    }
-
-    const results: WorkerResult[] = [];
-    let added = 0;
-    let skipped = 0;
-    let failed = 0;
-
-    // Split the claim by how each row resolves. An `ean` row that somehow has no
-    // EAN can't resolve at all, so it settles here rather than reaching Coop.
-    const eanRows: { id: Id<'coop_ingest_queue'>; ean: string }[] = [];
-    const nameRows: ClaimedRow[] = [];
-    for (const row of claimed) {
-      if (row.kind === 'name') {
-        nameRows.push(row);
-      } else if (row.ean) {
-        eanRows.push({ id: row.id, ean: row.ean });
-      } else {
-        results.push({
-          id: row.id,
-          status: 'failed',
-          error: 'ean row carries no EAN',
-        });
-        failed += 1;
-      }
-    }
-
-    // EAN half: one request for the lot, results matched back by EAN.
-    if (eanRows.length > 0) {
-      try {
-        const items: Record<string, unknown>[] = await ctx.runAction(
-          internal.coop.fetch.fetchByEan,
-          { eans: eanRows.map((row) => row.ean) },
-        );
-        const byEan = new Map(items.map((item) => [item.ean as string, item]));
-        for (const row of eanRows) {
-          const item = byEan.get(row.ean);
-          if (!item) {
-            // Coop answers only for what it stocks, with no placeholder for the
-            // rest, so a missing result IS the answer.
-            results.push({
-              id: row.id,
-              status: 'skipped',
-              error: 'not stocked by Coop',
-            });
-            skipped += 1;
-            continue;
-          }
-          try {
-            await ctx.runMutation(internal.raw.upsertCoopByEan, {
-              data: sanitizeCoopProduct(item),
-            });
-            results.push({ id: row.id, status: 'done' });
-            added += 1;
-          } catch (error) {
-            results.push({
-              id: row.id,
-              status: 'failed',
-              error: errorText(error),
-            });
-            failed += 1;
-          }
-        }
-      } catch (error) {
-        // The request itself failed. Settle the rows as failed rather than let
-        // them sit in `processing` until the stale-claim timeout.
-        for (const row of eanRows) {
-          results.push({
-            id: row.id,
-            status: 'failed',
-            error: errorText(error),
-          });
-          failed += 1;
-        }
-      }
-    }
-
-    // Name half: one search each, every hit ingested, the top hit recorded as
-    // what the row resolved to.
-    for (const row of nameRows) {
-      const text = row.query?.trim();
-      if (!text) {
-        results.push({
-          id: row.id,
-          status: 'failed',
-          error: 'name row carries no query text',
-        });
-        failed += 1;
-        continue;
-      }
-      try {
-        const hits: Record<string, unknown>[] = await ctx.runAction(
-          internal.coop.fetch.searchByName,
-          { query: text, take: SEARCH_HITS_PER_NAME },
-        );
-        const top = hits[0];
-        if (!top) {
-          results.push({
-            id: row.id,
-            status: 'skipped',
-            error: `no Coop results for "${text}"`,
-          });
-          skipped += 1;
-          continue;
-        }
-        for (const hit of hits) {
-          try {
-            await ctx.runMutation(internal.raw.upsertCoopByEan, {
-              data: sanitizeCoopProduct(hit),
-            });
-            added += 1;
-          } catch {
-            // Best effort: one unwritable hit must not fail the row, whose
-            // resolution succeeded.
-          }
-        }
-        results.push({
-          id: row.id,
-          status: 'done',
-          ean: top.ean as string,
-        });
-      } catch (error) {
-        results.push({ id: row.id, status: 'failed', error: errorText(error) });
-        failed += 1;
-      }
-    }
-
-    await ctx.runMutation(internal.ingest.markResults, { results });
-
-    // A short claim means the queue is drained, so stop early rather than spend
-    // the rest of the budget on empty batches.
-    const remaining = (batches ?? DEFAULT_QUEUE_BATCHES) - 1;
-    if (remaining > 0 && claimed.length === limit) {
-      await ctx.scheduler.runAfter(0, internal.ingest.processQueue, {
-        batches: remaining,
-        batchSize,
-      });
-    }
-
-    return { claimed: claimed.length, added, skipped, failed };
-  },
+  handler: async (ctx, { batches, batchSize }): Promise<QueueTotals> =>
+    await loggedRun(ctx, 'drain', NO_QUEUE_WORK, () =>
+      drainOneBatch(ctx, batches, batchSize),
+    ),
 });
 
 // ── Freshness sweep ──────────────────────────────────────────────────────────
@@ -585,12 +637,74 @@ type RefreshTotals = {
   failed: number;
 };
 
+/** What a sweep reports when it did nothing, which is both a fully fresh catalog
+ * and a paused one. */
+const NO_REFRESH_WORK: RefreshTotals = {
+  claimed: 0,
+  refreshed: 0,
+  missing: 0,
+  failed: 0,
+};
+
+/** One sweep batch, extracted from {@link refreshOldest} for the same reason
+ * {@link drainOneBatch} is. */
+async function refreshOneBatch(
+  ctx: ActionCtx,
+  batches: number | undefined,
+  batchSize: number | undefined,
+): Promise<RefreshTotals> {
+  const limit = Math.min(batchSize ?? REFRESH_BATCH_SIZE, COOP_BATCH_SIZE);
+  const claim: { eans: string[]; claimed: number } = await ctx.runMutation(
+    internal.ingest.claimOldestForRefresh,
+    { limit },
+  );
+  if (claim.claimed === 0) {
+    return { claimed: 0, refreshed: 0, missing: 0, failed: 0 };
+  }
+
+  const items: Record<string, unknown>[] = await ctx.runAction(
+    internal.coop.fetch.fetchByEan,
+    { eans: claim.eans },
+  );
+
+  let refreshed = 0;
+  let failed = 0;
+  for (const item of items) {
+    try {
+      await ctx.runMutation(internal.raw.upsertCoopByEan, {
+        data: sanitizeCoopProduct(item),
+      });
+      refreshed += 1;
+    } catch {
+      failed += 1;
+    }
+  }
+
+  const remaining = (batches ?? DEFAULT_REFRESH_BATCHES) - 1;
+  if (remaining > 0 && claim.claimed === limit) {
+    await ctx.scheduler.runAfter(0, internal.ingest.refreshOldest, {
+      batches: remaining,
+      batchSize,
+    });
+  }
+
+  const returned = new Set(items.map((item) => item.ean as string));
+  return {
+    claimed: claim.claimed,
+    refreshed,
+    missing: claim.eans.filter((ean) => !returned.has(ean)).length,
+    failed,
+  };
+}
+
 /**
  * Re-fetch the oldest slice of the catalog. A sweep, not a re-scrape: a daily
  * cron spends a fixed budget of batches on whatever is stalest, so the whole
  * catalog turns over roughly weekly without ever asking Coop for 13k products at
  * once. `missing` counts rows Coop no longer returns; they keep their existing
  * data and simply stop being re-fetched until their turn comes round again.
+ *
+ * Paused and logged per invocation, exactly as {@link processQueue} is.
  */
 export const refreshOldest = internalAction({
   args: { batches: v.optional(v.number()), batchSize: v.optional(v.number()) },
@@ -600,48 +714,8 @@ export const refreshOldest = internalAction({
     missing: v.number(),
     failed: v.number(),
   }),
-  handler: async (ctx, { batches, batchSize }): Promise<RefreshTotals> => {
-    const limit = Math.min(batchSize ?? REFRESH_BATCH_SIZE, COOP_BATCH_SIZE);
-    const claim: { eans: string[]; claimed: number } = await ctx.runMutation(
-      internal.ingest.claimOldestForRefresh,
-      { limit },
-    );
-    if (claim.claimed === 0) {
-      return { claimed: 0, refreshed: 0, missing: 0, failed: 0 };
-    }
-
-    const items: Record<string, unknown>[] = await ctx.runAction(
-      internal.coop.fetch.fetchByEan,
-      { eans: claim.eans },
-    );
-
-    let refreshed = 0;
-    let failed = 0;
-    for (const item of items) {
-      try {
-        await ctx.runMutation(internal.raw.upsertCoopByEan, {
-          data: sanitizeCoopProduct(item),
-        });
-        refreshed += 1;
-      } catch {
-        failed += 1;
-      }
-    }
-
-    const remaining = (batches ?? DEFAULT_REFRESH_BATCHES) - 1;
-    if (remaining > 0 && claim.claimed === limit) {
-      await ctx.scheduler.runAfter(0, internal.ingest.refreshOldest, {
-        batches: remaining,
-        batchSize,
-      });
-    }
-
-    const returned = new Set(items.map((item) => item.ean as string));
-    return {
-      claimed: claim.claimed,
-      refreshed,
-      missing: claim.eans.filter((ean) => !returned.has(ean)).length,
-      failed,
-    };
-  },
+  handler: async (ctx, { batches, batchSize }): Promise<RefreshTotals> =>
+    await loggedRun(ctx, 'refresh', NO_REFRESH_WORK, () =>
+      refreshOneBatch(ctx, batches, batchSize),
+    ),
 });

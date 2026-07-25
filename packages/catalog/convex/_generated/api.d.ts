@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as admin from "../admin.js";
 import type * as backfill from "../backfill.js";
 import type * as catalog from "../catalog.js";
 import type * as coop_discovery from "../coop/discovery.js";
@@ -15,10 +16,14 @@ import type * as coop_fetch from "../coop/fetch.js";
 import type * as coop_sanitize from "../coop/sanitize.js";
 import type * as crons from "../crons.js";
 import type * as ingest from "../ingest.js";
+import type * as model_admin from "../model/admin.js";
 import type * as model_counters from "../model/counters.js";
 import type * as model_fields from "../model/fields.js";
 import type * as model_ingest from "../model/ingest.js";
+import type * as model_ops from "../model/ops.js";
 import type * as model_project from "../model/project.js";
+import type * as model_runs from "../model/runs.js";
+import type * as ops from "../ops.js";
 import type * as raw from "../raw.js";
 import type * as schemes_coop from "../schemes/coop.js";
 
@@ -29,6 +34,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  admin: typeof admin;
   backfill: typeof backfill;
   catalog: typeof catalog;
   "coop/discovery": typeof coop_discovery;
@@ -36,10 +42,14 @@ declare const fullApi: ApiFromModules<{
   "coop/sanitize": typeof coop_sanitize;
   crons: typeof crons;
   ingest: typeof ingest;
+  "model/admin": typeof model_admin;
   "model/counters": typeof model_counters;
   "model/fields": typeof model_fields;
   "model/ingest": typeof model_ingest;
+  "model/ops": typeof model_ops;
   "model/project": typeof model_project;
+  "model/runs": typeof model_runs;
+  ops: typeof ops;
   raw: typeof raw;
   "schemes/coop": typeof schemes_coop;
 }>;

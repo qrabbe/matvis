@@ -99,3 +99,94 @@ export const QUEUE_DEDUP_SCAN = 8;
 /** Rows one maintenance mutation (clear, requeue) touches before returning. The
  * caller re-runs it until it reports nothing left to do. */
 export const QUEUE_MAINTENANCE_LIMIT = 1000;
+
+/** Longest error text kept on a queue row or a run row, so one huge upstream
+ * message cannot dominate the document. */
+export const MAX_ERROR_LENGTH = 500;
+
+/** A queue row as a reader sees it, which is every stored field. Nothing on a
+ * queue row is a secret, and `lastError` is the whole point of reading one. */
+export const queueRowValidator = v.object({
+  _id: v.id('coop_ingest_queue'),
+  _creationTime: v.number(),
+  kind: queueKindValidator,
+  ean: v.optional(v.string()),
+  query: v.optional(v.string()),
+  status: queueStatusValidator,
+  attempts: v.number(),
+  lastError: v.optional(v.string()),
+  source: v.string(),
+  enqueuedAt: v.number(),
+  processedAt: v.optional(v.number()),
+});
+
+/** Queue row counts per status, with `capped` set when a count hit its ceiling. */
+export const queueStatsValidator = v.object({
+  pending: v.number(),
+  processing: v.number(),
+  done: v.number(),
+  skipped: v.number(),
+  failed: v.number(),
+  capped: v.boolean(),
+});
+
+/** How stale the catalog is. `oldestFetchedAt` is null when nothing scanned has
+ * ever been fetched. */
+export const freshnessStatsValidator = v.object({
+  neverFetched: v.number(),
+  neverFetchedCapped: v.boolean(),
+  oldestFetchedAt: v.union(v.number(), v.null()),
+});
+
+/** An error as a bounded string, whatever was thrown. */
+export function errorText(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.slice(0, MAX_ERROR_LENGTH);
+}
+
+// ── Run log and pause switch ─────────────────────────────────────────────────
+
+/** Which action an `ingest_runs` row is recording. */
+export const runKindValidator = v.union(
+  v.literal('discovery'),
+  v.literal('drain'),
+  v.literal('refresh'),
+);
+
+/**
+ * How one logged invocation settled. `running` is written on start and replaced
+ * when the action returns or throws, so a row still reading `running` long after
+ * `startedAt` is an invocation that died without settling (wall clock, deploy).
+ */
+export const runStatusValidator = v.union(
+  v.literal('running'),
+  v.literal('ok'),
+  v.literal('paused'),
+  v.literal('error'),
+);
+
+/** Every ingest action returns a flat bag of counts, which is what makes one
+ * validator enough to store all three kinds of summary. */
+export const runSummaryValidator = v.record(v.string(), v.number());
+
+export type RunKind = 'discovery' | 'drain' | 'refresh';
+export type RunSummary = Record<string, number>;
+
+/** Runs the console lists, newest first. */
+export const RUN_LOG_PAGE = 20;
+
+/** How long a run row is kept before the next run sweeps it. Long enough to
+ * cover "what happened over the weekend", short enough that the table does not
+ * grow forever behind an hourly cron. */
+export const RUN_LOG_TTL_MS = 14 * 24 * 60 * 60 * 1000;
+
+/** Expired run rows deleted per new run. Bounded so writing a run row stays a
+ * fixed cost no matter how much backlog there is to clear. */
+export const RUN_LOG_TRIM = 20;
+
+/** Queue rows per page in the console's failed list. */
+export const QUEUE_PAGE_SIZE = 25;
+
+/** EANs one console paste may enqueue. Above the sitemap's whole product count,
+ * so a paste is bounded without ever being the reason an ingest is incomplete. */
+export const ENQUEUE_PASTE_MAX = 20000;

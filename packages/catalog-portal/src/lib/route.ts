@@ -14,6 +14,16 @@ export function productPath(ean: string): string {
   return `/p/${encodeURIComponent(ean)}`;
 }
 
+/** The admin console's route. Deliberately not in the tab bar: the public portal
+ * is a product page, and the console is not part of it. There is no secret in
+ * knowing the path, because the gate is entirely server side. */
+export const ADMIN_PATH = '/admin';
+
+/** Whether a path addresses the admin console. */
+export function isAdminPath(path: string): boolean {
+  return path.replace(/\/$/, '') === ADMIN_PATH;
+}
+
 /** An `href` for a route path, for real anchors (middle-click, copy link). */
 export function href(path: string): string {
   return `#${path}`;
