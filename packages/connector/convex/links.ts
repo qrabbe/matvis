@@ -1,7 +1,7 @@
 import { v } from 'convex/values';
-import { pollBankId, startBankId } from '../src/coop/auth/bankid';
 import { encryptTokenPair } from '../src/crypto';
 import { defaultFetch } from '../src/http';
+import { getConnector } from '../src/registry';
 import { internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
 import { action, internalMutation, internalQuery } from './_generated/server';
@@ -12,7 +12,9 @@ import {
   storeValidator,
 } from './validators';
 
-// Every entry point resolves the caller's account through the `model/auth` seam.
+// Every entry point resolves the caller's account through the `model/auth` seam,
+// and the store's connector through the `src/registry` seam — so a new chain is
+// a registry entry, not an edit here.
 
 /** Begin a BankID link for a store under the caller's connector account. */
 export const start = action({
@@ -28,7 +30,8 @@ export const start = action({
     autoStartToken: v.optional(v.string()),
   }),
   handler: async (ctx, { store, sameDevice }) => {
-    const started = await startBankId(defaultFetch, { sameDevice });
+    const connector = getConnector(store, { fetch: defaultFetch });
+    const started = await connector.startAuth({ sameDevice });
     const pendingLinkId: Id<'pendingLinks'> = await ctx.runMutation(
       internal.links.createPendingLink,
       { store, orderRef: started.orderRef },
@@ -66,7 +69,9 @@ export const poll = action({
     if (!link)
       return { status: 'failed' as const, error: 'unknown pending link' };
 
-    const result = await pollBankId(defaultFetch, link.orderRef);
+    // The pending link records the store it was started for; poll the same one.
+    const connector = getConnector(link.store, { fetch: defaultFetch });
+    const result = await connector.pollAuth(link.orderRef);
     if (result.status === 'pending') {
       return {
         status: 'pending' as const,

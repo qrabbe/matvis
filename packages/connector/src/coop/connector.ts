@@ -5,7 +5,11 @@ import type {
   ReceiptSummary,
   TokenSet,
 } from '@matvis/shared';
-import type { Connector } from '../connector';
+import type {
+  Connector,
+  ParseReceiptOptions,
+  StartAuthOptions,
+} from '../connector';
 import { defaultFetch, type FetchLike } from '../http';
 import { pollBankId, refreshBankId, startBankId } from './auth/bankid';
 import { DEFAULT_COOP_CONFIG, type CoopConfig } from './config';
@@ -21,7 +25,10 @@ export interface CoopConnectorOptions {
   fetch?: FetchLike;
   /** Endpoint base URLs. Defaults to the real Coop hosts. */
   config?: CoopConfig;
-  /** How receipts are assembled (loyalty-id/raw-text inclusion). */
+  /**
+   * Default receipt assembly (loyalty-id/raw-text inclusion). Per-call options
+   * passed to `parseReceipt` win over these.
+   */
   parseOptions?: ParseCoopReceiptOptions;
 }
 
@@ -42,8 +49,8 @@ export class CoopConnector implements Connector {
     this.#parseOptions = options.parseOptions ?? {};
   }
 
-  startAuth(): Promise<BankIdStart> {
-    return startBankId(this.#fetch, {}, this.#config);
+  startAuth(options: StartAuthOptions = {}): Promise<BankIdStart> {
+    return startBankId(this.#fetch, options, this.#config);
   }
 
   pollAuth(orderRef: string): Promise<BankIdPoll> {
@@ -62,7 +69,10 @@ export class CoopConnector implements Connector {
     return fetchReceiptPdf(this.#fetch, accessToken, receiptId, this.#config);
   }
 
-  parseReceipt(bytes: Uint8Array): Promise<Receipt> {
-    return parseCoopReceiptPdf(bytes, this.#parseOptions);
+  parseReceipt(
+    bytes: Uint8Array,
+    options: ParseReceiptOptions = {},
+  ): Promise<Receipt> {
+    return parseCoopReceiptPdf(bytes, { ...this.#parseOptions, ...options });
   }
 }

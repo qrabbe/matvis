@@ -10,6 +10,7 @@ import { internal } from './_generated/api';
 import { action } from './_generated/server';
 import { decryptTokenPair, encryptTokenPair } from '../src/crypto';
 import { defaultFetch } from '../src/http';
+import { getConnector } from '../src/registry';
 import { syncConnection } from '../src/sync';
 import { syncStatusValidator } from './validators';
 
@@ -39,7 +40,9 @@ export const sync = action({
     const plaintextTokens = await decryptTokenPair(connection);
 
     return await syncConnection({
-      fetch: defaultFetch,
+      // Which store this is comes off the connection row, so the engine below
+      // stays store-agnostic.
+      connector: getConnector(connection.store, { fetch: defaultFetch }),
       connection: { ...connection, ...plaintextTokens },
       db: {
         applyRefreshedTokens: async (tokens) => {

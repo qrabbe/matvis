@@ -3,8 +3,30 @@ import type {
   BankIdStart,
   Receipt,
   ReceiptSummary,
+  StoreSlug,
   TokenSet,
 } from '@matvis/shared';
+
+/** How an authentication is started. Store-agnostic BankID flow selection. */
+export interface StartAuthOptions {
+  /**
+   * `true` = same-device flow (the start or poll carries an autostart token for
+   * a `bankid://` deep link); default/`false` = cross-device flow (poll yields a
+   * QR to scan).
+   */
+  sameDevice?: boolean;
+}
+
+/**
+ * Which optional fields a parsed receipt carries. Both map to optional fields
+ * on the shared `Receipt`, so they are store-agnostic.
+ */
+export interface ParseReceiptOptions {
+  /** Include the parsed loyalty/membership number. */
+  includeLoyaltyCardId?: boolean;
+  /** Attach the raw extracted text to `Receipt.rawText` for debugging. */
+  includeRawText?: boolean;
+}
 
 /**
  * The store-agnostic connector contract.
@@ -13,11 +35,11 @@ import type {
  * (EAN) result
  */
 export interface Connector {
-  /** Stable identifier, e.g. "coop". */
-  readonly id: string;
+  /** Stable identifier, e.g. "coop". Matches its key in the registry. */
+  readonly id: StoreSlug;
 
   /** Begin authentication; returns a reference to poll on. */
-  startAuth(): Promise<BankIdStart>;
+  startAuth(options?: StartAuthOptions): Promise<BankIdStart>;
 
   /** Poll a pending authentication once (render QR while `pending`). */
   pollAuth(orderRef: string): Promise<BankIdPoll>;
@@ -32,5 +54,8 @@ export interface Connector {
   fetchReceiptPdf(accessToken: string, receiptId: string): Promise<Uint8Array>;
 
   /** Parse PDF bytes into a normalized receipt. */
-  parseReceipt(bytes: Uint8Array): Promise<Receipt>;
+  parseReceipt(
+    bytes: Uint8Array,
+    options?: ParseReceiptOptions,
+  ): Promise<Receipt>;
 }

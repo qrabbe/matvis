@@ -5,7 +5,15 @@
 export type { FetchLike, HttpResponse } from './http';
 export { defaultFetch } from './http';
 
-export type { Connector } from './connector';
+export type {
+  Connector,
+  ParseReceiptOptions,
+  StartAuthOptions,
+} from './connector';
+
+// Store selection: slug → connector.
+export { getConnector, hasConnector, supportedStores } from './registry';
+export type { ConnectorFactory, ConnectorOptions } from './registry';
 
 // Token encryption at rest
 export {

@@ -3,17 +3,16 @@ import {
   type Receipt,
   type TokenSet,
 } from '@matvis/shared';
-import { refreshBankId } from './coop/auth/bankid';
-import { parseCoopReceiptPdf } from './coop/parse/receipt';
-import { fetchReceiptPdf } from './coop/receipts/pdf';
-import { listReceipts } from './coop/receipts/list';
-import type { FetchLike } from './http';
+import type { Connector } from './connector';
 
-// The runtime-agnostic sync engine. It orchestrates list → fetch PDF → parse →
-// dedup → store for one linked connection, talking to injected ports only (a
-// `FetchLike` transport and a small DB port). That keeps it unit-testable with
-// stub deps and lets the Convex action in `convex/sync.ts` stay a thin adapter
-// — so flipping that action to `"use node";` never touches this logic.
+// The runtime-agnostic, store-agnostic sync engine. It orchestrates list →
+// fetch PDF → parse → dedup → store for one linked connection, talking to
+// injected ports only (a `Connector` for the store's API and a small DB port).
+// That keeps it unit-testable with stub deps and lets the Convex action in
+// `convex/sync.ts` stay a thin adapter — so flipping that action to
+// `"use node";` never touches this logic. Which store is being synced is the
+// caller's concern: it resolves the connector from `connection.store` through
+// the registry and passes it in.
 
 /** One receipt line, mapped to the connector's `receiptItems` shape. */
 export interface ReceiptItemRow {
@@ -117,7 +116,8 @@ export interface SyncResult {
 }
 
 export interface SyncDeps {
-  fetch: FetchLike;
+  /** The store's connector, already resolved from `connection.store`. */
+  connector: Connector;
   connection: SyncConnection;
   db: SyncDb;
   /** Clock injection point for token-freshness checks (defaults to real time). */
@@ -134,7 +134,7 @@ export interface SyncDeps {
  * a re-link.
  */
 export async function syncConnection(deps: SyncDeps): Promise<SyncResult> {
-  const { fetch, connection, db, now = Date.now() } = deps;
+  const { connector, connection, db, now = Date.now() } = deps;
 
   if (connection.status === 'revoked') {
     throw new Error('cannot sync a revoked connection');
@@ -148,7 +148,7 @@ export async function syncConnection(deps: SyncDeps): Promise<SyncResult> {
   if (!fresh) {
     let refreshed: TokenSet;
     try {
-      refreshed = await refreshBankId(fetch, connection.refreshToken);
+      refreshed = await connector.refresh(connection.refreshToken);
     } catch {
       await db.markNeedsReauth();
       return { synced: 0, skipped: 0, status: 'needs_reauth' };
@@ -157,7 +157,7 @@ export async function syncConnection(deps: SyncDeps): Promise<SyncResult> {
     accessToken = refreshed.accessToken;
   }
 
-  const summaries = await listReceipts(fetch, accessToken);
+  const summaries = await connector.listReceipts(accessToken);
 
   let synced = 0;
   let skipped = 0;
@@ -166,11 +166,11 @@ export async function syncConnection(deps: SyncDeps): Promise<SyncResult> {
       skipped++;
       continue;
     }
-    const bytes = await fetchReceiptPdf(fetch, accessToken, summary.id);
+    const bytes = await connector.fetchReceiptPdf(accessToken, summary.id);
     // Storing and parsing both read `bytes` but not each other; overlap them.
     const [pdfStorageId, receipt] = await Promise.all([
       db.storePdf(bytes),
-      parseCoopReceiptPdf(bytes, { includeRawText: true }),
+      connector.parseReceipt(bytes, { includeRawText: true }),
     ]);
     await db.insertReceipt(mapReceiptToRow(receipt, summary.id), pdfStorageId);
     synced++;

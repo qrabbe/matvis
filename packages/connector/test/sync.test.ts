@@ -3,7 +3,9 @@ import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import type { Receipt } from '@matvis/shared';
 import { describe, expect, it } from 'bun:test';
+import type { Connector } from '../src/connector';
 import type { FetchLike } from '../src/http';
+import { getConnector } from '../src/registry';
 import {
   mapReceiptToRow,
   type ReceiptRow,
@@ -141,6 +143,14 @@ function makeFetch(opts: {
   };
 }
 
+/**
+ * The real Coop connector, off the registry, over a stubbed transport — so
+ * these tests exercise the same slug → connector path the Convex action takes.
+ */
+function makeConnector(opts: Parameters<typeof makeFetch>[0]): Connector {
+  return getConnector('coop', { fetch: makeFetch(opts) });
+}
+
 const activeConnection: SyncConnection = {
   accessToken: 'access-token',
   accessTokenExpiresAt: Date.now() + 3_600_000, // fresh → no refresh
@@ -160,7 +170,7 @@ describe('syncConnection', () => {
     const { db } = makeDb();
     await expect(
       syncConnection({
-        fetch: makeFetch({ pdf: new Uint8Array(), list: [] }),
+        connector: makeConnector({ pdf: new Uint8Array(), list: [] }),
         connection: { ...activeConnection, status: 'revoked' },
         db,
       }),
@@ -170,7 +180,11 @@ describe('syncConnection', () => {
   it('marks needs_reauth (not thrown) when a stale token fails to refresh', async () => {
     const { db, events } = makeDb();
     const result = await syncConnection({
-      fetch: makeFetch({ pdf: new Uint8Array(), list: [], refresh: 'fail' }),
+      connector: makeConnector({
+        pdf: new Uint8Array(),
+        list: [],
+        refresh: 'fail',
+      }),
       connection: {
         ...activeConnection,
         accessTokenExpiresAt: Date.now() - 1000,
@@ -191,10 +205,10 @@ describe('syncConnection', () => {
     const pdf = new Uint8Array(await readFile(documentsDir + pdfNames[0]));
     const list = [{ receipt_id: 'r1' }, { receipt_id: 'r2' }];
     const { db, stored, inserted, events } = makeDb();
-    const fetch = makeFetch({ pdf, list });
+    const connector = makeConnector({ pdf, list });
 
     const first = await syncConnection({
-      fetch,
+      connector,
       connection: activeConnection,
       db,
     });
@@ -205,7 +219,7 @@ describe('syncConnection', () => {
     expect(events).toContain('touched');
 
     const second = await syncConnection({
-      fetch,
+      connector,
       connection: activeConnection,
       db,
     });
@@ -217,7 +231,11 @@ describe('syncConnection', () => {
     const pdf = new Uint8Array(await readFile(documentsDir + pdfNames[0]));
     const { db, events } = makeDb();
     const result = await syncConnection({
-      fetch: makeFetch({ pdf, list: [{ receipt_id: 'r1' }], refresh: 'ok' }),
+      connector: makeConnector({
+        pdf,
+        list: [{ receipt_id: 'r1' }],
+        refresh: 'ok',
+      }),
       connection: {
         ...activeConnection,
         accessTokenExpiresAt: Date.now() - 1000,
