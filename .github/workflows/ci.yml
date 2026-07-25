@@ -1,13 +1,15 @@
 name: CI + Deploy
 
 # One pipeline. On pull requests it only verifies (format · typecheck · build ·
-# test · secret scan). On a push to main, the same checks run first and the
-# deploy job runs ONLY if every check passes, so a broken build, a failing
-# test, a formatting slip, or a leaked secret blocks the Convex + statichost
-# release.
+# test · secret scan). On a push to dev or main the same checks run first and the
+# deploy job runs ONLY if every check passes, so a broken build, a failing test,
+# a formatting slip, or a leaked secret blocks the release. Either branch pushes
+# schema and functions to BOTH the development and the production Convex
+# deployments, so the two environments always run the same backend code. Only a
+# push to main additionally rebuilds the public site.
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
   pull_request:
   workflow_dispatch:
 
@@ -39,11 +41,11 @@ jobs:
       - uses: gitleaks/gitleaks-action@v2
 
   deploy:
-    name: Convex prod + statichost
-    # Gate: only after every check is green, and only for a real push to main
-    # (never on pull_request runs, which can come from forks).
+    name: Convex dev + prod
+    # Gate: only after every check is green, and only for a real push to dev or
+    # main (never on pull_request runs, which can come from forks).
     needs: [verify, secrets]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev') && github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -52,10 +54,24 @@ jobs:
           bun-version: latest
       - run: bun install --frozen-lockfile
 
-      # `convex deploy` (authenticated by CONVEX_DEPLOY_KEY, which selects the
-      # production deployment) ships the backend. The two portals have separate
-      # Convex projects and separate deploy keys. The frontends are not built
+      # `convex deploy` ships schema, indexes and functions. Which deployment it
+      # lands on is decided entirely by CONVEX_DEPLOY_KEY, so the four steps
+      # below are the same push aimed at four targets: development and
+      # production, for each of the two projects. Both environments are kept on
+      # the same code whichever branch was pushed. The frontends are not built
       # here, statichost.eu builds them from this repo (see statichost.yml).
+      - name: Deploy connector Convex (dev)
+        working-directory: packages/connector
+        env:
+          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY_DEV }}
+        run: bunx convex deploy
+
+      - name: Deploy catalog Convex (dev)
+        working-directory: packages/catalog
+        env:
+          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY_CATALOG_DEV }}
+        run: bunx convex deploy
+
       - name: Deploy connector Convex (prod)
         working-directory: packages/connector
         env:
@@ -71,6 +87,8 @@ jobs:
       # statichost.eu builds the site itself. Its build is triggered from here
       # rather than from a raw push webhook on the repository, so it only starts
       # after every check went green and after the Convex backends the portals
-      # talk to are already live.
+      # talk to are already live. Only main rebuilds the public site, the
+      # backends move on either branch.
       - name: Trigger statichost.eu build
+        if: github.ref == 'refs/heads/main'
         run: curl -fsS -X POST https://builder.statichost.eu/matvis
