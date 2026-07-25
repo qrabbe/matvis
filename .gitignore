@@ -6,6 +6,7 @@ dist
 dist-ssr
 build
 build-types
+_site
 
 # Stray TS declaration artifacts (real ones live in gitignored build-types/)
 *.d.ts.map

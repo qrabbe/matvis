@@ -1,0 +1,11 @@
+# Build config for statichost.eu (https://www.statichost.eu/docs/build-config/).
+# The whole public site is one statichost site: the landing page at the root,
+# the connector under /connector/, the catalog under /catalog/.
+#
+# The two portals are built against the Convex deployments named by
+# CONNECTOR_CONVEX_URL and CATALOG_CONVEX_URL, which are set in the site's
+# settings page. Convex backends are NOT deployed from here, that stays in the
+# GitHub Actions pipeline.
+image: oven/bun:1.2
+command: bun install --frozen-lockfile && bun run build:site
+public: _site
