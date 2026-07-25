@@ -1,7 +1,16 @@
 import { v } from 'convex/values';
 import { internalMutation, internalQuery } from './_generated/server';
 import { coopProductInformationFields } from './schemes/coop';
-import { projectCoop, upsertClean, type CleanFields } from './model/project';
+import { project, upsertClean } from './model/project';
+
+/** One clean row as it travels between the paging query and the batch upsert. */
+const cleanFields = v.object({
+  ean: v.string(),
+  name: v.string(),
+  store: v.string(),
+  sourceTable: v.string(),
+  sourceId: v.string(),
+});
 
 /**
  * Ingest one Coop product: upsert `raw_coop` by EAN, then project into the clean
@@ -23,15 +32,8 @@ export const upsertCoopByEan = internalMutation({
       : await ctx.db.insert('raw_coop', data);
 
     const raw = (await ctx.db.get(rawId))!;
-    const projected = projectCoop(raw);
-    if (projected) {
-      await upsertClean(ctx, {
-        ...projected,
-        store: 'coop',
-        sourceTable: 'raw_coop',
-        sourceId: rawId,
-      });
-    }
+    const clean = project('raw_coop', raw);
+    if (clean) await upsertClean(ctx, clean);
     return rawId;
   },
 });
@@ -40,21 +42,15 @@ export const upsertCoopByEan = internalMutation({
 export const pageRawCoop = internalQuery({
   args: { cursor: v.union(v.string(), v.null()), numItems: v.number() },
   returns: v.object({
-    items: v.array(
-      v.object({
-        ean: v.string(),
-        name: v.string(),
-        sourceId: v.id('raw_coop'),
-      }),
-    ),
+    items: v.array(cleanFields),
     continueCursor: v.string(),
     isDone: v.boolean(),
   }),
   handler: async (ctx, { cursor, numItems }) => {
     const page = await ctx.db.query('raw_coop').paginate({ cursor, numItems });
     const items = page.page.flatMap((doc) => {
-      const p = projectCoop(doc);
-      return p ? [{ ...p, sourceId: doc._id }] : [];
+      const clean = project('raw_coop', doc);
+      return clean ? [clean] : [];
     });
     return {
       items,
@@ -66,26 +62,11 @@ export const pageRawCoop = internalQuery({
 
 /** Upsert a batch of clean rows (used by the backfill). Returns rows inserted. */
 export const upsertCleanBatch = internalMutation({
-  args: {
-    items: v.array(
-      v.object({
-        ean: v.string(),
-        name: v.string(),
-        sourceId: v.id('raw_coop'),
-      }),
-    ),
-  },
+  args: { items: v.array(cleanFields) },
   returns: v.number(),
   handler: async (ctx, { items }) => {
     let inserted = 0;
-    for (const it of items) {
-      const fields: CleanFields = {
-        ean: it.ean,
-        name: it.name,
-        store: 'coop',
-        sourceTable: 'raw_coop',
-        sourceId: it.sourceId,
-      };
+    for (const fields of items) {
       if (await upsertClean(ctx, fields)) inserted += 1;
     }
     return inserted;
