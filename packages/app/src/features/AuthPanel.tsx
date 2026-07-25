@@ -1,7 +1,6 @@
 import { useCallback, useState } from 'react';
 import { Badge, Button, Card, Notice, Stack, Text } from '@wordpress/ui';
-import { isAccessTokenValid } from '@matvis/connector';
-import type { TokenSet } from '@matvis/shared';
+import { isAccessTokenValid, type TokenSet } from '@matvis/shared';
 import { connector } from '../lib/connector';
 import { clearTokens, saveTokens } from '../lib/tokenStore';
 import { errMsg } from '../lib/format';

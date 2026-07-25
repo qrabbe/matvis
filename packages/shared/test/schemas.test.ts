@@ -1,13 +1,15 @@
 import { describe, expect, it } from 'bun:test';
 import {
   BankIdPoll,
+  isAccessTokenValid,
   LineItem,
   Receipt,
-  ReceiptListResponse,
   ReceiptSource,
   ReceiptSummary,
   TokenSet,
 } from '../src/index';
+
+const NOW = 1_700_000_000_000;
 
 describe('schema defaults', () => {
   it('TokenSet fills expiry/obtained defaults', () => {
@@ -31,16 +33,23 @@ describe('schema defaults', () => {
     expect(r.vat).toEqual([]);
   });
 
-  it('ReceiptListResponse coerces missing and null data to []', () => {
-    expect(ReceiptListResponse.parse({}).data).toEqual([]);
-    expect(
-      ReceiptListResponse.parse({ error: 'boom', data: null }).data,
-    ).toEqual([]);
+  it('ReceiptSummary needs only an id', () => {
+    const s = ReceiptSummary.parse({ id: 'r1' });
+    expect(s).toEqual({ id: 'r1' });
+    expect(ReceiptSummary.safeParse({ id: 'r1', amount: null }).success).toBe(
+      false,
+    );
+  });
+});
+
+describe('isAccessTokenValid', () => {
+  it('treats 0 expiry as always valid', () => {
+    expect(isAccessTokenValid({ expiresAt: 0 }, NOW)).toBe(true);
   });
 
-  it('ReceiptSummary accepts JSON null for optional fields', () => {
-    const s = ReceiptSummary.parse({ id: 'r1', purchaseAmount: null });
-    expect(s.purchaseAmount).toBeNull();
+  it('is valid before expiry and invalid after', () => {
+    expect(isAccessTokenValid({ expiresAt: NOW + 1000 }, NOW)).toBe(true);
+    expect(isAccessTokenValid({ expiresAt: NOW - 1000 }, NOW)).toBe(false);
   });
 });
 

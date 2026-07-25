@@ -1,5 +1,9 @@
-import type { Receipt, TokenSet } from '@matvis/shared';
-import { isAccessTokenValid, refreshBankId } from './coop/auth/bankid';
+import {
+  isAccessTokenValid,
+  type Receipt,
+  type TokenSet,
+} from '@matvis/shared';
+import { refreshBankId } from './coop/auth/bankid';
 import { parseCoopReceiptPdf } from './coop/parse/receipt';
 import { fetchReceiptPdf } from './coop/receipts/pdf';
 import { listReceipts } from './coop/receipts/list';

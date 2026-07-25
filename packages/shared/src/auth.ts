@@ -1,32 +1,9 @@
 import { z } from 'zod';
 
-/** One receipt entry from the list endpoint. Metadata only. Items live in the PDF. */
-export const ReceiptSummary = z.object({
-  /** Coop's receipt id. Pass to the download endpoint. */
-  id: z.string(),
-  // `.nullish()` (not `.optional()`) because the raw API sends JSON `null` for
-  // absent fields; `.optional()` would reject that and drop the whole page.
-  purchasePlace: z.string().nullish(),
-  purchaseAmount: z.number().nullish(),
-  purchasedAt: z.string().nullish(),
-  /** Coop member/loyalty key associated with the receipt. */
-  mmkid: z.string().nullish(),
-});
-export type ReceiptSummary = z.infer<typeof ReceiptSummary>;
-
-/** Raw list endpoint envelope: `{ data, current_page, total }`. */
-export const ReceiptListResponse = z.object({
-  // The error envelope sends `data: null`; coerce both null and a missing key
-  // to `[]` so the list step doesn't throw on the very case it's meant to model.
-  data: z
-    .array(ReceiptSummary)
-    .nullish()
-    .transform((rows) => rows ?? []),
-  current_page: z.number().optional(),
-  total: z.number().optional(),
-  error: z.string().optional(),
-});
-export type ReceiptListResponse = z.infer<typeof ReceiptListResponse>;
+/**
+ * Store-agnostic authentication contracts. BankID is Sweden-wide, so these are
+ * national shapes, not Coop's: every chain that logs in with BankID reuses them.
+ */
 
 /** OAuth token set with absolute expiry timestamps (ms epoch). */
 export const TokenSet = z.object({
@@ -47,6 +24,15 @@ export const TokenSet = z.object({
   obtainedAt: z.number().default(0),
 });
 export type TokenSet = z.infer<typeof TokenSet>;
+
+/** True when an access token with absolute `expiresAt` (epoch ms) is still
+ * valid at `now`. `expiresAt: 0` means no expiry (always valid). */
+export function isAccessTokenValid(
+  tokens: Pick<TokenSet, 'expiresAt'>,
+  now = Date.now(),
+): boolean {
+  return tokens.expiresAt === 0 ? true : tokens.expiresAt > now;
+}
 
 /** Result of starting a BankID login. */
 export const BankIdStart = z.object({

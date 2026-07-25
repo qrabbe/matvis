@@ -94,6 +94,15 @@ export function DevPortal() {
 
       <Card.Root>
         <Card.Header>
+          <Card.Title>Versioning policy</Card.Title>
+        </Card.Header>
+        <Card.Content>
+          <VersioningPolicy />
+        </Card.Content>
+      </Card.Root>
+
+      <Card.Root>
+        <Card.Header>
           <Card.Title>Read endpoints</Card.Title>
         </Card.Header>
         <Card.Content>
@@ -114,6 +123,33 @@ export function DevPortal() {
           </Stack>
         </Card.Content>
       </Card.Root>
+    </Stack>
+  );
+}
+
+/** The compatibility rules behind the version badge. Mirrors the policy block in
+ * packages/shared/src/catalog.ts, saying the same thing to a second audience. */
+function VersioningPolicy() {
+  return (
+    <Stack direction="column" gap="sm">
+      <Text variant="body-md">
+        The version above is a promise, not a stamp. What it means for you as a
+        consumer:
+      </Text>
+      <Text variant="body-sm">
+        <strong>New fields do not bump it.</strong> Adding a field, or making a
+        required field optional, is a compatible change — ignore fields you
+        don&rsquo;t know rather than rejecting the row.
+      </Text>
+      <Text variant="body-sm">
+        <strong>Breaking changes do.</strong> Renaming a field, removing one, or
+        retyping a required one bumps the version, and the API keeps serving the
+        previous version until consumers have migrated.
+      </Text>
+      <Text variant="body-sm">
+        <strong>Old rows are upcast on read.</strong> Storage may hold several
+        versions while readers only ever see the latest.
+      </Text>
     </Stack>
   );
 }

@@ -7,6 +7,19 @@ import { ReceiptSource } from './stores';
  * store-agnostic. Anything only some stores print is `.optional()`.
  */
 
+/**
+ * Versioning policy (same rules for every contract in this package):
+ *
+ * - Adding a field, or making a required field optional, does NOT bump the
+ *   version. Consumers must ignore fields they do not know.
+ * - Renaming a field, removing one, or retyping a required one DOES bump it,
+ *   and the API keeps serving the previous version until consumers migrate.
+ * - Every document carries the version it was produced against
+ *   ({@link Receipt.schemaVersion}). As soon as a second version exists, add an
+ *   `upcast(old): latest` here and have readers upcast on read, so storage may
+ *   hold several versions while readers only ever see the latest.
+ */
+
 /** Bumped when the {@link Receipt} shape changes in a breaking way. */
 export const SCHEMA_VERSION = 1;
 
@@ -91,3 +104,20 @@ export const Receipt = z.object({
   rawText: z.string().optional(),
 });
 export type Receipt = z.infer<typeof Receipt>;
+
+/**
+ * One entry of a connector's receipt listing: metadata only, enough to show a
+ * row and to fetch the full receipt by `id`. Store-agnostic, so a connector
+ * maps its chain's raw list rows onto this shape.
+ */
+export const ReceiptSummary = z.object({
+  /** The connector's receipt id. Pass it back to fetch the PDF/receipt. */
+  id: z.string(),
+  /** Purchase timestamp as the store reports it, when present. */
+  purchasedAt: z.string().optional(),
+  /** Store/point-of-sale name as printed in the listing. */
+  place: z.string().optional(),
+  /** Receipt total in the store's currency. */
+  amount: z.number().optional(),
+});
+export type ReceiptSummary = z.infer<typeof ReceiptSummary>;

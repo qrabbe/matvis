@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'bun:test';
 import {
-  isAccessTokenValid,
   pollBankId,
   refreshBankId,
   startBankId,
@@ -32,20 +31,6 @@ describe('toTokenSet', () => {
     const set = toTokenSet({ access_token: 'a', refresh_token: 'r' }, NOW);
     expect(set.expiresAt).toBe(0);
     expect(set.refreshExpiresAt).toBeUndefined();
-  });
-});
-
-describe('isAccessTokenValid', () => {
-  it('treats 0 expiry as always valid', () => {
-    expect(isAccessTokenValid({ expiresAt: 0 } as never, NOW)).toBe(true);
-  });
-  it('is valid before expiry and invalid after', () => {
-    expect(isAccessTokenValid({ expiresAt: NOW + 1000 } as never, NOW)).toBe(
-      true,
-    );
-    expect(isAccessTokenValid({ expiresAt: NOW - 1000 } as never, NOW)).toBe(
-      false,
-    );
   });
 });
 

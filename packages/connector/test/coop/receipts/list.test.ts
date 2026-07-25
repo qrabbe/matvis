@@ -1,9 +1,28 @@
 import { describe, expect, it } from 'bun:test';
-import { listReceipts } from '../../../src/coop/receipts/list';
+import {
+  CoopReceiptListResponse,
+  listReceipts,
+} from '../../../src/coop/receipts/list';
 import { jsonResponse, stubFetch } from '../../helpers';
 
+describe('CoopReceiptListResponse', () => {
+  it('coerces missing and null data to []', () => {
+    expect(CoopReceiptListResponse.parse({}).data).toEqual([]);
+    expect(
+      CoopReceiptListResponse.parse({ error: 'boom', data: null }).data,
+    ).toEqual([]);
+  });
+
+  it('accepts JSON null for absent row fields', () => {
+    const [row] = CoopReceiptListResponse.parse({
+      data: [{ receipt_id: 'r-1', purchase_amount: null }],
+    }).data;
+    expect(row?.purchase_amount).toBeNull();
+  });
+});
+
 describe('listReceipts', () => {
-  it('maps Coop snake_case rows onto the camelCase contract', async () => {
+  it('maps Coop snake_case rows onto the store-agnostic summary', async () => {
     const { fetch, calls } = stubFetch(
       jsonResponse({
         data: [
@@ -23,10 +42,9 @@ describe('listReceipts', () => {
     expect(res).toEqual([
       {
         id: 'r-1',
-        purchasePlace: 'Stora Coop Location',
-        purchaseAmount: 41.95,
+        place: 'Stora Coop Location',
+        amount: 41.95,
         purchasedAt: '2026-01-02 12:00',
-        mmkid: 'mmk-1',
       },
     ]);
     expect(calls[0]?.url).toContain('per_page=50');

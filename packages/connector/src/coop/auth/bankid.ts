@@ -68,15 +68,6 @@ export function toTokenSet(
   };
 }
 
-/** True when an access token with absolute `expiresAt` (epoch ms) is still
- * valid at `now`. `expiresAt: 0` means no expiry (always valid). */
-export function isAccessTokenValid(
-  tokens: Pick<TokenSet, 'expiresAt'>,
-  now = Date.now(),
-): boolean {
-  return tokens.expiresAt === 0 ? true : tokens.expiresAt > now;
-}
-
 /**
  * Begin a BankID login. Returns an `orderRef` to poll with {@link pollBankId}.
  *

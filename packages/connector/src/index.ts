@@ -32,13 +32,16 @@ export {
 } from './coop/config';
 export type { CoopConfig } from './coop/config';
 export {
-  isAccessTokenValid,
   pollBankId,
   refreshBankId,
   startBankId,
   toTokenSet,
 } from './coop/auth/bankid';
-export { listReceipts } from './coop/receipts/list';
+export {
+  CoopReceiptListResponse,
+  CoopReceiptListRow,
+  listReceipts,
+} from './coop/receipts/list';
 export { fetchReceiptPdf } from './coop/receipts/pdf';
 export { extractPdfText } from './coop/parse/extract-pdf';
 export {

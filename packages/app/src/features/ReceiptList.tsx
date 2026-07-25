@@ -222,9 +222,7 @@ function ReceiptRow({
             wrap="wrap"
           >
             <Stack direction="column" gap="xs">
-              <Text variant="body-md">
-                {summary.purchasePlace ?? 'Unknown store'}
-              </Text>
+              <Text variant="body-md">{summary.place ?? 'Unknown store'}</Text>
               <Text variant="body-sm">
                 {summary.purchasedAt
                   ? new Date(summary.purchasedAt).toLocaleString()
@@ -233,7 +231,7 @@ function ReceiptRow({
             </Stack>
             <Stack direction="row" gap="sm" align="center" wrap="wrap">
               <Badge intent="informational">
-                {formatAmount(summary.purchaseAmount)}
+                {formatAmount(summary.amount)}
               </Badge>
               <Button
                 variant="outline"

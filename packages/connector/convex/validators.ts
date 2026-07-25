@@ -1,9 +1,21 @@
-import { STORES, type Store, type VatLine } from '@matvis/shared';
+import {
+  STORES,
+  type LineItem,
+  type Store,
+  type VatLine,
+} from '@matvis/shared';
 import { v, type Infer } from 'convex/values';
 import type { EncryptedSecret } from '../src/crypto';
 
-/** Compile-time equality guard: errors unless `A` and `B` are mutually assignable. */
-type AssertEqual<A extends B, B extends A> = true;
+/** True when `A` and `B` are mutually assignable. The tuple wrappers stop the
+ * conditional from distributing over union members. */
+type Equal<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
+
+/** Compile-time guard: `Assert<Equal<A, B>>` fails the build unless the two
+ * match. Spelling it as a constraint on a concrete argument matters, because the
+ * shorter `AssertEqual<A extends B, B extends A>` is a circular constraint that
+ * TypeScript reports and then ignores, so it passes on any drift. */
+type Assert<T extends true> = T;
 
 /** A secret stored as AES-256-GCM ciphertext. See `src/crypto.ts`. */
 export const encryptedSecretValidator = v.object({
@@ -12,9 +24,8 @@ export const encryptedSecretValidator = v.object({
   ciphertext: v.string(),
 });
 
-type _EncryptedSecretMatches = AssertEqual<
-  Infer<typeof encryptedSecretValidator>,
-  EncryptedSecret
+type _EncryptedSecretMatches = Assert<
+  Equal<Infer<typeof encryptedSecretValidator>, EncryptedSecret>
 >;
 
 // Store slug validator, derived from the canonical STORES list in
@@ -76,8 +87,8 @@ export const vatLineValidator = v.object({
 
 // Guards fail the build if these validators drift from the shared zod contract
 // (type-only, erased at runtime).
-type _StoreMatches = AssertEqual<Infer<typeof storeObjectValidator>, Store>;
-type _VatMatches = AssertEqual<Infer<typeof vatLineValidator>, VatLine>;
+type _StoreMatches = Assert<Equal<Infer<typeof storeObjectValidator>, Store>>;
+type _VatMatches = Assert<Equal<Infer<typeof vatLineValidator>, VatLine>>;
 
 /** One receipt line to INSERT. `gtin` is filled by a later matching pass. */
 export const receiptItemInsertValidator = v.object({
@@ -87,6 +98,13 @@ export const receiptItemInsertValidator = v.object({
   quantity: v.optional(v.number()),
   unit: v.optional(v.string()),
 });
+
+// The insert shape is the shared `LineItem` minus `gtin` (filled by the later
+// matching pass), so guard it against that contract rather than letting the two
+// drift apart.
+type _LineItemMatches = Assert<
+  Equal<Infer<typeof receiptItemInsertValidator>, Omit<LineItem, 'gtin'>>
+>;
 
 /** A full stored `receiptItems` document, as returned to a caller. `gtin` is
  * optional — a later matching pass fills it (its presence means "matched"). */
