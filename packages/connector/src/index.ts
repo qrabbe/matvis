@@ -15,6 +15,9 @@ export type {
 export { getConnector, hasConnector, supportedStores } from './registry';
 export type { ConnectorFactory, ConnectorOptions } from './registry';
 
+// Matching: receipt line text → the lookup key for its EAN.
+export { normalizeItemText } from './matching';
+
 // Token encryption at rest
 export {
   decryptSecret,

@@ -13,6 +13,7 @@ import type * as auth from "../auth.js";
 import type * as connections from "../connections.js";
 import type * as http from "../http.js";
 import type * as links from "../links.js";
+import type * as matching from "../matching.js";
 import type * as model_accounts from "../model/accounts.js";
 import type * as model_auth from "../model/auth.js";
 import type * as model_receipts from "../model/receipts.js";
@@ -32,6 +33,7 @@ declare const fullApi: ApiFromModules<{
   connections: typeof connections;
   http: typeof http;
   links: typeof links;
+  matching: typeof matching;
   "model/accounts": typeof model_accounts;
   "model/auth": typeof model_auth;
   "model/receipts": typeof model_receipts;

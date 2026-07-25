@@ -1,4 +1,5 @@
 import { v } from 'convex/values';
+import { internal } from '../_generated/api';
 import { internalMutation, internalQuery } from '../_generated/server';
 import {
   connectionStatusValidator,
@@ -88,6 +89,12 @@ export const insertReceipt = internalMutation({
         }),
       ),
     );
+    // Matching runs as its own step, right after the insert commits. Wiring it
+    // here (rather than in the sync action) keeps every insert path covered and
+    // means the future engine needs no change to sync.
+    await ctx.scheduler.runAfter(0, internal.matching.matchReceipt, {
+      receiptId,
+    });
     return receiptId;
   },
 });

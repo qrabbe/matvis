@@ -80,4 +80,15 @@ export default defineSchema({
     unit: v.optional(v.string()),
     gtin: v.optional(v.string()), // the EAN; present once matched
   }).index('by_receipt', ['receiptId']),
+
+  // ── Matching ──────────────────────────────────────────────────────────
+  // Normalized line text → EAN, per store (the printed text is store-specific).
+  // Starts empty, which makes the matcher a safe no-op; filling it is the future
+  // matching engine's job, as an offline batch. Nothing at runtime reads the
+  // catalog: the connector only ever produces EANs.
+  itemGtinMap: defineTable({
+    store,
+    normalizedText: v.string(), // see src/matching.ts normalizeItemText
+    gtin: v.string(),
+  }).index('by_store_text', ['store', 'normalizedText']),
 });
