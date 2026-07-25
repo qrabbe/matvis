@@ -3,7 +3,7 @@ import { defineConfig } from 'vite';
 
 /**
  * The Coop User-Agent the endpoints of the Coop Server expect.
- * Keep in sync with COOP_USER_AGENT in @matvis/connect.
+ * Keep in sync with COOP_USER_AGENT in @matvis/connector.
  */
 const COOP_USER_AGENT =
   'Coop/7.17; (11604; Production; Android 16; Android Build 36; Google; sdk_gphone64_x86_64)';

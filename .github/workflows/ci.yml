@@ -27,7 +27,7 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun run format:check
       - run: bun run typecheck # tsc -b: typechecks + builds every package
-      - run: bun run test # bun unit tests + connect's convex-test (vitest)
+      - run: bun run test # bun unit tests + the connector's convex-test (vitest)
 
   secrets:
     name: secret scan
@@ -67,7 +67,7 @@ jobs:
       # URL, so each portal is always built against the deployment just shipped.
       # The two portals have separate Convex projects and separate deploy keys.
       - name: Deploy connector Convex (prod) and build connector portal
-        working-directory: packages/connect
+        working-directory: packages/connector
         env:
           CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
           PORTAL_BASE: /matvis/connector/

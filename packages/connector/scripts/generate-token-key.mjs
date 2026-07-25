@@ -2,7 +2,7 @@
 // deployment as TOKEN_ENC_KEY (base64, 32 bytes). The key is piped straight into
 // `convex env set` and never printed.
 //
-// Usage (from packages/connect):
+// Usage (from packages/connector):
 //   node scripts/generate-token-key.mjs          # current (dev) deployment
 //   node scripts/generate-token-key.mjs --prod   # production deployment
 //

@@ -4,7 +4,7 @@ import { defineConfig } from 'vitest/config';
 // Vite-only features (import.meta.glob). They use a `.vitest.ts` suffix so
 // Bun's test runner ignores them — bare `bun test` at the repo root would
 // otherwise pick them up and fail. The bun:test suite in `test/` runs
-// separately (see `test` script + packages/connect/bunfig.toml).
+// separately (see `test` script + packages/connector/bunfig.toml).
 export default defineConfig({
   test: {
     environment: 'edge-runtime',

@@ -8,9 +8,9 @@ import type { GenericId } from 'convex/values';
 import type { Receipt, StoreSlug } from '@matvis/shared';
 
 // ── Typed facade over the connector's public Convex API ──────────────────────
-// The portal is a separate package from @matvis/connect, where the Convex
+// The portal is a separate package from @matvis/connector, where the Convex
 // backend and its `convex dev`-generated `_generated/api` live. Importing that
-// generated `api` directly drags connect's whole convex/ + src/ TS program into
+// generated `api` directly drags the connector's whole convex/ + src/ TS program into
 // THIS package's typecheck — it chains through `import type * as links from
 // "../links.js"` — which breaks composite `rootDir` and applies the portal's
 // stricter tsconfig to code it doesn't own.
@@ -21,7 +21,7 @@ import type { Receipt, StoreSlug } from '@matvis/shared';
 // shapes are derived from @matvis/shared's `Receipt` (the SAME single source of
 // truth the server's validators mirror), so the UI can't drift on the receipt
 // contract. Only the thin function-signature layer is hand-written; keep it in
-// step with packages/connect/convex/{links,sync,receipts}.ts.
+// step with packages/connector/convex/{links,sync,receipts}.ts.
 
 /** A stored `receipts` header row (no `items`, no `rawText`), as the read API returns it. */
 export type ReceiptHeader = Omit<Receipt, 'items' | 'rawText'> & {

@@ -13,7 +13,7 @@
       "name": "@matvis/app",
       "version": "0.0.0",
       "dependencies": {
-        "@matvis/connect": "workspace:*",
+        "@matvis/connector": "workspace:*",
         "@matvis/shared": "workspace:*",
         "@matvis/ui": "workspace:*",
         "fflate": "^0.8.2",
@@ -56,8 +56,8 @@
         "vite": "^8.1.5",
       },
     },
-    "packages/connect": {
-      "name": "@matvis/connect",
+    "packages/connector": {
+      "name": "@matvis/connector",
       "version": "0.0.0",
       "dependencies": {
         "@auth/core": "0.41.1",
@@ -323,7 +323,7 @@
 
     "@matvis/catalog-portal": ["@matvis/catalog-portal@workspace:packages/catalog-portal"],
 
-    "@matvis/connect": ["@matvis/connect@workspace:packages/connect"],
+    "@matvis/connector": ["@matvis/connector@workspace:packages/connector"],
 
     "@matvis/connector-portal": ["@matvis/connector-portal@workspace:packages/connector-portal"],
 

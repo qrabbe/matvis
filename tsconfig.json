@@ -4,7 +4,7 @@
     { "path": "packages/shared" },
     { "path": "packages/ui" },
     { "path": "packages/catalog" },
-    { "path": "packages/connect" },
+    { "path": "packages/connector" },
     { "path": "packages/app" },
     { "path": "packages/connector-portal" },
     { "path": "packages/catalog-portal" },

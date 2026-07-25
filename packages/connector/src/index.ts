@@ -1,4 +1,4 @@
-// @matvis/connect
+// @matvis/connector
 // store connectors that turn accounts into normalized results.
 // Inject a `FetchLike` (see ./http) to run it anywhere.
 

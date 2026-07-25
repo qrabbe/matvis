@@ -27,9 +27,14 @@ If you're a developer, head to [Getting started](#getting-started).
 The repo is one monorepo containing **six systems** plus **two shared libraries**.
 Not everything is built yet — status is called out per system.
 
+**Naming convention:** each system is a backend package `<name>` plus its UI package
+`<name>-portal` — so `connector` ↔ `connector-portal` and `catalog` ↔ `catalog-portal`.
+Shared libraries keep bare names (`shared`, `ui`), and the end-user app is `app`.
+New systems follow the same pair.
+
 | Package                                         | What it is                                                                                                                                                                                                             | Status         |
 | ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
-| [`connect`](packages/connect)                   | **The receipt connector.** A standalone service that links a store account and syncs purchases into normalized data which gets exposed through an API.                                                                 | ✅ Live        |
+| [`connector`](packages/connector)               | **The receipt connector.** A standalone service that links a store account and syncs purchases into normalized data which gets exposed through an API.                                                                 | ✅ Live        |
 | [`connector-portal`](packages/connector-portal) | **The connector's web UI.** A link/setup flow (BankID QR, connection status) plus a "for developers" portal documenting the API and the versioned `Receipt` contract. Talks only to the connector's Convex deployment. | ✅ Live        |
 | [`app`](packages/app)                           | **The Matvis user app.** The consumer-facing frontend for nutrition, pantry and charts built on top of the connector.                                                                                                  | 🚧 In progress |
 | [`catalog`](packages/catalog)                   | **Product-data mirror.** A database that hosts GTIN/EAN, product, nutrition, price data, focusing on swedish grocery store items                                                                                       | 🚧 In progress |
@@ -62,7 +67,7 @@ Not everything is built yet — status is called out per system.
 
 - [Bun](https://bun.sh) `>= 1.2`
 - Git
-- A [Convex](https://convex.dev) account/deployment for running `connect` (a local
+- A [Convex](https://convex.dev) account/deployment for running `connector` (a local
   self-hosted deployment works too)
 
 ### 1. Install
@@ -83,16 +88,16 @@ Relevant vars:
 | Variable                                                  | Used by         | Purpose                               |
 | --------------------------------------------------------- | --------------- | ------------------------------------- |
 | `VITE_CONVEX_URL` / `VITE_CONVEX_SITE_URL`                | frontends       | Convex deployment the client talks to |
-| `CONVEX_SELF_HOSTED_URL` / `CONVEX_SELF_HOSTED_ADMIN_KEY` | `connect`       | self-hosted Convex backend            |
+| `CONVEX_SELF_HOSTED_URL` / `CONVEX_SELF_HOSTED_ADMIN_KEY` | `connector`     | self-hosted Convex backend            |
 | `COOP_EXTERNAL_API_KEY`                                   | product lookups | public product API key                |
 | `VITE_SENTRY_DSN`                                         | frontends       | error reporting (optional)            |
 
 ### 3. Run the connector backend
 
-The connector has its own Convex deployment. From `packages/connect`:
+The connector has its own Convex deployment. From `packages/connector`:
 
 ```bash
-cd packages/connect
+cd packages/connector
 bunx convex dev          # watch loop: pushes + typechecks convex/
 # or, for a single push + typecheck:
 bunx convex dev --once
@@ -133,7 +138,7 @@ bun run --filter @matvis/ui storybook            # http://localhost:6006
 | `bun run format:check` | Prettier check                               |
 | `bun run clean`        | `tsc -b --clean`                             |
 
-Per-package tasks use Bun's filter, e.g. `bun run --filter @matvis/connect test`.
+Per-package tasks use Bun's filter, e.g. `bun run --filter @matvis/connector test`.
 
 ---
 

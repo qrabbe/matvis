@@ -10,9 +10,9 @@ _site
 
 # Stray TS declaration artifacts (real ones live in gitignored build-types/)
 *.d.ts.map
-packages/connect/convex/**/*.d.ts
-packages/connect/src/**/*.d.ts
-!packages/connect/convex/_generated/**
+packages/connector/convex/**/*.d.ts
+packages/connector/src/**/*.d.ts
+!packages/connector/convex/_generated/**
 storybook-static
 *.tsbuildinfo
 
@@ -31,8 +31,8 @@ tickets/
 *_donotcommit.md
 
 # Convex installed agent skills (restore via skills-lock.json)
-packages/connect/.agents/
-packages/connect/.claude/
+packages/connector/.agents/
+packages/connector/.claude/
 
 # Self-hosted backend volumes / local infra
 convex_backend/

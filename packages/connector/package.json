@@ -1,5 +1,5 @@
 {
-  "name": "@matvis/connect",
+  "name": "@matvis/connector",
   "version": "0.0.0",
   "description": "Matvis Connectors",
   "private": true,
@@ -13,7 +13,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/qrabbe/matvis.git",
-    "directory": "packages/connect"
+    "directory": "packages/connector"
   },
   "scripts": {
     "typecheck": "tsc -b"

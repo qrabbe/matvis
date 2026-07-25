@@ -2,7 +2,7 @@
 // a deployment as JWT_PRIVATE_KEY (PKCS8 PEM) + JWKS (public JWK Set). The
 // private key is piped straight into `convex env set` and never printed.
 //
-// Usage (from packages/connect):
+// Usage (from packages/connector):
 //   node scripts/generate-auth-keys.mjs          # current (dev) deployment
 //   node scripts/generate-auth-keys.mjs --prod   # production deployment
 //

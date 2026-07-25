@@ -16,7 +16,7 @@
     "typecheck": "tsc -b"
   },
   "dependencies": {
-    "@matvis/connect": "workspace:*",
+    "@matvis/connector": "workspace:*",
     "@matvis/shared": "workspace:*",
     "@matvis/ui": "workspace:*",
     "fflate": "^0.8.2",

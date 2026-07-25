@@ -1,4 +1,4 @@
-import { CoopConnector } from '@matvis/connect';
+import { CoopConnector } from '@matvis/connector';
 
 /**
  * The app's Coop connector, pointed at the dev proxy (see vite.config.ts)

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Stack, Text } from '@wordpress/ui';
-import { isAccessTokenValid } from '@matvis/connect';
+import { isAccessTokenValid } from '@matvis/connector';
 import type { TokenSet } from '@matvis/shared';
 import { AuthPanel } from './features/AuthPanel';
 import { ReceiptList } from './features/ReceiptList';

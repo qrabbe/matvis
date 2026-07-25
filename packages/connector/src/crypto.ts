@@ -119,7 +119,7 @@ export function tokenEncryptionKey(): Promise<CryptoKey> {
     if (!material) {
       return Promise.reject(
         new Error(
-          `${TOKEN_KEY_ENV_VAR} is not set. Run \`node scripts/generate-token-key.mjs\` from packages/connect to mint one.`,
+          `${TOKEN_KEY_ENV_VAR} is not set. Run \`node scripts/generate-token-key.mjs\` from packages/connector to mint one.`,
         ),
       );
     }

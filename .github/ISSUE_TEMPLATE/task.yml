@@ -11,7 +11,7 @@ body:
         - shared
         - ui
         - catalog
-        - connect
+        - connector
         - app
         - repo / tooling
     validations:

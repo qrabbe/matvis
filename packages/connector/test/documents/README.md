@@ -10,7 +10,7 @@ PDFs are present here at runtime and asserts each one parses end-to-end through
 values — it only proves the pipeline survives real inputs.
 
 ```sh
-bun test packages/connect
+bun test packages/connector
 ```
 
 When the folder is empty (e.g. in CI), the smoke test skips itself instead of
