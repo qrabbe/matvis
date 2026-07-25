@@ -96,6 +96,21 @@
         "vite": "^8.1.5",
       },
     },
+    "packages/landing": {
+      "name": "@matvis/landing",
+      "version": "0.0.0",
+      "dependencies": {
+        "@matvis/ui": "workspace:*",
+        "react": "^18.3.1",
+        "react-dom": "^18.3.1",
+      },
+      "devDependencies": {
+        "@types/react": "^18",
+        "@types/react-dom": "^18",
+        "@vitejs/plugin-react": "^6.0.3",
+        "vite": "^8.1.5",
+      },
+    },
     "packages/shared": {
       "name": "@matvis/shared",
       "version": "0.0.0",
@@ -311,6 +326,8 @@
     "@matvis/connect": ["@matvis/connect@workspace:packages/connect"],
 
     "@matvis/connector-portal": ["@matvis/connector-portal@workspace:packages/connector-portal"],
+
+    "@matvis/landing": ["@matvis/landing@workspace:packages/landing"],
 
     "@matvis/shared": ["@matvis/shared@workspace:packages/shared"],
 

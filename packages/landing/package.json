@@ -1,0 +1,29 @@
+{
+  "name": "@matvis/landing",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Matvis landing page (distributor page for the portals)",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/qrabbe/matvis.git",
+    "directory": "packages/landing"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -b"
+  },
+  "dependencies": {
+    "@matvis/ui": "workspace:*",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "@vitejs/plugin-react": "^6.0.3",
+    "vite": "^8.1.5"
+  }
+}

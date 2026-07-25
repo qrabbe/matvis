@@ -7,6 +7,7 @@
     { "path": "packages/connect" },
     { "path": "packages/app" },
     { "path": "packages/connector-portal" },
-    { "path": "packages/catalog-portal" }
+    { "path": "packages/catalog-portal" },
+    { "path": "packages/landing" }
   ]
 }
