@@ -54,8 +54,9 @@ const ITEM_FETCH_CONCURRENCY = 4;
  * then covers the range once. */
 const HEADER_PAGE_SIZE = 200;
 
-/** Progress of the per-receipt item hydration. `total` is the number of
- * receipts that needed fetching this session, so a warm cache reports `0 / 0`. */
+/** Progress of the per-receipt item hydration, derived from the items in hand.
+ * `total` is every known receipt and `done` those whose items have landed, so a
+ * warm cache reports `n / n` the moment the cache read resolves. */
 export interface HydrationProgress {
   done: number;
   total: number;
@@ -132,15 +133,27 @@ export function usePurchaseData(token: string | null): PurchaseData {
     [headers],
   );
 
+  const receiptIds = useMemo(
+    () => (headerIds.length === 0 ? [] : headerIds.split(',')),
+    [headerIds],
+  );
+
   // ── Stage 2: line items ────────────────────────────────────────────────
   const [itemsByReceipt, setItemsByReceipt] = useState<
     Map<string, ReceiptItemDoc[]>
   >(new Map());
-  const [hydration, setHydration] = useState<HydrationProgress>({
-    done: 0,
-    total: 0,
-  });
   const [error, setError] = useState<string | null>(null);
+
+  // Derived, never accumulated: a counter that is read off the items already in
+  // hand cannot drift out of step with them, whatever a run does or does not
+  // finish.
+  const hydration = useMemo<HydrationProgress>(
+    () => ({
+      total: receiptIds.length,
+      done: receiptIds.filter((id) => itemsByReceipt.has(id)).length,
+    }),
+    [receiptIds, itemsByReceipt],
+  );
 
   // Receipt ids already fetched or in flight, so a re-render (or StrictMode's
   // double effect) never re-issues a query that is already resolved.
@@ -161,13 +174,11 @@ export function usePurchaseData(token: string | null): PurchaseData {
     fetchedIds.current = new Set();
     cacheLoaded.current = false;
     setItemsByReceipt(new Map());
-    setHydration({ done: 0, total: 0 });
     setError(null);
   }, [token]);
 
   useEffect(() => {
-    if (!token || headerIds.length === 0) return;
-    const ids = headerIds.split(',');
+    if (!token || receiptIds.length === 0) return;
     const gen = generation.current;
     const stale = () => gen !== generation.current;
 
@@ -185,15 +196,10 @@ export function usePurchaseData(token: string | null): PurchaseData {
         }
       }
 
-      const missing = ids.filter((id) => !fetchedIds.current.has(id));
+      const missing = receiptIds.filter((id) => !fetchedIds.current.has(id));
       if (missing.length === 0) return;
       // Claim them up front so a concurrent run of this effect cannot double-fetch.
       for (const id of missing) fetchedIds.current.add(id);
-
-      setHydration((prev) => ({
-        done: prev.done,
-        total: prev.total + missing.length,
-      }));
 
       await mapWithConcurrency(missing, ITEM_FETCH_CONCURRENCY, async (id) => {
         if (stale()) return;
@@ -213,16 +219,12 @@ export function usePurchaseData(token: string | null): PurchaseData {
           // later render retries, and surface the message once.
           fetchedIds.current.delete(id);
           if (!stale()) setError(errMsg(e));
-        } finally {
-          if (!stale()) {
-            setHydration((prev) => ({ ...prev, done: prev.done + 1 }));
-          }
         }
       });
     };
 
     void hydrate();
-  }, [convex, headerIds, token]);
+  }, [convex, receiptIds, token]);
 
   // ── Stage 3: products ──────────────────────────────────────────────────
   const [productsByEan, setProductsByEan] = useState<Map<string, CatalogRow[]>>(
