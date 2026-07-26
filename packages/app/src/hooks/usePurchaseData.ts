@@ -147,9 +147,17 @@ export function usePurchaseData(token: string | null): PurchaseData {
   const fetchedIds = useRef<Set<string>>(new Set());
   const cacheLoaded = useRef(false);
 
+  // Bumped only when the account changes. A run claims its receipt ids up
+  // front, so abandoning it mid-flight would strand them claimed but unfetched
+  // and no later run would ask again. A `getReceipt` result stays valid when
+  // another header page arrives, so a run drains to the end and only its state
+  // writes are dropped, and only when the account it belongs to is gone.
+  const generation = useRef(0);
+
   // Changing token means a different account: everything in memory belongs to
   // the previous one and must go, or the new account inherits its receipts.
   useEffect(() => {
+    generation.current += 1;
     fetchedIds.current = new Set();
     cacheLoaded.current = false;
     setItemsByReceipt(new Map());
@@ -160,7 +168,8 @@ export function usePurchaseData(token: string | null): PurchaseData {
   useEffect(() => {
     if (!token || headerIds.length === 0) return;
     const ids = headerIds.split(',');
-    let cancelled = false;
+    const gen = generation.current;
+    const stale = () => gen !== generation.current;
 
     const hydrate = async () => {
       // Read the whole cache once, not per receipt: the immediate question is
@@ -169,7 +178,7 @@ export function usePurchaseData(token: string | null): PurchaseData {
       if (!cacheLoaded.current) {
         cacheLoaded.current = true;
         const cached = await loadCachedItems();
-        if (cancelled) return;
+        if (stale()) return;
         if (cached.size > 0) {
           for (const id of cached.keys()) fetchedIds.current.add(id);
           setItemsByReceipt((prev) => new Map([...prev, ...cached]));
@@ -187,14 +196,14 @@ export function usePurchaseData(token: string | null): PurchaseData {
       }));
 
       await mapWithConcurrency(missing, ITEM_FETCH_CONCURRENCY, async (id) => {
-        if (cancelled) return;
+        if (stale()) return;
         try {
           const detail = await convex.query(api.receipts.getReceipt, {
             receiptId: id as ReceiptHeader['_id'],
             token,
           });
           const items = detail?.items ?? [];
-          if (cancelled) return;
+          if (stale()) return;
           setItemsByReceipt((prev) => new Map(prev).set(id, items));
           // Fire and forget: a failed cache write costs a re-fetch next load,
           // never correctness.
@@ -203,9 +212,9 @@ export function usePurchaseData(token: string | null): PurchaseData {
           // One receipt failing must not sink the other N-1. Un-claim it so a
           // later render retries, and surface the message once.
           fetchedIds.current.delete(id);
-          if (!cancelled) setError(errMsg(e));
+          if (!stale()) setError(errMsg(e));
         } finally {
-          if (!cancelled) {
+          if (!stale()) {
             setHydration((prev) => ({ ...prev, done: prev.done + 1 }));
           }
         }
@@ -213,9 +222,6 @@ export function usePurchaseData(token: string | null): PurchaseData {
     };
 
     void hydrate();
-    return () => {
-      cancelled = true;
-    };
   }, [convex, headerIds, token]);
 
   // ── Stage 3: products ──────────────────────────────────────────────────
@@ -242,18 +248,19 @@ export function usePurchaseData(token: string | null): PurchaseData {
     if (missing.length === 0) return;
     for (const ean of missing) fetchedEans.current.add(ean);
 
-    let cancelled = false;
+    const gen = generation.current;
+    const stale = () => gen !== generation.current;
     const load = async () => {
       setLoadingProducts(true);
       try {
         // Chunked to the server's documented cap — it throws above it rather
         // than truncating, so a caller cannot believe it got a full answer.
         for (const batch of chunk(missing, MAX_EANS_PER_LOOKUP)) {
-          if (cancelled) return;
+          if (stale()) return;
           const rows = await client.query(catalogApi.catalog.getManyByEan, {
             eans: batch,
           });
-          if (cancelled) return;
+          if (stale()) return;
           setProductsByEan((prev) => {
             const next = new Map(prev);
             // Seed every requested EAN, so one that simply is not catalogued is
@@ -269,16 +276,13 @@ export function usePurchaseData(token: string | null): PurchaseData {
         // Let them be retried — a catalog blip should not permanently blank the
         // product views.
         for (const ean of missing) fetchedEans.current.delete(ean);
-        if (!cancelled) setError(errMsg(e));
+        if (!stale()) setError(errMsg(e));
       } finally {
-        if (!cancelled) setLoadingProducts(false);
+        if (!stale()) setLoadingProducts(false);
       }
     };
 
     void load();
-    return () => {
-      cancelled = true;
-    };
   }, [client, wantedEans]);
 
   // ── The join ───────────────────────────────────────────────────────────
