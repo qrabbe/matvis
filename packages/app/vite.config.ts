@@ -1,43 +1,18 @@
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 
-/**
- * The Coop User-Agent the endpoints of the Coop Server expect.
- * Keep in sync with COOP_USER_AGENT in @matvis/connector.
- */
-const COOP_USER_AGENT =
-  'Coop/7.17; (11604; Production; Android 16; Android Build 36; Google; sdk_gphone64_x86_64)';
-
-/**
- * Dev-only reverse proxy for `/coop-sso` and `/coop-api`
- */
-function coopProxy(target: string) {
-  return {
-    target,
-    changeOrigin: true,
-    secure: true,
-    rewrite: (path: string) => path.replace(/^\/coop-(sso|api)/, ''),
-    configure: (proxy: {
-      on: (
-        event: 'proxyReq',
-        cb: (proxyReq: { setHeader: (k: string, v: string) => void }) => void,
-      ) => void;
-    }) => {
-      proxy.on('proxyReq', (proxyReq) => {
-        proxyReq.setHeader('User-Agent', COOP_USER_AGENT);
-        proxyReq.setHeader('Accept-Encoding', 'gzip');
-      });
-    },
-  };
-}
-
+// The app is a pure Convex client: receipts come from the connector deployment
+// and products from the catalog deployment. It never talks to Coop directly, so
+// there is no dev proxy here. Linking a store is the connector portal's job.
 export default defineConfig({
+  // Nested under the landing page on the repo's single Pages site, same as the
+  // portals, so a CI build sets APP_BASE=/matvis/app/. Local dev leaves it
+  // unset → '/'.
+  base: process.env.APP_BASE || '/',
   plugins: [react()],
-  server: {
-    port: 5173,
-    proxy: {
-      '/coop-sso': coopProxy('https://sso.betala.coop.se'),
-      '/coop-api': coopProxy('https://api.betala.coop.se'),
-    },
-  },
+  server: { port: 5173 },
+  // `@wordpress/ui` ships a nested `react`/`react-dom`; without deduping, Vite's
+  // optimizer can load a second React copy and every hook throws "Invalid hook
+  // call". Force one instance across all deps (same fix as connector-portal).
+  resolve: { dedupe: ['react', 'react-dom'] },
 });

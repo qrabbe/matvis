@@ -126,37 +126,64 @@ export const writeCounters = internalMutation({
 });
 
 /**
- * Recompute every maintained counter the admin overview reads: one per queue
+ * Recompute the maintained counters the admin overview reads: one per queue
  * status, plus the `raw_coop` never-fetched total.
  *
- * Run this ONCE after deploying the counters, because they start at zero against
- * a queue that already holds rows. After that it is a repair tool — the counters
- * are kept by the write helpers in `model/ops.ts`, so they should not drift, and
- * this is what proves it or fixes it if they do.
+ * Run this ONCE after deploying the counters. It is NOT optional: the counters
+ * start absent, and the write helpers bump them by deltas, so an un-backfilled
+ * deployment counts a claim as pending −1 and shows NEGATIVE numbers rather than
+ * merely low ones. After the first run it is a repair tool — `model/ops.ts` keeps
+ * the counters through every write, so this is what proves they held or fixes
+ * them if they did not.
+ *
+ * `scope` exists because the two halves cost wildly different amounts. The queue
+ * is ~13k rows of a couple hundred bytes, about 2.5 MB — free, run it whenever.
+ * `raw_coop` is ~13.5k FULL Coop payloads averaging ~2.85 kB, about 38 MB, which
+ * is the one worth waiting for a quiet moment. Note that splitting it across
+ * more runs does not make it cheaper: the bytes are the bytes, the scope flag
+ * only lets you choose WHEN to spend each half.
+ *
+ * Until the `raw` half has run, `freshness.neverFetched` on the console is wrong
+ * (and drifts further down as the refresh sweep stamps rows); every queue count
+ * is correct as soon as the `queue` half has.
  *
  * PAUSE INGEST FIRST (the console's switch, or `ops.setPaused`). The scan pages
- * through both tables across many transactions while the live helpers keep
- * bumping, so a run against a working drain will land a few off. Nothing breaks
- * if it does — run it again on a quiet deployment.
+ * across many transactions while the live helpers keep bumping, so a run against
+ * a working drain will land a few off. Nothing breaks if it does — run it again
+ * on a quiet deployment.
  */
 export const rebuildCounters = internalAction({
-  args: {},
+  args: {
+    scope: v.optional(
+      v.union(v.literal('queue'), v.literal('raw'), v.literal('all')),
+    ),
+  },
   returns: v.object({
-    queue: v.record(v.string(), v.number()),
-    neverFetched: v.number(),
+    queue: v.union(v.record(v.string(), v.number()), v.null()),
+    neverFetched: v.union(v.number(), v.null()),
     pages: v.number(),
   }),
-  handler: async (ctx) => {
-    const totals: Record<string, number> = { [NEVER_FETCHED_KEY]: 0 };
-    // Statuses with no rows still need an explicit zero, or a stale count from
-    // before the recount would survive it.
-    for (const status of QUEUE_STATUSES) totals[queueCountKey(status)] = 0;
+  handler: async (ctx, { scope }) => {
+    const doQueue = scope !== 'raw';
+    const doRaw = scope !== 'queue';
+
+    // Only seed the keys this run is authoritative for. Seeding the other half
+    // to zero would WIPE a count an earlier run got right.
+    const totals: Record<string, number> = {};
+    if (doQueue) {
+      // Statuses with no rows still need an explicit zero, or a stale count from
+      // before the recount would survive it.
+      for (const status of QUEUE_STATUSES) totals[queueCountKey(status)] = 0;
+    }
+    if (doRaw) totals[NEVER_FETCHED_KEY] = 0;
+
+    const steps = [
+      ...(doQueue ? [internal.backfill.recountQueuePage] : []),
+      ...(doRaw ? [internal.backfill.recountRawPage] : []),
+    ];
 
     let pages = 0;
-    for (const step of [
-      internal.backfill.recountQueuePage,
-      internal.backfill.recountRawPage,
-    ]) {
+    for (const step of steps) {
       let cursor: string | null = null;
       for (;;) {
         const page: CountPage = await ctx.runMutation(step, { cursor });
@@ -171,10 +198,17 @@ export const rebuildCounters = internalAction({
 
     await ctx.runMutation(internal.backfill.writeCounters, { counts: totals });
 
-    const queue: Record<string, number> = {};
-    for (const status of QUEUE_STATUSES) {
-      queue[status] = totals[queueCountKey(status)] ?? 0;
+    let queue: Record<string, number> | null = null;
+    if (doQueue) {
+      queue = {};
+      for (const status of QUEUE_STATUSES) {
+        queue[status] = totals[queueCountKey(status)] ?? 0;
+      }
     }
-    return { queue, neverFetched: totals[NEVER_FETCHED_KEY], pages };
+    return {
+      queue,
+      neverFetched: doRaw ? totals[NEVER_FETCHED_KEY] : null,
+      pages,
+    };
   },
 });

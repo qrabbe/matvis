@@ -1,0 +1,56 @@
+import type { FunctionReference } from 'convex/server';
+import { anyApi } from 'convex/server';
+import type { GenericId } from 'convex/values';
+import type { CatalogItem } from '@matvis/shared';
+
+// ── Typed facade over the catalog's public READ API ──────────────────────────
+// The catalog is a SECOND Convex deployment (see lib/catalogClient.ts for why it
+// is not the ambient one). Same `anyApi` technique and same rationale as
+// lib/convexApi.ts; the row shape derives from @matvis/shared's `CatalogItem`.
+//
+// QUERIES ONLY. That costs nothing to promise here: the catalog's entire public
+// surface is four queries plus a password-gated admin sign-in — every function
+// in `ingest.ts`, `raw.ts`, `ops.ts` and `backfill.ts` is `internal*`, so there
+// is no public write to reach even with a hand-built reference.
+
+/** A stored clean-catalog row as the read API returns it. */
+export type CatalogRow = CatalogItem & {
+  _id: GenericId<'catalog'>;
+  _creationTime: number;
+};
+
+/** Every store's row for one EAN — an array, since the catalog is keyed by
+ * (store, EAN) and the caller picks. */
+type CatalogGetByEan = FunctionReference<
+  'query',
+  'public',
+  { ean: string },
+  CatalogRow[]
+>;
+
+/** The same lookup for many EANs at once, flat. Capped server side — see
+ * {@link MAX_EANS_PER_LOOKUP}. */
+type CatalogGetManyByEan = FunctionReference<
+  'query',
+  'public',
+  { eans: string[] },
+  CatalogRow[]
+>;
+
+type CatalogApi = {
+  catalog: {
+    getByEan: CatalogGetByEan;
+    getManyByEan: CatalogGetManyByEan;
+  };
+};
+
+/**
+ * Most EANs one `getManyByEan` call may ask for. The server throws above its own
+ * cap rather than truncating, so a caller that guesses high gets an error, not a
+ * short answer. Mirrors `MAX_EANS_PER_LOOKUP` in packages/catalog/convex/catalog.ts
+ * — keep the two in step.
+ */
+export const MAX_EANS_PER_LOOKUP = 50;
+
+/** The catalog's public read API, statically typed, backed by the runtime proxy. */
+export const catalogApi = anyApi as unknown as CatalogApi;
