@@ -15,6 +15,18 @@ import { useCallback, useSyncExternalStore } from 'react';
  */
 const STORAGE_KEY = 'matvis.app.apiToken';
 
+/**
+ * An earlier build stored live Coop access and refresh tokens here. Nothing
+ * reads that key any more, so drop it wherever we find it.
+ */
+const LEGACY_COOP_TOKENS_KEY = 'matvis.coop.tokens';
+
+function dropLegacyCoopTokens(): void {
+  localStorage.removeItem(LEGACY_COOP_TOKENS_KEY);
+}
+
+dropLegacyCoopTokens();
+
 /** Notifies `useApiToken` subscribers in THIS tab; `storage` covers other tabs. */
 const listeners = new Set<() => void>();
 
@@ -34,6 +46,7 @@ export function saveApiToken(token: string): void {
 
 export function clearApiToken(): void {
   localStorage.removeItem(STORAGE_KEY);
+  dropLegacyCoopTokens();
   emit();
 }
 
