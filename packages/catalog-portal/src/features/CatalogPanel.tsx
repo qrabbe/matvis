@@ -139,7 +139,10 @@ export function CatalogPanel() {
   const page = usePaginatedQuery(
     api.catalog.search,
     { q: debouncedQ || undefined, store: store ?? undefined },
-    { initialNumItems: 20 },
+    // Small first page: this is a live subscription that re-reads its range on
+    // any write in it, and it is remounted on every debounced keystroke.
+    // "Load more" costs one extra round trip; a fat first page costs every user.
+    { initialNumItems: 10 },
   );
   const [view, setView] = useState<View>(DEFAULT_VIEW);
 

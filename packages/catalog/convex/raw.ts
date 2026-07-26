@@ -3,6 +3,7 @@ import { internalMutation, internalQuery } from './_generated/server';
 import { coopProductInformationFields } from './schemes/coop';
 import { catalogFields } from './model/fields';
 import { project, upsertClean } from './model/project';
+import { bumpCounter, NEVER_FETCHED_KEY } from './model/counters';
 
 /** One clean row as it travels between the paging query and the batch upsert. */
 const cleanFields = v.object(catalogFields);
@@ -32,6 +33,13 @@ export const upsertCoopByEan = internalMutation({
           .withIndex('by_ean', (q) => q.eq('ean', data.ean!))
           .first()
       : null;
+    // A replace always writes `lastFetchedAt`, so a row that did not have one
+    // stops being never-fetched here. Inserts carry the stamp from birth and so
+    // never enter that count at all. `claimOldestForRefresh` is the only other
+    // writer of the field, and it keeps the counter through `stampFetched`.
+    if (existing && existing.lastFetchedAt === undefined) {
+      await bumpCounter(ctx, NEVER_FETCHED_KEY, -1);
+    }
     const rawId = existing
       ? (await ctx.db.replace(existing._id, row), existing._id)
       : await ctx.db.insert('raw_coop', row);

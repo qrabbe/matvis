@@ -1,10 +1,9 @@
 /** Formatting shared by the console's panels. */
 
-/** A capped count as the backend means it: 1000 with `capped` set is "1000+",
- * because the query stopped counting rather than found exactly a thousand. */
-export function formatCount(value: number, capped: boolean): string {
-  const text = value.toLocaleString();
-  return capped ? `${text}+` : text;
+/** A count as a stat reads it. Exact: the backend maintains these as counters
+ * rather than capping a scan, so there is no "1000+" case left to render. */
+export function formatCount(value: number): string {
+  return value.toLocaleString();
 }
 
 /** A timestamp as a rough age, e.g. "4 min ago". Null reads as never. */

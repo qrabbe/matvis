@@ -23,8 +23,10 @@ export const SIGNIN_WINDOW_MS = 60 * 60 * 1000;
 export const SIGNIN_FAILURE_DELAY_MS = 1000;
 
 /** Expired session rows swept per successful sign-in. Bounded because the sweep
- * rides along on a request a human is waiting for. */
-export const SESSION_SWEEP_LIMIT = 50;
+ * rides along on a request a human is waiting for, and small because with one
+ * password and a 12 hour expiry the table holds single digits of rows — this is
+ * a drip that keeps up, not a backlog clear. */
+export const SESSION_SWEEP_LIMIT = 25;
 
 /** Session rows one "sign out everywhere" deletes. A guard against an unbounded
  * scan, not a page: with one password and a sweep on every sign-in this table

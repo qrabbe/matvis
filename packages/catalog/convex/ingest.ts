@@ -25,7 +25,15 @@ import {
   queueStatsValidator,
   queueStatusValidator,
 } from './model/ingest';
-import { readFreshnessStats, readQueueStats } from './model/ops';
+import {
+  deleteQueueRow,
+  insertQueueRow,
+  readFreshnessStats,
+  readQueueStats,
+  setQueueStatus,
+  setQueueStatusById,
+  stampFetched,
+} from './model/ops';
 import { loggedRun } from './model/runs';
 
 /**
@@ -123,7 +131,7 @@ export const enqueueEans = internalMutation({
         continue;
       }
 
-      await ctx.db.insert('coop_ingest_queue', {
+      await insertQueueRow(ctx, {
         kind: 'ean',
         ean,
         status: 'pending',
@@ -159,7 +167,7 @@ export const enqueueName = internalMutation({
       return { status: 'duplicate' as const };
     }
 
-    await ctx.db.insert('coop_ingest_queue', {
+    await insertQueueRow(ctx, {
       kind: 'name',
       query: text,
       status: 'pending',
@@ -191,10 +199,7 @@ export const claimBatch = internalMutation({
       .take(limit);
     for (const row of inFlight) {
       if ((row.claimedAt ?? row.enqueuedAt) <= now - STALE_CLAIM_MS) {
-        await ctx.db.patch(row._id, {
-          status: 'pending',
-          claimedAt: undefined,
-        });
+        await setQueueStatus(ctx, row, 'pending', { claimedAt: undefined });
       }
     }
 
@@ -216,8 +221,7 @@ export const claimBatch = internalMutation({
 
     const claimed: ClaimedRow[] = [];
     for (const row of [...eanRows, ...nameRows]) {
-      await ctx.db.patch(row._id, {
-        status: 'processing',
+      await setQueueStatus(ctx, row, 'processing', {
         attempts: row.attempts + 1,
         claimedAt: now,
       });
@@ -243,8 +247,7 @@ export const markResults = internalMutation({
   handler: async (ctx, { results }) => {
     const now = Date.now();
     for (const result of results) {
-      await ctx.db.patch(result.id, {
-        status: result.status,
+      await setQueueStatusById(ctx, result.id, result.status, {
         processedAt: now,
         // Both undefined on success, which clears a previous attempt's error and
         // releases the claim.
@@ -334,7 +337,7 @@ export const clearDoneRows = internalMutation({
       .query('coop_ingest_queue')
       .withIndex('by_status_kind', (q) => q.eq('status', 'done'))
       .take(limit ?? QUEUE_MAINTENANCE_LIMIT);
-    for (const row of rows) await ctx.db.delete(row._id);
+    for (const row of rows) await deleteQueueRow(ctx, row);
     return { deleted: rows.length };
   },
 });
@@ -350,8 +353,7 @@ export const requeueFailed = internalMutation({
       .withIndex('by_status_kind', (q) => q.eq('status', 'failed'))
       .take(limit ?? QUEUE_MAINTENANCE_LIMIT);
     for (const row of rows) {
-      await ctx.db.patch(row._id, {
-        status: 'pending',
+      await setQueueStatus(ctx, row, 'pending', {
         lastError: undefined,
         processedAt: undefined,
       });
@@ -386,7 +388,7 @@ export const removeQueueRows = internalMutation({
             q.eq('kind', 'name').eq('query', text),
           )
           .take(QUEUE_DEDUP_SCAN);
-    for (const row of rows) await ctx.db.delete(row._id);
+    for (const row of rows) await deleteQueueRow(ctx, row);
     return { deleted: rows.length };
   },
 });
@@ -623,7 +625,9 @@ export const claimOldestForRefresh = internalMutation({
       .take(limit);
     const eans: string[] = [];
     for (const row of rows) {
-      await ctx.db.patch(row._id, { lastFetchedAt: now });
+      // Through the helper, so the never-fetched counter the console reads drops
+      // as this sweep works through the rows that predate the column.
+      await stampFetched(ctx, row, now);
       if (row.ean) eans.push(row.ean);
     }
     return { eans, claimed: rows.length };

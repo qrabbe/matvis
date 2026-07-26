@@ -356,9 +356,14 @@ export const signOutEverywhere = adminMutation({
  * is paused. Reactive, so a drain running in the background moves these numbers
  * on their own, which is most of what the console has over a terminal.
  *
- * `queue.capped` and `freshness.neverFetchedCapped` mean the count stopped at
- * its ceiling. Render those as "1000+". Removing the cap would turn every
- * keystroke into a scan of 13k rows to show a number nobody acts on.
+ * Every field is a point read: the catalog total, the queue's five status counts
+ * and the never-fetched total all come from maintained counters, and the stalest
+ * timestamp is one row. That matters more here than anywhere else in the file,
+ * because this is a LIVE query held for the length of a session — it used to
+ * count by scanning, giving it a read set of most of the queue table plus the
+ * head of `raw_coop`, so every row a drain touched re-ran it over ~6,000
+ * documents. It was the single largest consumer of database reads on the
+ * deployment. Keep it point reads.
  */
 export const overview = adminQuery({
   args: {},

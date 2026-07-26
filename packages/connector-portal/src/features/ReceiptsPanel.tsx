@@ -81,8 +81,10 @@ const DEFAULT_VIEW: View = {
  * session (the portal's own view). Pass a `token` and the exact same component
  * reads purely through it, the decoupled path a third-party service uses. */
 export function ReceiptsPanel({ token }: { token?: string } = {}) {
+  // Small first page: a live subscription re-reads its range on any write in it,
+  // and every panel mount pays for the page it asks for up front.
   const page = usePaginatedQuery(api.receipts.list, token ? { token } : {}, {
-    initialNumItems: 20,
+    initialNumItems: 10,
   });
   const [view, setView] = useState<View>(DEFAULT_VIEW);
 

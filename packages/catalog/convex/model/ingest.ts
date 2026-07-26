@@ -88,10 +88,6 @@ export const ENQUEUE_CHUNK = 200;
  * full discovery finds more than this; the queue cron picks up the remainder. */
 export const DISCOVERY_DRAIN_MAX_BATCHES = 30;
 
-/** Rows counted per status before the stats query reports `capped`. Keeps a
- * status count from turning into a full scan of a queue holding 13k rows. */
-export const QUEUE_STAT_CAP = 1000;
-
 /** Queue rows read per dedup check. One EAN or one search text has at most one
  * live row plus a handful of settled ones, so this is a bound, not a page. */
 export const QUEUE_DEDUP_SCAN = 8;
@@ -120,21 +116,20 @@ export const queueRowValidator = v.object({
   processedAt: v.optional(v.number()),
 });
 
-/** Queue row counts per status, with `capped` set when a count hit its ceiling. */
+/** Queue row counts per status. Exact: they come from maintained counters rather
+ * than from a capped scan, so there is no ceiling for a reader to render around. */
 export const queueStatsValidator = v.object({
   pending: v.number(),
   processing: v.number(),
   done: v.number(),
   skipped: v.number(),
   failed: v.number(),
-  capped: v.boolean(),
 });
 
-/** How stale the catalog is. `oldestFetchedAt` is null when nothing scanned has
- * ever been fetched. */
+/** How stale the catalog is. `oldestFetchedAt` is null when no row has ever been
+ * fetched. */
 export const freshnessStatsValidator = v.object({
   neverFetched: v.number(),
-  neverFetchedCapped: v.boolean(),
   oldestFetchedAt: v.union(v.number(), v.null()),
 });
 
@@ -181,11 +176,16 @@ export const RUN_LOG_PAGE = 20;
 export const RUN_LOG_TTL_MS = 14 * 24 * 60 * 60 * 1000;
 
 /** Expired run rows deleted per new run. Bounded so writing a run row stays a
- * fixed cost no matter how much backlog there is to clear. */
-export const RUN_LOG_TRIM = 20;
+ * fixed cost no matter how much backlog there is to clear. Small because the
+ * sweep runs on EVERY run insert and almost always finds nothing to delete: it
+ * only has to outpace the rate rows expire, not clear a backlog in one go. */
+export const RUN_LOG_TRIM = 10;
 
-/** Queue rows per page in the console's failed list. */
-export const QUEUE_PAGE_SIZE = 25;
+/** Queue rows per page in the console's failed list. Deliberately below a
+ * screenful: the list is a live subscription that re-reads its page whenever a
+ * row in range changes, and a failed queue is read to find the error message on
+ * the first few rows, not to page through hundreds. */
+export const QUEUE_PAGE_SIZE = 12;
 
 /** EANs one console paste may enqueue. Above the sitemap's whole product count,
  * so a paste is bounded without ever being the reason an ingest is incomplete. */

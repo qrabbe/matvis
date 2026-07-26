@@ -17,6 +17,14 @@ type Equal<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
  * TypeScript reports and then ignores, so it passes on any drift. */
 type Assert<T extends true> = T;
 
+/**
+ * Line items one call will read for a single receipt. A real receipt runs to
+ * tens of lines, so this is a guard against a malformed import rather than a
+ * page anyone is expected to walk: every reader of a receipt's items uses it, so
+ * none of them can turn into an unbounded read.
+ */
+export const MAX_RECEIPT_ITEMS = 1000;
+
 /** A secret stored as AES-256-GCM ciphertext. See `src/crypto.ts`. */
 export const encryptedSecretValidator = v.object({
   keyVersion: v.number(),

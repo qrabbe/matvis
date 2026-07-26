@@ -1,6 +1,7 @@
 import { v } from 'convex/values';
 import { internalMutation } from './_generated/server';
 import { normalizeItemText } from '../src/matching';
+import { MAX_RECEIPT_ITEMS } from './validators';
 
 /**
  * Fill `gtin` on a receipt's unmatched lines from the `itemGtinMap` lookup.
@@ -21,7 +22,10 @@ export const matchReceipt = internalMutation({
     const items = await ctx.db
       .query('receiptItems')
       .withIndex('by_receipt', (q) => q.eq('receiptId', receiptId))
-      .collect();
+      // Bounded to the same ceiling `receipts.getReceipt` reads a receipt at:
+      // a single receipt never has thousands of lines, and this runs inside a
+      // mutation whose read budget a malformed import should not be able to eat.
+      .take(MAX_RECEIPT_ITEMS);
 
     let matched = 0;
     for (const item of items) {

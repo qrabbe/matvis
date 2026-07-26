@@ -10,9 +10,9 @@ import { readCounter, CATALOG_COUNT_KEY } from './model/counters';
 const catalogItem = catalogDocValidator;
 
 /** Most EANs a single `getManyByEan` call may ask for. A receipt is ~20 lines,
- * so this is generous; the cap exists so one call can't turn into an unbounded
- * fan-out of index reads. */
-const MAX_EANS_PER_LOOKUP = 100;
+ * so this is still generous; the cap exists so one call can't turn into an
+ * unbounded fan-out of index reads. A caller with more splits into two calls. */
+const MAX_EANS_PER_LOOKUP = 50;
 
 /**
  * A digit-only term this long is treated as an EAN rather than as words. Real
@@ -90,6 +90,11 @@ export const search = query({
  * catalog is keyed by (store, EAN): each chain keeps its own row for a shared
  * product, and which one a caller wants is the caller's decision. Empty when
  * nothing is catalogued under that EAN.
+ *
+ * Bounded at the number of known chains rather than collected: the table is
+ * keyed by (store, EAN), so more rows than that for one EAN is a duplicate-write
+ * bug, and the bound means it degrades into a wrong-ish answer instead of an
+ * unbounded read.
  */
 export const getByEan = query({
   args: { ean: v.string() },
@@ -98,7 +103,7 @@ export const getByEan = query({
     await ctx.db
       .query('catalog')
       .withIndex('by_ean', (i) => i.eq('ean', ean))
-      .collect(),
+      .take(STORES.length),
 });
 
 /**
@@ -123,7 +128,7 @@ export const getManyByEan = query({
         ctx.db
           .query('catalog')
           .withIndex('by_ean', (i) => i.eq('ean', ean))
-          .collect(),
+          .take(STORES.length),
       ),
     );
     return rows.flat();

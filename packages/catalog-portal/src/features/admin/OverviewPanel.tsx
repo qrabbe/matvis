@@ -7,12 +7,13 @@ import { formatAge, formatCount } from './format';
  * in the background moves them on their own, which is most of what this has over
  * reading JSON back from `bunx convex run`.
  *
- * Counts stop at a ceiling per status and render as "1000+" when they hit it.
- * The job here is to show that pending is draining, not that it is exactly 4,162.
+ * Every count is exact. They used to be capped scans rendered as "1000+", which
+ * cost a re-read of thousands of documents each time a drain moved one row; the
+ * backend maintains counters instead, so the live subscription is now cheap
+ * enough that showing the real number costs nothing.
  */
 export function OverviewPanel({ overview }: { overview: Overview }) {
   const { queue, freshness } = overview;
-  const capped = queue.capped;
   return (
     <Card.Root>
       <Card.Header>
@@ -31,22 +32,16 @@ export function OverviewPanel({ overview }: { overview: Overview }) {
             note="clean rows across every store"
           />
           <Stack direction="row" gap="xl" wrap="wrap">
-            <Stat label="Pending" value={formatCount(queue.pending, capped)} />
-            <Stat
-              label="Processing"
-              value={formatCount(queue.processing, capped)}
-            />
-            <Stat label="Done" value={formatCount(queue.done, capped)} />
-            <Stat label="Skipped" value={formatCount(queue.skipped, capped)} />
-            <Stat label="Failed" value={formatCount(queue.failed, capped)} />
+            <Stat label="Pending" value={formatCount(queue.pending)} />
+            <Stat label="Processing" value={formatCount(queue.processing)} />
+            <Stat label="Done" value={formatCount(queue.done)} />
+            <Stat label="Skipped" value={formatCount(queue.skipped)} />
+            <Stat label="Failed" value={formatCount(queue.failed)} />
           </Stack>
           <Stack direction="row" gap="xl" wrap="wrap">
             <Stat
               label="Never fetched"
-              value={formatCount(
-                freshness.neverFetched,
-                freshness.neverFetchedCapped,
-              )}
+              value={formatCount(freshness.neverFetched)}
               note="raw rows with no fetch stamp"
             />
             <Stat

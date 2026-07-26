@@ -6,7 +6,11 @@ import { v } from 'convex/values';
 import type { Doc, Id } from './_generated/dataModel';
 import { query, type QueryCtx } from './_generated/server';
 import { readScopedAccountId } from './model/auth';
-import { receiptHeaderValidator, receiptItemDocValidator } from './validators';
+import {
+  MAX_RECEIPT_ITEMS,
+  receiptHeaderValidator,
+  receiptItemDocValidator,
+} from './validators';
 
 // Public read API for stored receipts. Every handler is scoped to one account,
 // resolved either from an explicit API `token` (the decoupled third-party path,
@@ -79,7 +83,7 @@ export const getReceipt = query({
       .query('receiptItems')
       .withIndex('by_receipt', (q) => q.eq('receiptId', receiptId))
       .order('asc') // `lineNo` is assigned in creation order, so _creationTime matches
-      .take(1000); // bounded: a single receipt never has thousands of lines
+      .take(MAX_RECEIPT_ITEMS);
     return { receipt: toHeader(receipt), items };
   },
 });
@@ -112,7 +116,10 @@ export const changes = query({
   }),
   handler: async (ctx, { since, limit, token }) => {
     const accountId = await readScopedAccountId(ctx, token);
-    const n = Math.min(limit ?? 100, 200);
+    // Default well below the ceiling: this is a reactive endpoint, so a client
+    // that omits `limit` holds a subscription that re-reads a full page on every
+    // write in range. A caller that genuinely wants more still asks for it.
+    const n = Math.min(limit ?? 50, 100);
     if (accountId === null) {
       return { receipts: [], cursor: since, hasMore: false };
     }

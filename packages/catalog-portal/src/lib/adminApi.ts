@@ -46,20 +46,17 @@ export type RunRow = {
   error?: string;
 };
 
-/** Counts stop at a ceiling per status. `capped` means at least one of them did,
- * so render those as "1000+". */
+/** Exact row counts per status, read from maintained counters on the backend. */
 export type QueueStats = {
   pending: number;
   processing: number;
   done: number;
   skipped: number;
   failed: number;
-  capped: boolean;
 };
 
 export type FreshnessStats = {
   neverFetched: number;
-  neverFetchedCapped: boolean;
   oldestFetchedAt: number | null;
 };
 
