@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useConvex, usePaginatedQuery } from 'convex/react';
 import {
   catalogApi,
@@ -58,6 +58,12 @@ const ITEM_FETCH_CONCURRENCY = 4;
  * anyway, so a large page means fewer round trips; the reactive subscription
  * then covers the range once. */
 const HEADER_PAGE_SIZE = 200;
+
+/** How long hydrated receipts pile up in a ref before one state write lands
+ * them all. A write per receipt copies an ever-growing map and re-runs every
+ * memo hanging off it, so a thousand receipts stall the main thread; a flush
+ * every quarter second keeps the progress bar moving without that. */
+const ITEM_FLUSH_MS = 250;
 
 /** Progress of the per-receipt item hydration, derived from the items in hand.
  * `total` is every known receipt and `done` those whose items have landed, so a
@@ -172,6 +178,43 @@ export function usePurchaseData(token: string | null): PurchaseData {
   const fetchedIds = useRef<Set<string>>(new Set());
   const cacheLoaded = useRef(false);
 
+  // Hydrated receipts waiting for their state write, and the timer that will
+  // land them. Held in refs so queueing one costs nothing and triggers no
+  // render of its own.
+  const pendingItems = useRef<Map<string, ReceiptItemDoc[]>>(new Map());
+  const flushTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  /** Land every queued receipt in a single state write. */
+  const flushItems = useCallback(() => {
+    if (flushTimer.current !== null) {
+      clearTimeout(flushTimer.current);
+      flushTimer.current = null;
+    }
+    if (pendingItems.current.size === 0) return;
+    const batch = pendingItems.current;
+    pendingItems.current = new Map();
+    setItemsByReceipt((prev) => new Map([...prev, ...batch]));
+  }, []);
+
+  /** Queue one receipt's items for the next flush. */
+  const queueItems = useCallback(
+    (id: string, items: ReceiptItemDoc[]) => {
+      pendingItems.current.set(id, items);
+      if (flushTimer.current === null) {
+        flushTimer.current = setTimeout(flushItems, ITEM_FLUSH_MS);
+      }
+    },
+    [flushItems],
+  );
+
+  // A pending flush outliving the component would write to an unmounted tree.
+  useEffect(
+    () => () => {
+      if (flushTimer.current !== null) clearTimeout(flushTimer.current);
+    },
+    [],
+  );
+
   // Bumped only when the account changes. A run claims its receipt ids up
   // front, so abandoning it mid-flight would strand them claimed but unfetched
   // and no later run would ask again. A `getReceipt` result stays valid when
@@ -185,6 +228,12 @@ export function usePurchaseData(token: string | null): PurchaseData {
     generation.current += 1;
     fetchedIds.current = new Set();
     cacheLoaded.current = false;
+    // Queued items belong to the previous account, so drop them unflushed.
+    pendingItems.current = new Map();
+    if (flushTimer.current !== null) {
+      clearTimeout(flushTimer.current);
+      flushTimer.current = null;
+    }
     setItemsByReceipt(new Map());
     setFailedIds(new Set());
     setFetchError(null);
@@ -233,7 +282,7 @@ export function usePurchaseData(token: string | null): PurchaseData {
           });
           const items = detail?.items ?? [];
           if (stale()) return;
-          setItemsByReceipt((prev) => new Map(prev).set(id, items));
+          queueItems(id, items);
           // The connector is answering again, so whatever it last said went
           // wrong is history. Only the failure count outlives a success.
           setFetchError(null);
@@ -249,10 +298,13 @@ export function usePurchaseData(token: string | null): PurchaseData {
           setFetchError(errMsg(e));
         }
       });
+
+      // The last wave never reaches its timer if the run ends first.
+      if (!stale()) flushItems();
     };
 
     void hydrate();
-  }, [convex, receiptIds, token]);
+  }, [convex, flushItems, queueItems, receiptIds, token]);
 
   // ── Stage 3: products ──────────────────────────────────────────────────
   const [productsByEan, setProductsByEan] = useState<Map<string, CatalogRow[]>>(
