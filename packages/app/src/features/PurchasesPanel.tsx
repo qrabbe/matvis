@@ -106,6 +106,11 @@ export function PurchasesPanel({
     [data.headers, view],
   );
 
+  // Keyed on the two slices the modal actually reads, never on `data` — the
+  // store returns a fresh object every render, so a memo on it never hits,
+  // `RenderModal` gets a new identity, and React remounts the modal (losing its
+  // fetch state and re-issuing `getReceipt`) on every parent render.
+  const { itemsByReceipt, lines } = data;
   const actions = useMemo<Action<ReceiptHeader>[]>(
     () => [
       {
@@ -115,13 +120,18 @@ export function PurchasesPanel({
         modalHeader: (items) => items[0]?.store.name ?? 'Purchase',
         RenderModal: ({ items }) =>
           items[0] ? (
-            <ReceiptModal header={items[0]} token={token} data={data} />
+            <ReceiptModal
+              header={items[0]}
+              token={token}
+              itemsByReceipt={itemsByReceipt}
+              lines={lines}
+            />
           ) : (
             <></>
           ),
       },
     ],
-    [data, token],
+    [itemsByReceipt, lines, token],
   );
 
   return (
@@ -164,14 +174,16 @@ export function PurchasesPanel({
 function ReceiptModal({
   header,
   token,
-  data,
+  itemsByReceipt,
+  lines,
 }: {
   header: ReceiptHeader;
   token: string;
-  data: PurchaseData;
+  itemsByReceipt: PurchaseData['itemsByReceipt'];
+  lines: PurchaseData['lines'];
 }) {
   const convex = useConvex();
-  const cached = data.itemsByReceipt.get(header._id);
+  const cached = itemsByReceipt.get(header._id);
   const [fetched, setFetched] = useState<ReceiptItemDoc[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [pdfBusy, setPdfBusy] = useState(false);
@@ -239,7 +251,7 @@ function ReceiptModal({
             <Tabs.Tab value="json">JSON</Tabs.Tab>
           </Tabs.List>
           <Tabs.Panel value="items" style={{ paddingTop: 12 }}>
-            <ReceiptItems items={items} header={header} data={data} />
+            <ReceiptItems items={items} header={header} lines={lines} />
           </Tabs.Panel>
           <Tabs.Panel value="json" style={{ paddingTop: 12 }}>
             <ReceiptJson items={items} header={header} />
@@ -258,23 +270,23 @@ function ReceiptModal({
 function ReceiptItems({
   items,
   header,
-  data,
+  lines,
 }: {
   items: ReceiptItemDoc[];
   header: ReceiptHeader;
-  data: PurchaseData;
+  lines: PurchaseData['lines'];
 }) {
   // Reuse the purchase store's join rather than re-picking a row here, so the
   // product shown on a line is the same one every other tab counted.
   const productByItemId = useMemo(() => {
     const out = new Map<string, CatalogRow>();
-    for (const line of data.lines) {
+    for (const line of lines) {
       if (line.header._id === header._id && line.product) {
         out.set(line.item._id, line.product);
       }
     }
     return out;
-  }, [data.lines, header._id]);
+  }, [lines, header._id]);
 
   const productFor = useCallback(
     (item: ReceiptItemDoc): CatalogRow | null =>
