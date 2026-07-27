@@ -8,7 +8,12 @@ import {
 import { catalogClient } from '../lib/catalogClient';
 import { api, type ReceiptHeader, type ReceiptItemDoc } from '../lib/convexApi';
 import { errMsg } from '../lib/format';
-import { loadCachedItems, putCachedItems } from '../lib/itemCache';
+import {
+  cacheScope,
+  clearOtherScopes,
+  loadCachedItems,
+  putCachedItems,
+} from '../lib/itemCache';
 import {
   buildLines,
   chunk,
@@ -183,6 +188,9 @@ export function usePurchaseData(token: string | null): PurchaseData {
     setItemsByReceipt(new Map());
     setFailedIds(new Set());
     setFetchError(null);
+    // On disk too, or the cache read two effects down hands the previous
+    // account's receipts straight back.
+    if (token) void cacheScope(token).then(clearOtherScopes);
   }, [token]);
 
   useEffect(() => {
@@ -191,12 +199,19 @@ export function usePurchaseData(token: string | null): PurchaseData {
     const stale = () => gen !== generation.current;
 
     const hydrate = async () => {
+      // Claimed synchronously, before the first await, so a concurrent run of
+      // this effect never reads the cache a second time.
+      const readCache = !cacheLoaded.current;
+      cacheLoaded.current = true;
+
+      const scope = await cacheScope(token);
+      if (stale()) return;
+
       // Read the whole cache once, not per receipt: the immediate question is
       // which ids are MISSING, and N point reads to answer it would undo the
       // saving the cache exists for.
-      if (!cacheLoaded.current) {
-        cacheLoaded.current = true;
-        const cached = await loadCachedItems();
+      if (readCache) {
+        const cached = await loadCachedItems(scope);
         if (stale()) return;
         if (cached.size > 0) {
           for (const id of cached.keys()) fetchedIds.current.add(id);
@@ -224,7 +239,7 @@ export function usePurchaseData(token: string | null): PurchaseData {
           setFetchError(null);
           // Fire and forget: a failed cache write costs a re-fetch next load,
           // never correctness.
-          void putCachedItems(id, items);
+          void putCachedItems(scope, id, items);
         } catch (e) {
           // One receipt failing must not sink the other N-1. The claim stays,
           // because nothing here retries and un-claiming it would only promise
