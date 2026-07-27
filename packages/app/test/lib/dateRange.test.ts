@@ -83,6 +83,14 @@ describe('inRange', () => {
     expect(inRange('2026-02-28', range)).toBe(false);
     expect(inRange('2026-04-01', range)).toBe(false);
   });
+
+  it('matches nothing when an end does not parse', () => {
+    // An empty "from" would otherwise compare true for every day in history.
+    expect(inRange('2026-03-01', { from: '', to: '2026-03-31' })).toBe(false);
+    expect(inRange('2026-03-01', { from: '2026-03-01', to: '2026-0' })).toBe(
+      false,
+    );
+  });
 });
 
 describe('eachDay', () => {
@@ -108,8 +116,23 @@ describe('normalizeRange', () => {
     });
   });
 
-  it('leaves a half-typed date alone so the input stays editable', () => {
-    const partial = { from: '2026-0', to: '2026-03-01' };
-    expect(normalizeRange(partial)).toEqual(partial);
+  it('collapses to the good end when the other does not parse', () => {
+    expect(normalizeRange({ from: '2026-0', to: '2026-03-01' })).toEqual({
+      from: '2026-03-01',
+      to: '2026-03-01',
+    });
+    expect(normalizeRange({ from: '2026-03-01', to: '' })).toEqual({
+      from: '2026-03-01',
+      to: '2026-03-01',
+    });
+  });
+
+  it('falls back to today when neither end parses', () => {
+    expect(normalizeRange({ from: '', to: '' }, new Date(2026, 6, 26))).toEqual(
+      {
+        from: '2026-07-26',
+        to: '2026-07-26',
+      },
+    );
   });
 });

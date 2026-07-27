@@ -80,8 +80,11 @@ export function precedingRange(range: DateRange): DateRange {
   return { from: shiftDays(to, -(length - 1)), to };
 }
 
-/** Whether a day key falls inside an inclusive range. */
+/** Whether a day key falls inside an inclusive range. A range with an
+ * unparseable end matches nothing, rather than comparing against an empty
+ * string and quietly meaning all-time. */
 export function inRange(key: string, range: DateRange): boolean {
+  if (!parseDayKey(range.from) || !parseDayKey(range.to)) return false;
   return key >= range.from && key <= range.to;
 }
 
@@ -103,8 +106,24 @@ export function eachDay(range: DateRange): string[] {
   return out;
 }
 
-/** Clamp a user-typed date input into a sane range, keeping `from <= to`. */
-export function normalizeRange(range: DateRange): DateRange {
-  if (!parseDayKey(range.from) || !parseDayKey(range.to)) return range;
+/**
+ * Clamp a user-typed date input into a sane range, keeping `from <= to`. An end
+ * that does not parse is replaced by the other end, collapsing to a single day,
+ * because passing the bad key on makes it mean two things at once: `inRange`
+ * reads a cleared "From" as all-time while `rangeLengthDays` reads it as one
+ * day, and a per-day tile then divides an all-time total by 1.
+ */
+export function normalizeRange(
+  range: DateRange,
+  today: Date = new Date(),
+): DateRange {
+  const from = parseDayKey(range.from);
+  const to = parseDayKey(range.to);
+  if (!from && !to) {
+    const key = dayKey(today);
+    return { from: key, to: key };
+  }
+  if (!from) return { from: range.to, to: range.to };
+  if (!to) return { from: range.from, to: range.from };
   return range.from <= range.to ? range : { from: range.to, to: range.from };
 }
