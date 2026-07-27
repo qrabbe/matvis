@@ -232,6 +232,9 @@ export function usePurchaseData(token: string | null): PurchaseData {
   );
   const [loadingProducts, setLoadingProducts] = useState(false);
   const fetchedEans = useRef<Set<string>>(new Set());
+  // Lookups in flight. Runs overlap while items stream in, so the flag has to
+  // fall on the last one finishing rather than on the first.
+  const productRuns = useRef(0);
   const client = catalogClient();
 
   useEffect(() => {
@@ -253,6 +256,7 @@ export function usePurchaseData(token: string | null): PurchaseData {
     const gen = generation.current;
     const stale = () => gen !== generation.current;
     const load = async () => {
+      productRuns.current += 1;
       setLoadingProducts(true);
       try {
         // Chunked to the server's documented cap — it throws above it rather
@@ -280,7 +284,10 @@ export function usePurchaseData(token: string | null): PurchaseData {
         for (const ean of missing) fetchedEans.current.delete(ean);
         if (!stale()) setError(errMsg(e));
       } finally {
-        if (!stale()) setLoadingProducts(false);
+        // Unconditional: a run that returns early still has to put the spinner
+        // down, or it stays up with nothing behind it.
+        productRuns.current -= 1;
+        if (productRuns.current === 0) setLoadingProducts(false);
       }
     };
 
