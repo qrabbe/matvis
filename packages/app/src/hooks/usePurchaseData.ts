@@ -142,17 +142,24 @@ export function usePurchaseData(token: string | null): PurchaseData {
   const [itemsByReceipt, setItemsByReceipt] = useState<
     Map<string, ReceiptItemDoc[]>
   >(new Map());
-  const [error, setError] = useState<string | null>(null);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  // Receipts whose fetch failed and which will not be asked for again this
+  // session. Counted rather than retried, so the failure is visible instead of
+  // silently missing from every total.
+  const [failedIds, setFailedIds] = useState<Set<string>>(new Set());
 
   // Derived, never accumulated: a counter that is read off the items already in
   // hand cannot drift out of step with them, whatever a run does or does not
-  // finish.
+  // finish. A failed receipt counts as done — it is finished, just empty — or
+  // the progress bar never reaches its end.
   const hydration = useMemo<HydrationProgress>(
     () => ({
       total: receiptIds.length,
-      done: receiptIds.filter((id) => itemsByReceipt.has(id)).length,
+      done: receiptIds.filter(
+        (id) => itemsByReceipt.has(id) || failedIds.has(id),
+      ).length,
     }),
-    [receiptIds, itemsByReceipt],
+    [receiptIds, itemsByReceipt, failedIds],
   );
 
   // Receipt ids already fetched or in flight, so a re-render (or StrictMode's
@@ -174,7 +181,8 @@ export function usePurchaseData(token: string | null): PurchaseData {
     fetchedIds.current = new Set();
     cacheLoaded.current = false;
     setItemsByReceipt(new Map());
-    setError(null);
+    setFailedIds(new Set());
+    setFetchError(null);
   }, [token]);
 
   useEffect(() => {
@@ -211,14 +219,19 @@ export function usePurchaseData(token: string | null): PurchaseData {
           const items = detail?.items ?? [];
           if (stale()) return;
           setItemsByReceipt((prev) => new Map(prev).set(id, items));
+          // The connector is answering again, so whatever it last said went
+          // wrong is history. Only the failure count outlives a success.
+          setFetchError(null);
           // Fire and forget: a failed cache write costs a re-fetch next load,
           // never correctness.
           void putCachedItems(id, items);
         } catch (e) {
-          // One receipt failing must not sink the other N-1. Un-claim it so a
-          // later render retries, and surface the message once.
-          fetchedIds.current.delete(id);
-          if (!stale()) setError(errMsg(e));
+          // One receipt failing must not sink the other N-1. The claim stays,
+          // because nothing here retries and un-claiming it would only promise
+          // a later render that never comes. Count it instead, and say so.
+          if (stale()) return;
+          setFailedIds((prev) => new Set(prev).add(id));
+          setFetchError(errMsg(e));
         }
       });
     };
@@ -282,7 +295,7 @@ export function usePurchaseData(token: string | null): PurchaseData {
         // Let them be retried — a catalog blip should not permanently blank the
         // product views.
         for (const ean of missing) fetchedEans.current.delete(ean);
-        if (!stale()) setError(errMsg(e));
+        if (!stale()) setFetchError(errMsg(e));
       } finally {
         // Unconditional: a run that returns early still has to put the spinner
         // down, or it stays up with nothing behind it.
@@ -303,6 +316,16 @@ export function usePurchaseData(token: string | null): PurchaseData {
     () => (lines.length === 0 ? EMPTY_COVERAGE : computeCoverage(lines)),
     [lines],
   );
+
+  // Receipts that could not be loaded stay reported for the session, because
+  // every total on every tab is short by exactly that many. A transient message
+  // on top of it goes away with the next success.
+  const error = useMemo(() => {
+    if (failedIds.size === 0) return fetchError;
+    const noun = failedIds.size === 1 ? 'receipt' : 'receipts';
+    const detail = fetchError ? `: ${fetchError}` : '';
+    return `${failedIds.size} ${noun} could not be loaded${detail}`;
+  }, [failedIds, fetchError]);
 
   return {
     headers,
