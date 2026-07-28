@@ -30,8 +30,8 @@ import {
   TOOLTIP_STYLE,
 } from '../components/chartTheme';
 import type { PurchaseData } from '../hooks/usePurchaseData';
+import { dayAtIndex, daySeries } from '../lib/chartSeries';
 import {
-  eachDay,
   inRange,
   precedingRange,
   presetRange,
@@ -39,7 +39,7 @@ import {
   type DateRange,
   type RangePresetId,
 } from '../lib/dateRange';
-import { formatDayShort, formatGrams, formatKcal } from '../lib/format';
+import { formatGrams, formatKcal } from '../lib/format';
 import {
   addMacros,
   CONSUMPTION_WINDOW_DAYS,
@@ -125,15 +125,7 @@ export function NutritionPanel({ data }: { data: PurchaseData }) {
   // Every day in the range, including the empty ones — a chart drawn only over
   // days with data silently rescales its axis and turns a gap into a dense week.
   const series = useMemo(
-    () =>
-      eachDay(range).map((day) => {
-        const bucket = buckets.get(day);
-        return {
-          day,
-          label: formatDayShort(day),
-          value: bucket ? bucket.macros[macro] : 0,
-        };
-      }),
+    () => daySeries(range, (day) => buckets.get(day)?.macros[macro] ?? 0),
     [buckets, macro, range],
   );
 
@@ -289,11 +281,7 @@ export function NutritionPanel({ data }: { data: PurchaseData }) {
                     // Resolve the clicked datum by index, not by axis label.
                     // The label omits the year, so two years of receipts put
                     // two different days under one label.
-                    const index = Number(state?.activeIndex);
-                    const point = Number.isInteger(index)
-                      ? series[index]
-                      : undefined;
-                    setSelectedDay(point?.day ?? null);
+                    setSelectedDay(dayAtIndex(series, state?.activeIndex));
                   }}
                 >
                   <CartesianGrid

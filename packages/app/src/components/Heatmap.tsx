@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { Stack, Text, Tooltip } from '@wordpress/ui';
-import { dayKey, formatKr, parseDayKey } from '../lib/format';
+import { formatKr } from '../lib/format';
+import { buildHeatmapGrid } from '../lib/heatmap';
 import type { DailySpend } from '../lib/stats';
 import { EMPTY_CELL, rampStep, SEQUENTIAL } from './chartTheme';
 
@@ -27,11 +28,6 @@ const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const CELL = 12;
 const GAP = 3;
 
-/** Weekday index with Monday as 0, from JS's Sunday-as-0. */
-function mondayIndex(date: Date): number {
-  return (date.getDay() + 6) % 7;
-}
-
 export function Heatmap({
   spendByDay,
   months = 6,
@@ -42,55 +38,18 @@ export function Heatmap({
   months?: number;
   today?: Date;
 }) {
-  const { weeks, max, monthLabels } = useMemo(() => {
-    const end = new Date(today);
-    end.setHours(0, 0, 0, 0);
-    const start = new Date(end);
-    start.setMonth(start.getMonth() - months);
-    // Back up to the Monday on or before the start, so every column is a full
-    // week and rows line up with the weekday labels.
-    start.setDate(start.getDate() - mondayIndex(start));
+  const { weeks, monthLabels } = useMemo(
+    () => buildHeatmapGrid(today, months),
+    [months, today],
+  );
 
-    const columns: (string | null)[][] = [];
-    const labels: { column: number; label: string }[] = [];
-    const cursor = new Date(start);
-    let lastMonth = -1;
-
-    while (cursor <= end) {
-      const column: (string | null)[] = [];
-      for (let row = 0; row < 7; row++) {
-        if (cursor > end) {
-          // Pad the trailing partial week, so the final column keeps its shape.
-          column.push(null);
-        } else {
-          column.push(dayKey(cursor));
-          cursor.setDate(cursor.getDate() + 1);
-        }
-      }
-      const first = column.find((day) => day !== null);
-      const firstDate = first ? parseDayKey(first) : null;
-      if (firstDate) {
-        const month = firstDate.getMonth();
-        if (month !== lastMonth) {
-          lastMonth = month;
-          labels.push({
-            column: columns.length,
-            label: firstDate.toLocaleDateString('sv-SE', {
-              month: 'short',
-            }),
-          });
-        }
-      }
-      columns.push(column);
-    }
-
+  const max = useMemo(() => {
     let peak = 0;
     for (const entry of spendByDay.values()) {
       if (entry.total > peak) peak = entry.total;
     }
-
-    return { weeks: columns, max: peak, monthLabels: labels };
-  }, [months, spendByDay, today]);
+    return peak;
+  }, [spendByDay]);
 
   return (
     <Stack direction="column" gap="sm">
