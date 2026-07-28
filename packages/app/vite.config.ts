@@ -5,10 +5,9 @@ import { defineConfig } from 'vite';
 // and products from the catalog deployment. It never talks to Coop directly, so
 // there is no dev proxy here. Linking a store is the connector portal's job.
 export default defineConfig({
-  // Nested under the landing page on the repo's single Pages site, same as the
-  // portals, so a CI build sets APP_BASE=/matvis/app/. Local dev leaves it
-  // unset → '/'.
-  base: process.env.APP_BASE || '/',
+  // Nested under the landing page on the assembled site, same as the portals,
+  // so the site build sets PORTAL_BASE=/app/. Local dev leaves it unset → '/'.
+  base: process.env.PORTAL_BASE || '/',
   plugins: [react()],
   server: { port: 5173 },
   // `@wordpress/ui` ships a nested `react`/`react-dom`; without deduping, Vite's
