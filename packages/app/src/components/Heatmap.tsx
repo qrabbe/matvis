@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { Stack, Text, Tooltip } from '@wordpress/ui';
-import { dayKey, formatKr } from '../lib/format';
+import { dayKey, formatKr, parseDayKey } from '../lib/format';
 import type { DailySpend } from '../lib/stats';
 import { EMPTY_CELL, rampStep, SEQUENTIAL } from './chartTheme';
 
@@ -68,13 +68,14 @@ export function Heatmap({
         }
       }
       const first = column.find((day) => day !== null);
-      if (first) {
-        const month = new Date(first).getMonth();
+      const firstDate = first ? parseDayKey(first) : null;
+      if (firstDate) {
+        const month = firstDate.getMonth();
         if (month !== lastMonth) {
           lastMonth = month;
           labels.push({
             column: columns.length,
-            label: new Date(first).toLocaleDateString('sv-SE', {
+            label: firstDate.toLocaleDateString('sv-SE', {
               month: 'short',
             }),
           });
