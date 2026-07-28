@@ -286,9 +286,14 @@ export function NutritionPanel({ data }: { data: PurchaseData }) {
                   data={series}
                   margin={{ top: 8, right: 8, bottom: 0, left: 0 }}
                   onClick={(state) => {
-                    const day = state?.activeLabel;
-                    const match = series.find((point) => point.label === day);
-                    setSelectedDay(match?.day ?? null);
+                    // Resolve the clicked datum by index, not by axis label.
+                    // The label omits the year, so two years of receipts put
+                    // two different days under one label.
+                    const index = Number(state?.activeIndex);
+                    const point = Number.isInteger(index)
+                      ? series[index]
+                      : undefined;
+                    setSelectedDay(point?.day ?? null);
                   }}
                 >
                   <CartesianGrid
