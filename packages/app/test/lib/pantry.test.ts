@@ -141,6 +141,26 @@ describe('groupPantry', () => {
     expect(group?.remainingMacros.kcal).toBe(0);
     expect(group?.remainingFraction).toBe(0);
   });
+
+  it('weights a product with no nutrition by units, not by input order', () => {
+    const old = line('111', '2026-01-01', null);
+    const fresh = line('111', '2026-03-01', null);
+    const newestFirst = groupPantry([fresh, old], now, 10);
+    const oldestFirst = groupPantry([old, fresh], now, 10);
+    // One of the two purchases is inside the window, so half the units remain
+    // either way. Seeding from the first line gave 1 or 0 depending on order.
+    expect(newestFirst[0]?.remainingFraction).toBeCloseTo(0.5, 6);
+    expect(oldestFirst[0]?.remainingFraction).toBeCloseTo(0.5, 6);
+  });
+
+  it('counts a half-consumed unnutritious product as still on the shelf', () => {
+    const groups = groupPantry(
+      [line('111', '2026-01-01', null), line('111', '2026-03-01', null)],
+      now,
+      10,
+    );
+    expect(pantryStock(groups, 10).products).toBe(1);
+  });
 });
 
 describe('pantryStock', () => {

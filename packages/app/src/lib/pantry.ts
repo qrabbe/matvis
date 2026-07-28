@@ -38,7 +38,9 @@ export interface PantryGroup {
   totalMacros: Macros | null;
   /** The share of {@link totalMacros} still inside the consumption window. */
   remainingMacros: Macros;
-  /** Fraction of the purchased amount still notionally unconsumed, 0..1. */
+  /** Fraction of the purchased amount still notionally unconsumed, 0..1.
+   * Weighted by energy, or by units when the product has no scalable
+   * nutrition. Never depends on the order the lines arrived in. */
   remainingFraction: number;
 }
 
@@ -90,6 +92,9 @@ export function groupPantry(
   windowDays: number = CONSUMPTION_WINDOW_DAYS,
 ): PantryGroup[] {
   const groups = new Map<string, PantryGroup>();
+  // Units still inside the window, per EAN. The fallback weighting for a
+  // product with no scalable nutrition, which has no energy to weight by.
+  const remainingUnits = new Map<string, number>();
 
   for (const line of lines) {
     const product = line.product;
@@ -102,6 +107,7 @@ export function groupPantry(
     const remaining = line.macros
       ? scaleOrZero(line.macros, fraction)
       : ZERO_MACROS;
+    remainingUnits.set(ean, (remainingUnits.get(ean) ?? 0) + units * fraction);
 
     if (!existing) {
       groups.set(ean, {
@@ -115,8 +121,8 @@ export function groupPantry(
         lastPurchase: line.purchasedAt,
         totalMacros: line.macros,
         remainingMacros: remaining,
-        // Provisional: recomputed below once every line is in, so it is the
-        // energy-weighted share rather than the last line's.
+        // Provisional: always recomputed below once every line is in, so it
+        // is a share of the whole rather than this one line's.
         remainingFraction: fraction,
       });
       continue;
@@ -139,11 +145,20 @@ export function groupPantry(
     existing.remainingMacros = addMacros(existing.remainingMacros, remaining);
   }
 
+  // Energy-weighted where there is energy, unit-weighted where there is not.
+  // Keeping the seed line's fraction instead would make the answer depend on
+  // which line `buildLines` happened to emit first: the same two purchases fed
+  // newest-first render "100% left" and oldest-first "0% left".
   const out = [...groups.values()];
   for (const group of out) {
     const total = group.totalMacros?.kcal ?? 0;
+    if (total > 0) {
+      group.remainingFraction = group.remainingMacros.kcal / total;
+      continue;
+    }
+    const units = remainingUnits.get(group.ean) ?? 0;
     group.remainingFraction =
-      total > 0 ? group.remainingMacros.kcal / total : group.remainingFraction;
+      group.unitsBought > 0 ? units / group.unitsBought : 0;
   }
   return out.sort(
     (a, b) => (b.totalMacros?.kcal ?? 0) - (a.totalMacros?.kcal ?? 0),
