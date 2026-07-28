@@ -20,11 +20,6 @@ export function formatPurchasedAt(
   return iso ? new Date(iso).toLocaleString() : null;
 }
 
-/** Format an epoch-ms timestamp for display, or `null` if absent. */
-export function formatDateTime(ms: number | null | undefined): string | null {
-  return ms == null ? null : new Date(ms).toLocaleString();
-}
-
 /**
  * Money for a dashboard tile: whole kronor, thousands-separated, e.g.
  * "12 480 kr". Tiles are scanned rather than reconciled, so the ören are noise.

@@ -19,16 +19,8 @@ export type CatalogRow = CatalogItem & {
   _creationTime: number;
 };
 
-/** Every store's row for one EAN — an array, since the catalog is keyed by
- * (store, EAN) and the caller picks. */
-type CatalogGetByEan = FunctionReference<
-  'query',
-  'public',
-  { ean: string },
-  CatalogRow[]
->;
-
-/** The same lookup for many EANs at once, flat. Capped server side — see
+/** Every store's row for each of many EANs at once, flat — the catalog is keyed
+ * by (store, EAN) and the caller picks. Capped server side, see
  * {@link MAX_EANS_PER_LOOKUP}. */
 type CatalogGetManyByEan = FunctionReference<
   'query',
@@ -39,7 +31,6 @@ type CatalogGetManyByEan = FunctionReference<
 
 type CatalogApi = {
   catalog: {
-    getByEan: CatalogGetByEan;
     getManyByEan: CatalogGetManyByEan;
   };
 };

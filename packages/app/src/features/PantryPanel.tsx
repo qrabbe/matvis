@@ -55,12 +55,28 @@ export function PantryPanel({ data }: { data: PurchaseData }) {
           <Card.Content>
             <Stack direction="column" gap="md">
               <EmptyState.Root>
-                <EmptyState.Title>Nothing to group yet</EmptyState.Title>
+                <EmptyState.Title>
+                  {data.catalogAvailable
+                    ? 'Nothing to group yet'
+                    : 'The catalog is not configured'}
+                </EmptyState.Title>
                 <EmptyState.Description>
-                  The pantry groups receipt lines by the product they resolve
-                  to, and no line resolves yet — the store’s text → EAN map
-                  starts empty. The Unmapped tab lists exactly which products
-                  would fill this in, biggest first.
+                  {data.catalogAvailable ? (
+                    <>
+                      The pantry groups receipt lines by the product they
+                      resolve to, and no line resolves yet — the store’s text →
+                      EAN map starts empty. The Unmapped tab lists exactly which
+                      products would fill this in, biggest first.
+                    </>
+                  ) : (
+                    <>
+                      No line can resolve to a product because
+                      VITE_CATALOG_CONVEX_URL is unset, so the app never asks
+                      the catalog deployment. Receipts and spending still work;
+                      set the variable and reload to bring the product views
+                      back.
+                    </>
+                  )}
                 </EmptyState.Description>
               </EmptyState.Root>
               <CoverageMeter coverage={data.coverage} />

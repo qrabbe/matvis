@@ -28,9 +28,3 @@ export function catalogClient(): ConvexReactClient | null {
   }
   return client;
 }
-
-/** Whether the catalog deployment is configured. False disables product lookups
- * and is surfaced in the coverage meter rather than thrown. */
-export function hasCatalog(): boolean {
-  return catalogClient() !== null;
-}

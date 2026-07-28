@@ -408,23 +408,3 @@ export function usePurchaseData(token: string | null): PurchaseData {
     error,
   };
 }
-
-/** Stable, empty purchase data — what the tabs render against before a token is
- * pasted, so no tab needs a null check of its own. */
-export function useEmptyPurchaseData(): PurchaseData {
-  return useMemo(
-    () => ({
-      headers: [],
-      lines: [],
-      itemsByReceipt: new Map(),
-      coverage: EMPTY_COVERAGE,
-      loadingHeaders: false,
-      loadingMoreHeaders: false,
-      hydration: { done: 0, total: 0 },
-      loadingProducts: false,
-      catalogAvailable: false,
-      error: null,
-    }),
-    [],
-  );
-}
