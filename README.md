@@ -157,13 +157,14 @@ the statichost build so the site is never rebuilt ahead of the backends it talks
 | `/`           | landing page (`packages/landing`) | —                  | —                           |
 | `/connector/` | connector-portal                  | (connector)        | `CONVEX_DEPLOY_KEY`         |
 | `/catalog/`   | catalog-portal                    | `matvis-catalogue` | `CONVEX_DEPLOY_KEY_CATALOG` |
+| `/app/`       | user app (`packages/app`)         | both, read-only    | —                           |
 
 **The site** is built by statichost.eu from this repo ([`statichost.yml`](statichost.yml)),
 which runs [`tools/build-site.ts`](tools/build-site.ts). That script builds each frontend
-with `PORTAL_BASE` set to its sub-path so asset URLs resolve, hands the portals their
-Convex URLs from `CONNECTOR_CONVEX_URL` / `CATALOG_CONVEX_URL` (set in the site's settings),
-and assembles everything into `_site`: the landing page at the root, each portal under its
-own path. The root is a static distributor page
+with `PORTAL_BASE` set to its sub-path so asset URLs resolve, hands each build its Convex
+URLs from `CONNECTOR_CONVEX_URL` / `CATALOG_CONVEX_URL` (set in the site's settings — the
+app gets both, as `VITE_CONVEX_URL` and `VITE_CATALOG_CONVEX_URL`), and assembles everything
+into `_site`: the landing page at the root, each portal and the app under its own path. The root is a static distributor page
 ([`packages/landing/index.html`](packages/landing/index.html)) with a card linking to each
 portal.
 

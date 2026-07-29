@@ -4,13 +4,16 @@
  * statichost.yml) and runnable locally to preview the deployed layout.
  *
  * Every frontend is a separate Vite build, so each one needs its own base path
- * and, for the portals, its own Convex deployment URL. The two portals both
- * read `VITE_CONVEX_URL` but point at different deployments, so the URLs come
- * in under distinct names and are handed to the right child build here.
+ * and, for the portals and the app, its own Convex deployment URL. Each build
+ * reads its deployments under fixed `VITE_*` names, and several point at
+ * different deployments under the same name, so the URLs come in here under
+ * distinct names and are mapped onto the right target var per build.
  *
  *   SITE_BASE               path the site is served from, default '/'
- *   CONNECTOR_CONVEX_URL    connector deployment the connector portal talks to
- *   CATALOG_CONVEX_URL      catalog deployment the catalog portal talks to
+ *   CONNECTOR_CONVEX_URL    connector deployment, read by the connector portal
+ *                           and by the app
+ *   CATALOG_CONVEX_URL      catalog deployment, read by the catalog portal and
+ *                           by the app
  */
 import { cpSync, mkdirSync, rmSync } from 'node:fs';
 
@@ -20,8 +23,8 @@ type Build = {
   pkg: string;
   /** Sub-path under SITE_BASE, empty for the site root. */
   path: string;
-  /** Name of the env var holding this build's Convex URL, if it needs one. */
-  convexUrlVar?: string;
+  /** Convex URLs this build needs, as target env var → source env var. */
+  convexUrlVars?: Record<string, string>;
 };
 
 const BUILDS: Build[] = [
@@ -29,18 +32,30 @@ const BUILDS: Build[] = [
   {
     pkg: '@matvis/connector-portal',
     path: 'connector',
-    convexUrlVar: 'CONNECTOR_CONVEX_URL',
+    convexUrlVars: { VITE_CONVEX_URL: 'CONNECTOR_CONVEX_URL' },
   },
   {
     pkg: '@matvis/catalog-portal',
     path: 'catalog',
-    convexUrlVar: 'CATALOG_CONVEX_URL',
+    convexUrlVars: { VITE_CONVEX_URL: 'CATALOG_CONVEX_URL' },
+  },
+  {
+    pkg: '@matvis/app',
+    path: 'app',
+    convexUrlVars: {
+      VITE_CONVEX_URL: 'CONNECTOR_CONVEX_URL',
+      VITE_CATALOG_CONVEX_URL: 'CATALOG_CONVEX_URL',
+    },
   },
 ];
 
-const missing = BUILDS.filter(
-  (build) => build.convexUrlVar && !process.env[build.convexUrlVar],
-).map((build) => build.convexUrlVar);
+const sourceVars = [
+  ...new Set(
+    BUILDS.flatMap((build) => Object.values(build.convexUrlVars ?? {})),
+  ),
+];
+
+const missing = sourceVars.filter((name) => !process.env[name]);
 if (missing.length > 0) {
   console.error(
     `Missing required env var(s): ${missing.join(', ')}.\n` +
@@ -54,17 +69,15 @@ if (missing.length > 0) {
 // just a broken page. A deploy key pasted here would be published as plain text
 // and hand anyone admin rights on the deployment, so refuse anything that is
 // not a plain https deployment URL.
-const invalid = BUILDS.filter((build) => {
-  if (!build.convexUrlVar) return false;
-  const value = process.env[build.convexUrlVar] as string;
-  return !/^https:\/\/[^\s|]+$/.test(value);
-});
+const invalid = sourceVars.filter(
+  (name) => !/^https:\/\/[^\s|]+$/.test(process.env[name] as string),
+);
 if (invalid.length > 0) {
-  for (const build of invalid) {
-    const value = process.env[build.convexUrlVar as string] as string;
+  for (const name of invalid) {
+    const value = process.env[name] as string;
     const looksLikeKey = value.includes('|') || /^(dev|prod):/.test(value);
     console.error(
-      `${build.convexUrlVar} is not a deployment URL` +
+      `${name} is not a deployment URL` +
         (looksLikeKey ? ' (that looks like a Convex deploy key)' : '') +
         `.\nExpected something like https://your-deployment-123.convex.cloud`,
     );
@@ -83,8 +96,8 @@ for (const build of BUILDS) {
     ...(process.env as Record<string, string>),
     PORTAL_BASE: base,
   };
-  if (build.convexUrlVar) {
-    env.VITE_CONVEX_URL = process.env[build.convexUrlVar] as string;
+  for (const [target, source] of Object.entries(build.convexUrlVars ?? {})) {
+    env[target] = process.env[source] as string;
   }
 
   const result = Bun.spawnSync(['bun', 'run', '--filter', build.pkg, 'build'], {
