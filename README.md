@@ -7,14 +7,20 @@ It's a combination of independent systems so custom user programms can be develo
 
 ## Usage
 
-Right now the one thing you can actually use is the **connector portal**. It lets you:
+Three things are live and open right now:
 
-- link a grocery store
-- browse the receipts it syncs for you
+- the **connector portal** — link a grocery store, browse the receipts it syncs,
+  and mint the account API token
+- the **catalog portal** — search the EAN-keyed product catalog, no account needed
+- the **Matvis app** — pantry, nutrition and purchase insight over your receipts
 
-Today that portal is most useful to **developers**. The **Developers** tab documents
-the receipt API and the versioned data contract you can build custom programs on. The
-Matvis app that turns all of this into pantry and nutrition insight is still in progress.
+The app has no sign-in of its own. You paste the API token minted in the connector
+portal, which is what keeps the app structurally unable to write. Its Purchases,
+Activity and Stats tabs are complete; Pantry and Nutrition start near-empty until the
+receipt-line-to-product matching lands, and the **Unmapped** tab measures that gap.
+
+The connector portal's **Developers** tab documents the receipt API and the versioned
+data contract you can build custom programs on.
 
 If you're a developer, head to [Getting started](#getting-started).
 
@@ -25,21 +31,23 @@ If you're a developer, head to [Getting started](#getting-started).
 ![Matvis architecture: catalogue, app and connector systems with shared UI and logic libraries](docs/assets/architecture.png)
 
 The repo is one monorepo containing **six systems** plus **two shared libraries**.
-Not everything is built yet — status is called out per system.
+Status is called out per system: ✅ **Live** means deployed and usable at its public
+path today, 🚧 means not deployed yet. A live system can still be missing planned
+features — those are named in its description.
 
 **Naming convention:** each system is a backend package `<name>` plus its UI package
 `<name>-portal` — so `connector` ↔ `connector-portal` and `catalog` ↔ `catalog-portal`.
 Shared libraries keep bare names (`shared`, `ui`), and the end-user app is `app`.
 New systems follow the same pair.
 
-| Package                                         | What it is                                                                                                                                                                                                             | Status         |
-| ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
-| [`connector`](packages/connector)               | **The receipt connector.** A standalone service that links a store account and syncs purchases into normalized data which gets exposed through an API.                                                                 | ✅ Live        |
-| [`connector-portal`](packages/connector-portal) | **The connector's web UI.** A link/setup flow (BankID QR, connection status) plus a "for developers" portal documenting the API and the versioned `Receipt` contract. Talks only to the connector's Convex deployment. | ✅ Live        |
-| [`app`](packages/app)                           | **The Matvis user app.** The consumer-facing frontend for nutrition, pantry and charts built on top of the connector.                                                                                                  | 🚧 In progress |
-| [`catalog`](packages/catalog)                   | **Product-data mirror.** A database that hosts GTIN/EAN, product, nutrition, price data, focusing on swedish grocery store items                                                                                       | 🚧 In progress |
-| [`catalog-portal`](packages/catalog-portal)     | **The catalog's web UI.** A search box + table over the clean, EAN-keyed catalog table, plus a "for developers" tab documenting the read API and the versioned `CatalogItem` contract. No auth — public read-only.     | 🚧 In progress |
-| [`landing`](packages/landing)                   | **The distributor page.** A static landing page (no build) served at the site root, with a big card linking to each portal. Room for a third card once the app ships.                                                  | ✅ Live        |
+| Package                                         | What it is                                                                                                                                                                                                             | Status  |
+| ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
+| [`connector`](packages/connector)               | **The receipt connector.** A standalone service that links a store account and syncs purchases into normalized data which gets exposed through an API.                                                                 | ✅ Live |
+| [`connector-portal`](packages/connector-portal) | **The connector's web UI.** A link/setup flow (BankID QR, connection status) plus a "for developers" portal documenting the API and the versioned `Receipt` contract. Talks only to the connector's Convex deployment. | ✅ Live |
+| [`app`](packages/app)                           | **The Matvis user app.** The consumer-facing frontend for nutrition, pantry and charts, read-only over both deployments. Onboarding is the API token pasted in. Pantry and Nutrition wait on receipt-line matching.    | ✅ Live |
+| [`catalog`](packages/catalog)                   | **Product-data mirror.** A database that hosts GTIN/EAN, product, nutrition, price data, focusing on swedish grocery store items. Coop ingest and the clean-table projector run; more sources land later.              | ✅ Live |
+| [`catalog-portal`](packages/catalog-portal)     | **The catalog's web UI.** A search box + table over the clean, EAN-keyed catalog table, plus a "for developers" tab documenting the read API and the versioned `CatalogItem` contract. No auth — public read-only.     | ✅ Live |
+| [`landing`](packages/landing)                   | **The distributor page.** A static landing page (no build) served at the site root, with a card linking to each of the three frontends.                                                                                | ✅ Live |
 
 ### Shared libraries
 
@@ -116,7 +124,7 @@ bun run --filter @matvis/connector-portal dev   # http://localhost:5273
 # Catalog portal (search the product catalog, read the API docs)
 bun run --filter @matvis/catalog-portal dev     # http://localhost:5373
 
-# Matvis user app (in progress)
+# Matvis user app (paste an API token from the connector portal to get in)
 bun run --filter @matvis/app dev                 # http://localhost:5173
 ```
 
@@ -166,7 +174,7 @@ URLs from `CONNECTOR_CONVEX_URL` / `CATALOG_CONVEX_URL` (set in the site's setti
 app gets both, as `VITE_CONVEX_URL` and `VITE_CATALOG_CONVEX_URL`), and assembles everything
 into `_site`: the landing page at the root, each portal and the app under its own path. The root is a static distributor page
 ([`packages/landing/index.html`](packages/landing/index.html)) with a card linking to each
-portal.
+portal and to the app.
 
 Because the site tracks whichever branch statichost is pointed at while the backends only
 move on a push to `main`, building the site from a feature branch serves that branch's
