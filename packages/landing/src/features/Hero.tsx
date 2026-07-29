@@ -1,6 +1,6 @@
 import { LinkButton, Stack, Text } from '@wordpress/ui';
 
-/** Page opener: what Matvis is, plus the two entry points into the product. */
+/** Page opener: what Matvis is, plus the three entry points into the product. */
 export function Hero() {
   return (
     <Stack direction="column" gap="lg" render={<header />}>
@@ -22,6 +22,9 @@ export function Hero() {
         <LinkButton href="connector/">Open the connector</LinkButton>
         <LinkButton href="catalog/" variant="outline" tone="neutral">
           Open the catalog
+        </LinkButton>
+        <LinkButton href="app/" variant="outline" tone="neutral">
+          Open the app
         </LinkButton>
         <LinkButton
           href="https://github.com/qrabbe/matvis"

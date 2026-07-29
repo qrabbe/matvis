@@ -42,22 +42,25 @@ const PORTALS: Portal[] = [
   },
   {
     title: 'Matvis app',
-    status: { label: 'planned', intent: 'draft' },
-    desc: 'The consumer app on top of both: pantry, nutrition and spending insight.',
+    status: { label: 'live', intent: 'stable' },
+    desc: 'Pantry, nutrition and purchase insight over your synced receipts.',
     points: [
       'Turn synced receipts into a pantry that updates itself',
       'Nutrition and spending charts over real purchases',
-      'Not shipped yet, follow along in the repo',
+      'Needs an API token minted in the connector portal, the app has no sign-in of its own',
     ],
+    href: 'app/',
+    cta: 'Open the app',
+    variant: 'outline',
   },
 ];
 
-/** The three entry points, each a card. In-progress systems show without a link. */
+/** The three entry points, each a card. A system without a UI shows without a link. */
 export function Portals() {
   return (
     <Section
       title="Where to start"
-      lead="Matvis is a set of independent systems. Two of them have a web UI you can open right now."
+      lead="Matvis is a set of independent systems. Each one has a web UI you can open right now."
     >
       <div
         style={{
