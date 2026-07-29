@@ -1,6 +1,14 @@
 import { useCallback, useState } from 'react';
 import { useMutation, useQuery } from 'convex/react';
-import { Button, Card, IconButton, Input, Stack, Text } from '@wordpress/ui';
+import {
+  Button,
+  Card,
+  IconButton,
+  Input,
+  Link,
+  Stack,
+  Text,
+} from '@wordpress/ui';
 import { CopyButton } from '../components/CopyButton';
 import { ErrorNotice } from '../components/ErrorNotice';
 import { InlineSpinner } from '../components/InlineSpinner';
@@ -12,7 +20,7 @@ import { errMsg } from '../lib/format';
  * one credential a third-party service takes away: paired with the deployment's
  * public URL and the `convex` SDK it's enough to read this account's receipts,
  * with no login and no secret from us. Copy it, then try it in the "Try a token"
- * tab. */
+ * tab, or paste it into the Matvis app, whose only onboarding step it is. */
 export function TokenPanel() {
   const token = useQuery(api.accessToken.get); // undefined = loading, null = none yet
   const createToken = useMutation(api.accessToken.create);
@@ -44,6 +52,13 @@ export function TokenPanel() {
             deployment&rsquo;s public URL and the <code>convex</code> client —
             can read your receipts, with no login and no credential from us. Try
             it yourself in the <strong>Try a token</strong> tab.
+          </Text>
+
+          <Text variant="body-md">
+            This is also how you sign in to the{' '}
+            <Link href="../app/">Matvis app</Link>: copy the token and paste it
+            there. The app has no login of its own, which is what keeps it
+            unable to write.
           </Text>
 
           {error && (

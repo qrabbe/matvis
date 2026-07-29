@@ -9,8 +9,9 @@ Nutrition · Activity · Stats · Purchases · Unmapped · Preferences**.
 ## Read-only by construction
 
 The app holds one credential: the account **API read token**, minted in the
-connector portal and pasted in here. It is not read-only by convention, it is
-unable to misbehave:
+connector portal under **Connect** and pasted into the app's token gate. That
+paste is the whole of onboarding — there is no sign-in here. It is not read-only
+by convention, it is unable to misbehave:
 
 - `main.tsx` mounts `ConvexProvider` and never `ConvexAuthProvider`. Every
   connector write (`links.*`, `sync.sync`, `accessToken.create`) resolves its
