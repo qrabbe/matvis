@@ -7,6 +7,7 @@ import {
   pendingLinkStatusValidator,
   receiptContentFields,
   storeValidator as store,
+  syncRunStatusValidator,
 } from './validators';
 
 export default defineSchema({
@@ -57,6 +58,35 @@ export default defineSchema({
   })
     .index('by_account', ['accountId'])
     .index('by_order_ref', ['orderRef']),
+
+  // ── Sync log ──────────────────────────────────────────────────────────
+  // One row per sync ATTEMPT, which is the only trace a sync leaves behind. A
+  // scheduled one has nobody watching it, and a manual one has only the red box
+  // in the browser of whoever pressed the button. `status` opens at `running`
+  // and is settled when the action returns or throws, so a row still reading
+  // `running` is an attempt that died mid-flight.
+  //
+  // `by_connection` reads one store link's history without walking the table;
+  // the newest runs across every connection are the default `_creationTime`
+  // order descending, which needs no index.
+  syncRuns: defineTable({
+    connectionId: v.id('connections'),
+    status: syncRunStatusValidator,
+    startedAt: v.number(), // epoch ms
+    finishedAt: v.optional(v.number()), // epoch ms; absent while running
+    synced: v.optional(v.number()), // receipts newly stored
+    skipped: v.optional(v.number()), // already-known receipts
+    error: v.optional(v.string()), // set on `error`, truncated
+  }).index('by_connection', ['connectionId']),
+
+  // Singleton settings row, read with `.first()`. `paused` is checked at the
+  // top of every sync, which is what lets a schedule be stopped without a
+  // deploy: a schedule that cannot be stopped from outside is one that should
+  // not be turned on.
+  syncSettings: defineTable({
+    paused: v.boolean(),
+    updatedAt: v.number(),
+  }),
 
   // ── Receipts ──────────────────────────────────────────────────────────
   // Normalized receipt header — one row per real-world purchase.

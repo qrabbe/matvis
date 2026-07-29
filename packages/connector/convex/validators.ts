@@ -53,6 +53,43 @@ export const syncStatusValidator = v.union(
   v.literal('needs_reauth'),
 );
 
+/**
+ * How one logged sync attempt settled. `running` is written on start and
+ * replaced when the action returns or throws, so a row still reading `running`
+ * long after `startedAt` is an attempt that died without settling (wall clock,
+ * deploy). `needs_reauth` is its own outcome rather than an error because the
+ * action returns normally there, having synced nothing.
+ */
+export const syncRunStatusValidator = v.union(
+  v.literal('running'),
+  v.literal('ok'),
+  v.literal('needs_reauth'),
+  v.literal('paused'),
+  v.literal('error'),
+);
+
+/** How a settled run finished. Every state except the one it started in. */
+export const syncRunOutcomeValidator = v.union(
+  v.literal('ok'),
+  v.literal('needs_reauth'),
+  v.literal('paused'),
+  v.literal('error'),
+);
+
+/** Longest error text kept on a run row, so one huge upstream message cannot
+ * dominate the document. */
+export const MAX_SYNC_ERROR_LENGTH = 500;
+
+/** How long a run row is kept before a later run sweeps it. Long enough to
+ * answer "did anything come in over the holidays", short enough that the table
+ * does not grow forever behind a schedule. */
+export const SYNC_RUN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+
+/** Expired run rows deleted per new run. Bounded so opening a run costs the
+ * same no matter how much backlog there is: the sweep only has to outpace the
+ * rate rows expire, not clear a backlog in one go. */
+export const SYNC_RUN_TRIM = 10;
+
 /** A `connections` row minus its secrets, as the public read API returns it.
  * Access and refresh tokens are never exposed. The expiry timestamps are, so a
  * reader can judge validity (the caller derives "expired" against the clock). */
