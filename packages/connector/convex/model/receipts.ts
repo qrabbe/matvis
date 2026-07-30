@@ -1,5 +1,6 @@
 import { v } from 'convex/values';
 import { internal } from '../_generated/api';
+import type { Doc } from '../_generated/dataModel';
 import { internalMutation, internalQuery } from '../_generated/server';
 import {
   connectionStatusValidator,
@@ -14,21 +15,37 @@ import { readAccountId } from './auth';
 // Convex runtime because the `"use node"` `convex/sync.ts` may export only
 // actions. The orchestration itself is in `../src/sync.ts`.
 
-/** Load the connection fields the sync action needs. `null` if it's gone. The
- * tokens stay encrypted here. Only the action decrypts them. */
+/** The connection fields the sync needs, or `null` when there is nothing to
+ * sync. The tokens stay encrypted here. Only the action decrypts them. */
+const connectionForSyncValidator = v.union(
+  v.null(),
+  v.object({
+    accountId: v.id('accounts'),
+    store: storeValidator,
+    accessToken: encryptedSecretValidator,
+    accessTokenExpiresAt: v.number(),
+    refreshToken: encryptedSecretValidator,
+    status: connectionStatusValidator,
+  }),
+);
+
+/** Narrow a connection row to those fields, dropping everything the engine has
+ * no business reading. */
+function connectionForSync(c: Doc<'connections'>) {
+  return {
+    accountId: c.accountId,
+    store: c.store,
+    accessToken: c.accessToken,
+    accessTokenExpiresAt: c.accessTokenExpiresAt,
+    refreshToken: c.refreshToken,
+    status: c.status,
+  };
+}
+
+/** Load the connection the caller asked to sync, for the public sync action. */
 export const getConnectionForSync = internalQuery({
   args: { connectionId: v.id('connections') },
-  returns: v.union(
-    v.null(),
-    v.object({
-      accountId: v.id('accounts'),
-      store: storeValidator,
-      accessToken: encryptedSecretValidator,
-      accessTokenExpiresAt: v.number(),
-      refreshToken: encryptedSecretValidator,
-      status: connectionStatusValidator,
-    }),
-  ),
+  returns: connectionForSyncValidator,
   handler: async (ctx, { connectionId }) => {
     const c = await ctx.db.get(connectionId);
     if (!c) return null;
@@ -36,14 +53,24 @@ export const getConnectionForSync = internalQuery({
     // from a missing one.
     const accountId = await readAccountId(ctx);
     if (accountId === null || c.accountId !== accountId) return null;
-    return {
-      accountId: c.accountId,
-      store: c.store,
-      accessToken: c.accessToken,
-      accessTokenExpiresAt: c.accessTokenExpiresAt,
-      refreshToken: c.refreshToken,
-      status: c.status,
-    };
+    return connectionForSync(c);
+  },
+});
+
+/**
+ * The same read WITHOUT the ownership check, for the scheduled sync.
+ *
+ * A cron runs with no identity, so `readAccountId` would reject every connection
+ * and the nightly sync would report every one of them missing. The check that
+ * replaces it is reachability: this is internal, and the only caller is
+ * `internal.sync.syncScheduled`, which no client can invoke either.
+ */
+export const getConnectionForScheduledSync = internalQuery({
+  args: { connectionId: v.id('connections') },
+  returns: connectionForSyncValidator,
+  handler: async (ctx, { connectionId }) => {
+    const c = await ctx.db.get(connectionId);
+    return c ? connectionForSync(c) : null;
   },
 });
 

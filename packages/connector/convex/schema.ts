@@ -46,7 +46,11 @@ export default defineSchema({
     lastSyncedAt: v.optional(v.number()), // epoch ms
   })
     .index('by_account', ['accountId'])
-    .index('by_account_store', ['accountId', 'store']),
+    .index('by_account_store', ['accountId', 'store'])
+    // Stalest first within one status, which is the order the scheduled sync
+    // wants. An absent `lastSyncedAt` sorts before any number, so a connection
+    // that has never synced is picked up ahead of one that has.
+    .index('by_status_last_synced', ['status', 'lastSyncedAt']),
 
   // In-flight BankID link attempts. Short-lived; deleted once resolved.
   // (The old repo's `bankid_sessions`.)

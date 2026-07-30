@@ -90,6 +90,29 @@ export const SYNC_RUN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
  * rate rows expire, not clear a backlog in one go. */
 export const SYNC_RUN_TRIM = 10;
 
+/** What one sync attempt reports: receipts newly stored, receipts already known,
+ * and the status it left the connection in. */
+export const syncResultValidator = v.object({
+  synced: v.number(),
+  skipped: v.number(),
+  status: syncStatusValidator,
+});
+
+/** Connections one scheduled dispatch will look at. A bound, not a page: the
+ * schedule is daily, so a connection past the bound waits a day, and a household
+ * has a handful of links rather than hundreds. */
+export const SYNC_BATCH_LIMIT = 25;
+
+/** How long a connection is left alone after a sync. Under a day, so a daily
+ * schedule never skips the same connection twice, and long enough that an
+ * evening manual sync stops the night's dispatch from repeating it. */
+export const SYNC_MIN_INTERVAL_MS = 20 * 60 * 60 * 1000;
+
+/** Gap between the syncs one dispatch schedules. Every sync fetches and parses a
+ * PDF per new receipt from a rate-limited API, so they go out in single file
+ * rather than all at once. */
+export const SYNC_STAGGER_MS = 2 * 60 * 1000;
+
 /** A `connections` row minus its secrets, as the public read API returns it.
  * Access and refresh tokens are never exposed. The expiry timestamps are, so a
  * reader can judge validity (the caller derives "expired" against the clock). */
