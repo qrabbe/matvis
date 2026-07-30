@@ -46,6 +46,7 @@ import {
   MACRO_LABELS,
   MACRO_UNITS,
   PROTEIN_GOAL_G,
+  scaleMacros,
   spreadOverWindow,
   ZERO_MACROS,
   type Macros,
@@ -143,23 +144,12 @@ export function NutritionPanel({ data }: { data: PurchaseData }) {
     );
   }, [buckets, range]);
 
-  const days = rangeLengthDays(range);
-  const perDay = useMemo(
-    () => ({
-      kcal: current.kcal / days,
-      protein: current.protein / days,
-      fat: current.fat / days,
-      carbs: current.carbs / days,
-      sugars: current.sugars / days,
-    }),
-    [current, days],
-  );
-  const previousPerDay = useMemo(
-    () => ({
-      kcal: previous.kcal / rangeLengthDays(precedingRange(range)),
-      protein: previous.protein / rangeLengthDays(precedingRange(range)),
-    }),
-    [previous, range],
+  // Plain objects rather than memos: both feed non-memoized StatCards, so
+  // memoizing an object literal costs more than it saves.
+  const perDay = scaleMacros(current, 1 / rangeLengthDays(range));
+  const previousPerDay = scaleMacros(
+    previous,
+    1 / rangeLengthDays(precedingRange(range)),
   );
 
   if (data.coverage.nutritionLines === 0) {

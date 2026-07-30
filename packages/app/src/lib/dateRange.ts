@@ -52,6 +52,23 @@ export function rangeLengthDays(range: DateRange): number {
 }
 
 /**
+ * Days spanned by a set of dates, earliest to latest inclusive, and 0 for an
+ * empty set. Goes through day keys, so two timestamps hours apart across
+ * midnight span two days rather than one.
+ */
+export function spanDays(dates: readonly Date[]): number {
+  if (dates.length === 0) return 0;
+  let from = dayKey(dates[0]!);
+  let to = from;
+  for (const date of dates) {
+    const key = dayKey(date);
+    if (key < from) from = key;
+    if (key > to) to = key;
+  }
+  return rangeLengthDays({ from, to });
+}
+
+/**
  * Resolve a preset against the data. `earliest` is the oldest day the account
  * has, used by `all` and as a floor for every other preset — a 1-year window
  * over three months of receipts would otherwise draw nine empty months and make

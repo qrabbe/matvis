@@ -4,6 +4,7 @@ import { CoverageMeter } from '../components/CoverageMeter';
 import { ProductThumb } from '../components/ProductThumb';
 import { StatCard } from '../components/StatCard';
 import type { PurchaseData } from '../hooks/usePurchaseData';
+import { spanDays } from '../lib/dateRange';
 import { formatGrams, formatKcal, formatKr } from '../lib/format';
 import {
   CONSUMPTION_WINDOW_DAYS,
@@ -197,19 +198,6 @@ function PantryRow({ group }: { group: PantryGroup }) {
       </Stack>
     </Stack>
   );
-}
-
-/** Days between the earliest and latest date in a set, at least 1. */
-function spanDays(dates: readonly Date[]): number {
-  if (dates.length === 0) return 0;
-  let min = dates[0]!.getTime();
-  let max = min;
-  for (const date of dates) {
-    const time = date.getTime();
-    if (time < min) min = time;
-    if (time > max) max = time;
-  }
-  return Math.max(1, Math.round((max - min) / 86_400_000) + 1);
 }
 
 /** States the model on the tab itself — "in the pantry" is an inference from

@@ -2,6 +2,7 @@ import type { CatalogRow } from './catalogApi';
 import {
   CONSUMPTION_WINDOW_DAYS,
   addMacros,
+  scaleMacros,
   ZERO_MACROS,
   type Macros,
 } from './nutrition';
@@ -169,16 +170,7 @@ export function groupPantry(
  * than `-0`s that print as "-0 g". */
 function scaleOrZero(macros: Macros, factor: number): Macros {
   if (factor <= 0) return ZERO_MACROS;
-  return {
-    kcal: macros.kcal * factor,
-    protein: macros.protein * factor,
-    fat: macros.fat * factor,
-    saturatedFat: macros.saturatedFat * factor,
-    carbs: macros.carbs * factor,
-    sugars: macros.sugars * factor,
-    fiber: macros.fiber * factor,
-    salt: macros.salt * factor,
-  };
+  return scaleMacros(macros, factor);
 }
 
 /**

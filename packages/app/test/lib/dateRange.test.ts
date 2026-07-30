@@ -7,6 +7,7 @@ import {
   presetRange,
   rangeLengthDays,
   shiftDays,
+  spanDays,
 } from '../../src/lib/dateRange';
 
 describe('shiftDays', () => {
@@ -25,6 +26,31 @@ describe('rangeLengthDays', () => {
   it('counts both ends', () => {
     expect(rangeLengthDays({ from: '2026-03-01', to: '2026-03-01' })).toBe(1);
     expect(rangeLengthDays({ from: '2026-03-01', to: '2026-03-30' })).toBe(30);
+  });
+});
+
+describe('spanDays', () => {
+  it('counts both ends and ignores the order the dates arrive in', () => {
+    expect(
+      spanDays([
+        new Date(2026, 2, 30, 9),
+        new Date(2026, 2, 1, 18),
+        new Date(2026, 2, 12),
+      ]),
+    ).toBe(30);
+  });
+
+  it('is 1 for a single day and 0 for nothing', () => {
+    expect(spanDays([new Date(2026, 2, 1, 6)])).toBe(1);
+    expect(spanDays([])).toBe(0);
+  });
+
+  it('counts across midnight as two days', () => {
+    // Day keys, not elapsed milliseconds: two hours apart either side of
+    // midnight is still two days of buying.
+    expect(spanDays([new Date(2026, 2, 1, 23), new Date(2026, 2, 2, 1)])).toBe(
+      2,
+    );
   });
 });
 
