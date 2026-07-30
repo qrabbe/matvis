@@ -103,6 +103,3 @@ type ConnectorReadApi = {
 
 /** The connector's public read API, statically typed, backed by the runtime proxy. */
 export const api = anyApi as unknown as ConnectorReadApi;
-
-/** Convex document id, e.g. `Id<'receipts'>`. */
-export type Id<TableName extends string> = GenericId<TableName>;

@@ -1,6 +1,6 @@
 /**
- * Guarded parsing of the unit strings that reach the app, and conversion
- * between them. Pure.
+ * Guarded parsing of the unit strings that reach the app, and reduction to a
+ * dimension's base unit. Pure.
  *
  * Two vocabularies meet here and neither is normalized at the source:
  *
@@ -90,24 +90,6 @@ function unitKey(raw: string): string {
 export function parseUnit(raw: string | null | undefined): ParsedUnit | null {
   if (!raw) return null;
   return UNITS[unitKey(raw)] ?? null;
-}
-
-/**
- * Convert `quantity` from one unit to another, or `null` when either unit is
- * unrecognised or the two measure different things. Converting 1.5 `Liter` to
- * `ml` gives 1500; converting it to `g` gives `null`, which is the case the old
- * repo got silently wrong.
- */
-export function convert(
-  quantity: number,
-  from: string | null | undefined,
-  to: string | null | undefined,
-): number | null {
-  const source = parseUnit(from);
-  const target = parseUnit(to);
-  if (!source || !target) return null;
-  if (source.dimension !== target.dimension) return null;
-  return (quantity * source.toBase) / target.toBase;
 }
 
 /** A quantity expressed in its dimension's base unit (g / ml / st), or `null`
