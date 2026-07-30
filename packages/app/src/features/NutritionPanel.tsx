@@ -20,7 +20,9 @@ import { CoverageMeter } from '../components/CoverageMeter';
 import { DateRangePicker } from '../components/DateRangePicker';
 import { MacroSplitBar } from '../components/MacroSplitBar';
 import { ProductThumb } from '../components/ProductThumb';
+import { SectionCard } from '../components/SectionCard';
 import { StatCard } from '../components/StatCard';
+import { StatGrid } from '../components/StatGrid';
 import { TrendBadge } from '../components/TrendBadge';
 import {
   AXIS_PROPS,
@@ -211,13 +213,7 @@ export function NutritionPanel({ data }: { data: PurchaseData }) {
         />
       </Stack>
 
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-          gap: 12,
-        }}
-      >
+      <StatGrid>
         <StatCard
           label="Energy / day"
           value={formatKcal(perDay.kcal)}
@@ -243,89 +239,74 @@ export function NutritionPanel({ data }: { data: PurchaseData }) {
         />
         <StatCard label="Fat / day" value={formatGrams(perDay.fat)} />
         <StatCard label="Carbs / day" value={formatGrams(perDay.carbs)} />
-      </div>
+      </StatGrid>
 
-      <Card.Root>
-        <Card.Header>
-          <Card.Title>Where the energy came from</Card.Title>
-        </Card.Header>
-        <Card.Content>
-          <MacroSplitBar macros={current} />
-        </Card.Content>
-      </Card.Root>
+      <SectionCard title="Where the energy came from">
+        <MacroSplitBar macros={current} />
+      </SectionCard>
 
-      <Card.Root>
-        <Card.Header>
-          <Card.Title>{`${MACRO_LABELS[macro]} per day`}</Card.Title>
-        </Card.Header>
-        <Card.Content>
-          <Stack direction="column" gap="md">
-            <div style={{ width: '100%', height: 280 }}>
-              <ResponsiveContainer>
-                {/* Single series: the card title and axis name it, so no legend
+      <SectionCard title={`${MACRO_LABELS[macro]} per day`}>
+        <Stack direction="column" gap="md">
+          <div style={{ width: '100%', height: 280 }}>
+            <ResponsiveContainer>
+              {/* Single series: the card title and axis name it, so no legend
                     and no per-nutrient hue. */}
-                <BarChart
-                  data={series}
-                  margin={{ top: 8, right: 8, bottom: 0, left: 0 }}
-                  onClick={(state) => {
-                    // Resolve the clicked datum by index, not by axis label.
-                    // The label omits the year, so two years of receipts put
-                    // two different days under one label.
-                    setSelectedDay(dayAtIndex(series, state?.activeIndex));
-                  }}
-                >
-                  <CartesianGrid
-                    stroke={CHART_CHROME.grid}
-                    vertical={false}
-                    strokeDasharray="3 3"
-                  />
-                  <XAxis
-                    dataKey="label"
-                    {...AXIS_PROPS}
-                    interval="preserveStartEnd"
-                    minTickGap={24}
-                  />
-                  <YAxis
-                    {...AXIS_PROPS}
-                    width={56}
-                    unit={` ${MACRO_UNITS[macro]}`}
-                  />
-                  <RechartsTooltip
-                    cursor={{ fill: 'rgba(255,255,255,0.04)' }}
-                    contentStyle={TOOLTIP_STYLE}
-                    formatter={(value) => [
-                      `${Math.round(Number(value))} ${MACRO_UNITS[macro]}`,
-                      MACRO_LABELS[macro],
-                    ]}
-                  />
-                  <Bar
-                    dataKey="value"
-                    fill={PRIMARY_SERIES}
-                    radius={BAR_RADIUS}
-                    maxBarSize={28}
-                    cursor="pointer"
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-            <Text variant="body-sm">
-              Click a bar to see which products drove that day.
-            </Text>
-            {selectedBucket && (
-              <DayDrilldown bucket={selectedBucket} macro={macro} />
-            )}
-          </Stack>
-        </Card.Content>
-      </Card.Root>
+              <BarChart
+                data={series}
+                margin={{ top: 8, right: 8, bottom: 0, left: 0 }}
+                onClick={(state) => {
+                  // Resolve the clicked datum by index, not by axis label.
+                  // The label omits the year, so two years of receipts put
+                  // two different days under one label.
+                  setSelectedDay(dayAtIndex(series, state?.activeIndex));
+                }}
+              >
+                <CartesianGrid
+                  stroke={CHART_CHROME.grid}
+                  vertical={false}
+                  strokeDasharray="3 3"
+                />
+                <XAxis
+                  dataKey="label"
+                  {...AXIS_PROPS}
+                  interval="preserveStartEnd"
+                  minTickGap={24}
+                />
+                <YAxis
+                  {...AXIS_PROPS}
+                  width={56}
+                  unit={` ${MACRO_UNITS[macro]}`}
+                />
+                <RechartsTooltip
+                  cursor={{ fill: 'rgba(255,255,255,0.04)' }}
+                  contentStyle={TOOLTIP_STYLE}
+                  formatter={(value) => [
+                    `${Math.round(Number(value))} ${MACRO_UNITS[macro]}`,
+                    MACRO_LABELS[macro],
+                  ]}
+                />
+                <Bar
+                  dataKey="value"
+                  fill={PRIMARY_SERIES}
+                  radius={BAR_RADIUS}
+                  maxBarSize={28}
+                  cursor="pointer"
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          <Text variant="body-sm">
+            Click a bar to see which products drove that day.
+          </Text>
+          {selectedBucket && (
+            <DayDrilldown bucket={selectedBucket} macro={macro} />
+          )}
+        </Stack>
+      </SectionCard>
 
-      <Card.Root>
-        <Card.Header>
-          <Card.Title>Coverage</Card.Title>
-        </Card.Header>
-        <Card.Content>
-          <CoverageMeter coverage={data.coverage} />
-        </Card.Content>
-      </Card.Root>
+      <SectionCard title="Coverage">
+        <CoverageMeter coverage={data.coverage} />
+      </SectionCard>
     </Stack>
   );
 }

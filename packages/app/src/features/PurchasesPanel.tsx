@@ -1,14 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useConvex } from 'convex/react';
-import {
-  Badge,
-  Button,
-  Card,
-  EmptyState,
-  Stack,
-  Tabs,
-  Text,
-} from '@wordpress/ui';
+import { Badge, Button, Stack, Tabs, Text } from '@wordpress/ui';
 // The receipts list is a `@wordpress/dataviews` table — `@wordpress/ui` has no
 // data-grid equivalent, so this is a justified fallback (like `Spinner`). Its
 // stylesheet is loaded once in `main.tsx`.
@@ -22,7 +14,9 @@ import {
 import { CopyButton } from '../components/CopyButton';
 import { ErrorNotice } from '../components/ErrorNotice';
 import { InlineSpinner } from '../components/InlineSpinner';
+import { NoReceipts } from '../components/NoReceipts';
 import { ProductThumb } from '../components/ProductThumb';
+import { SectionCard } from '../components/SectionCard';
 import type { PurchaseData } from '../hooks/usePurchaseData';
 import { api, type ReceiptHeader, type ReceiptItemDoc } from '../lib/convexApi';
 import { downloadJson } from '../lib/download';
@@ -135,34 +129,21 @@ export function PurchasesPanel({
   );
 
   return (
-    <Card.Root>
-      <Card.Header>
-        <Card.Title>Purchases</Card.Title>
-      </Card.Header>
-      <Card.Content>
-        <DataViews
-          data={rows}
-          fields={FIELDS}
-          view={view}
-          onChangeView={setView}
-          actions={actions}
-          paginationInfo={paginationInfo}
-          getItemId={(item) => item._id}
-          isLoading={data.loadingHeaders}
-          defaultLayouts={{ table: {} }}
-          search={false}
-          empty={
-            <EmptyState.Root>
-              <EmptyState.Title>No receipts yet</EmptyState.Title>
-              <EmptyState.Description>
-                Link a store and sync in the connector portal — receipts appear
-                here live as they land.
-              </EmptyState.Description>
-            </EmptyState.Root>
-          }
-        />
-      </Card.Content>
-    </Card.Root>
+    <SectionCard title="Purchases">
+      <DataViews
+        data={rows}
+        fields={FIELDS}
+        view={view}
+        onChangeView={setView}
+        actions={actions}
+        paginationInfo={paginationInfo}
+        getItemId={(item) => item._id}
+        isLoading={data.loadingHeaders}
+        defaultLayouts={{ table: {} }}
+        search={false}
+        empty={<NoReceipts />}
+      />
+    </SectionCard>
   );
 }
 

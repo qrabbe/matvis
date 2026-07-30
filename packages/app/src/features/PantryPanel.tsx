@@ -2,7 +2,9 @@ import { useMemo } from 'react';
 import { Badge, Card, EmptyState, Notice, Stack, Text } from '@wordpress/ui';
 import { CoverageMeter } from '../components/CoverageMeter';
 import { ProductThumb } from '../components/ProductThumb';
+import { SectionCard } from '../components/SectionCard';
 import { StatCard } from '../components/StatCard';
+import { StatGrid } from '../components/StatGrid';
 import type { PurchaseData } from '../hooks/usePurchaseData';
 import { spanDays } from '../lib/dateRange';
 import { formatGrams, formatKcal, formatKr } from '../lib/format';
@@ -95,13 +97,8 @@ export function PantryPanel({ data }: { data: PurchaseData }) {
     <Stack direction="column" gap="xl">
       <ModelNotice />
 
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
-          gap: 12,
-        }}
-      >
+      {/* Six short numbers, so they pack tighter than the other stat rows. */}
+      <StatGrid min={160}>
         <StatCard
           label="Products on the shelf"
           value={stock.products.toLocaleString('sv-SE')}
@@ -123,7 +120,7 @@ export function PantryPanel({ data }: { data: PurchaseData }) {
           sub="At your own average daily rate"
           tone={lowProtein ? 'caution' : 'neutral'}
         />
-      </div>
+      </StatGrid>
 
       {lowProtein && (
         <Notice.Root intent="warning">
@@ -134,29 +131,19 @@ export function PantryPanel({ data }: { data: PurchaseData }) {
         </Notice.Root>
       )}
 
-      <Card.Root>
-        <Card.Header>
-          <Card.Title>Products</Card.Title>
-        </Card.Header>
-        <Card.Content>
-          <Stack direction="column" gap="md">
-            {groups.length === 0 ? (
-              <Text variant="body-sm">Nothing grouped yet.</Text>
-            ) : (
-              groups.map((group) => <PantryRow key={group.ean} group={group} />)
-            )}
-          </Stack>
-        </Card.Content>
-      </Card.Root>
+      <SectionCard title="Products">
+        <Stack direction="column" gap="md">
+          {groups.length === 0 ? (
+            <Text variant="body-sm">Nothing grouped yet.</Text>
+          ) : (
+            groups.map((group) => <PantryRow key={group.ean} group={group} />)
+          )}
+        </Stack>
+      </SectionCard>
 
-      <Card.Root>
-        <Card.Header>
-          <Card.Title>Coverage</Card.Title>
-        </Card.Header>
-        <Card.Content>
-          <CoverageMeter coverage={data.coverage} />
-        </Card.Content>
-      </Card.Root>
+      <SectionCard title="Coverage">
+        <CoverageMeter coverage={data.coverage} />
+      </SectionCard>
     </Stack>
   );
 }

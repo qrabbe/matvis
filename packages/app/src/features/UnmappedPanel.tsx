@@ -1,12 +1,5 @@
 import { useMemo, useState } from 'react';
-import {
-  Badge,
-  Card,
-  EmptyState,
-  LinkButton,
-  Stack,
-  Text,
-} from '@wordpress/ui';
+import { Badge, EmptyState, LinkButton, Stack, Text } from '@wordpress/ui';
 import {
   DataViews,
   filterSortAndPaginate,
@@ -16,6 +9,7 @@ import {
 import { CopyButton } from '../components/CopyButton';
 import { CoverageMeter } from '../components/CoverageMeter';
 import { InlineSpinner } from '../components/InlineSpinner';
+import { SectionCard } from '../components/SectionCard';
 import type { PurchaseData } from '../hooks/usePurchaseData';
 import { formatKr } from '../lib/format';
 import {
@@ -144,59 +138,49 @@ export function UnmappedPanel({ data }: { data: PurchaseData }) {
 
   return (
     <Stack direction="column" gap="xl">
-      <Card.Root>
-        <Card.Header>
-          <Card.Title>Coverage</Card.Title>
-        </Card.Header>
-        <Card.Content>
-          <Stack direction="column" gap="md">
-            <CoverageMeter coverage={data.coverage} detail />
-            <Text variant="body-sm">
-              A receipt line becomes a product only through the store’s text →
-              EAN map, which starts empty. Until something fills it, this list
-              is the whole picture — and each row is exactly one mapping that
-              would close that much of the gap.
-            </Text>
-          </Stack>
-        </Card.Content>
-      </Card.Root>
+      <SectionCard title="Coverage">
+        <Stack direction="column" gap="md">
+          <CoverageMeter coverage={data.coverage} detail />
+          <Text variant="body-sm">
+            A receipt line becomes a product only through the store’s text → EAN
+            map, which starts empty. Until something fills it, this list is the
+            whole picture — and each row is exactly one mapping that would close
+            that much of the gap.
+          </Text>
+        </Stack>
+      </SectionCard>
 
-      <Card.Root>
-        <Card.Header>
-          <Card.Title>Unmapped items</Card.Title>
-        </Card.Header>
-        <Card.Content>
-          {hydrating ? (
-            <InlineSpinner label="Loading line items…" />
-          ) : (
-            <DataViews
-              data={rows}
-              fields={FIELDS}
-              view={view}
-              onChangeView={setView}
-              actions={[]}
-              paginationInfo={paginationInfo}
-              getItemId={(item) => item.key}
-              defaultLayouts={{ table: {} }}
-              search={false}
-              empty={
-                <EmptyState.Root>
-                  <EmptyState.Title>
-                    {data.lines.length === 0
-                      ? 'No line items yet'
-                      : 'Everything is mapped'}
-                  </EmptyState.Title>
-                  <EmptyState.Description>
-                    {data.lines.length === 0
-                      ? 'Receipts have to hydrate before their lines can be grouped.'
-                      : 'Every purchased line resolves to a catalog product.'}
-                  </EmptyState.Description>
-                </EmptyState.Root>
-              }
-            />
-          )}
-        </Card.Content>
-      </Card.Root>
+      <SectionCard title="Unmapped items">
+        {hydrating ? (
+          <InlineSpinner label="Loading line items…" />
+        ) : (
+          <DataViews
+            data={rows}
+            fields={FIELDS}
+            view={view}
+            onChangeView={setView}
+            actions={[]}
+            paginationInfo={paginationInfo}
+            getItemId={(item) => item.key}
+            defaultLayouts={{ table: {} }}
+            search={false}
+            empty={
+              <EmptyState.Root>
+                <EmptyState.Title>
+                  {data.lines.length === 0
+                    ? 'No line items yet'
+                    : 'Everything is mapped'}
+                </EmptyState.Title>
+                <EmptyState.Description>
+                  {data.lines.length === 0
+                    ? 'Receipts have to hydrate before their lines can be grouped.'
+                    : 'Every purchased line resolves to a catalog product.'}
+                </EmptyState.Description>
+              </EmptyState.Root>
+            }
+          />
+        )}
+      </SectionCard>
     </Stack>
   );
 }

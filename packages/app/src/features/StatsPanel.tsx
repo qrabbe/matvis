@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Card, EmptyState, Stack, Text } from '@wordpress/ui';
+import { Card, Stack, Text } from '@wordpress/ui';
 import {
   Bar,
   BarChart,
@@ -12,7 +12,10 @@ import {
 import { CoverageMeter } from '../components/CoverageMeter';
 import { DateRangePicker } from '../components/DateRangePicker';
 import { InlineSpinner } from '../components/InlineSpinner';
+import { NoReceipts } from '../components/NoReceipts';
+import { SectionCard } from '../components/SectionCard';
 import { StatCard } from '../components/StatCard';
+import { StatGrid } from '../components/StatGrid';
 import { TrendBadge } from '../components/TrendBadge';
 import {
   AXIS_PROPS,
@@ -81,14 +84,11 @@ export function StatsPanel({ data }: { data: PurchaseData }) {
     return (
       <Card.Root>
         <Card.Content>
-          <EmptyState.Root>
-            <EmptyState.Title>No receipts yet</EmptyState.Title>
-            <EmptyState.Description>
-              Link a store and sync in the connector portal. Everything on this
-              tab is derived from receipt totals, so it fills in as soon as the
-              first receipt lands.
-            </EmptyState.Description>
-          </EmptyState.Root>
+          <NoReceipts>
+            Link a store and sync in the connector portal. Everything on this
+            tab is derived from receipt totals, so it fills in as soon as the
+            first receipt lands.
+          </NoReceipts>
         </Card.Content>
       </Card.Root>
     );
@@ -107,13 +107,7 @@ export function StatsPanel({ data }: { data: PurchaseData }) {
         onPresetChange={setPreset}
       />
 
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-          gap: 12,
-        }}
-      >
+      <StatGrid>
         <StatCard
           label="Receipts"
           value={current.receipts.toLocaleString('sv-SE')}
@@ -155,68 +149,58 @@ export function StatsPanel({ data }: { data: PurchaseData }) {
           value={formatKr(current.discounts)}
           sub="From the receipt’s own rebate line"
         />
-      </div>
+      </StatGrid>
 
-      <Card.Root>
-        <Card.Header>
-          <Card.Title>Spend by month</Card.Title>
-        </Card.Header>
-        <Card.Content>
-          {months.length === 0 ? (
-            <Text variant="body-sm">No purchases in the selected range.</Text>
-          ) : (
-            <div style={{ width: '100%', height: 260 }}>
-              <ResponsiveContainer>
-                {/* Single series, so no legend — the card title names it. */}
-                <BarChart
-                  data={months}
-                  margin={{ top: 8, right: 8, bottom: 0, left: 0 }}
-                >
-                  <CartesianGrid
-                    stroke={CHART_CHROME.grid}
-                    vertical={false}
-                    strokeDasharray="3 3"
-                  />
-                  <XAxis dataKey="month" {...AXIS_PROPS} />
-                  <YAxis
-                    {...AXIS_PROPS}
-                    width={56}
-                    tickFormatter={(value: number) =>
-                      value.toLocaleString('sv-SE')
-                    }
-                  />
-                  <RechartsTooltip
-                    cursor={{ fill: 'rgba(255,255,255,0.04)' }}
-                    contentStyle={TOOLTIP_STYLE}
-                    formatter={(value) => [formatKr(Number(value)), 'Spend']}
-                  />
-                  <Bar
-                    dataKey="total"
-                    fill={PRIMARY_SERIES}
-                    radius={BAR_RADIUS}
-                    maxBarSize={44}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          )}
-        </Card.Content>
-      </Card.Root>
+      <SectionCard title="Spend by month">
+        {months.length === 0 ? (
+          <Text variant="body-sm">No purchases in the selected range.</Text>
+        ) : (
+          <div style={{ width: '100%', height: 260 }}>
+            <ResponsiveContainer>
+              {/* Single series, so no legend — the card title names it. */}
+              <BarChart
+                data={months}
+                margin={{ top: 8, right: 8, bottom: 0, left: 0 }}
+              >
+                <CartesianGrid
+                  stroke={CHART_CHROME.grid}
+                  vertical={false}
+                  strokeDasharray="3 3"
+                />
+                <XAxis dataKey="month" {...AXIS_PROPS} />
+                <YAxis
+                  {...AXIS_PROPS}
+                  width={56}
+                  tickFormatter={(value: number) =>
+                    value.toLocaleString('sv-SE')
+                  }
+                />
+                <RechartsTooltip
+                  cursor={{ fill: 'rgba(255,255,255,0.04)' }}
+                  contentStyle={TOOLTIP_STYLE}
+                  formatter={(value) => [formatKr(Number(value)), 'Spend']}
+                />
+                <Bar
+                  dataKey="total"
+                  fill={PRIMARY_SERIES}
+                  radius={BAR_RADIUS}
+                  maxBarSize={44}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </SectionCard>
 
-      <Card.Root>
-        <Card.Header>
-          <Card.Title>Product coverage</Card.Title>
-        </Card.Header>
-        <Card.Content>
-          <Stack direction="column" gap="md">
-            <CoverageMeter coverage={data.coverage} />
-            <Text variant="body-sm">
-              Nothing fills the receipt-text → EAN map yet, so this is expected
-              to read close to zero. The Unmapped tab breaks the gap down.
-            </Text>
-          </Stack>
-        </Card.Content>
-      </Card.Root>
+      <SectionCard title="Product coverage">
+        <Stack direction="column" gap="md">
+          <CoverageMeter coverage={data.coverage} />
+          <Text variant="body-sm">
+            Nothing fills the receipt-text → EAN map yet, so this is expected to
+            read close to zero. The Unmapped tab breaks the gap down.
+          </Text>
+        </Stack>
+      </SectionCard>
     </Stack>
   );
 }
