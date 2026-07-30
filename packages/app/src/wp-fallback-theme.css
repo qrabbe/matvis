@@ -1,6 +1,6 @@
 /**
  * Dark-theme bridge for the classic `@wordpress/components` + `@wordpress/dataviews`
- * fallbacks (Spinner, ProgressBar, and the Purchases/Unmapped tables with their
+ * fallbacks (Spinner, and the Purchases/Unmapped tables with their
  * modals — see the UI-component policy). Those libraries are styled for the light
  * WP-admin palette:
  * they read the `--wp-components-color-*` token family, which `MatvisThemeProvider`
@@ -200,19 +200,4 @@ textarea {
   .dataviews-item-actions
   .components-button:not(.dataviews-all-actions-button) {
   opacity: 1;
-}
-
-/*
- * `ProgressBar` (first-load item hydration) draws an un-tokenized light track.
- * Repaint both track and indicator on the Matvis palette so the one screen a new
- * user sees first doesn't flash a white bar.
- */
-.components-progress-bar {
-  background-color: var(--wpds-color-background-track-neutral, #343434);
-}
-.components-progress-bar__indicator {
-  background-color: var(
-    --wpds-color-background-interactive-brand-strong,
-    #435ab8
-  );
 }

@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { Card, Stack, Text } from '@wordpress/ui';
-import { CHART_CHROME } from './chartTheme';
+import { Meter } from './Meter';
 
 /**
  * A headline number with its label and optional supporting detail.
@@ -66,9 +66,7 @@ export function StatCard({
   );
 }
 
-/** A bounded progress meter. Uses the native `<progress>` semantics via ARIA on
- * a div, so a screen reader announces the ratio rather than reading a bare
- * decoration. */
+/** A bounded progress meter with its caption underneath. */
 function GoalMeter({
   current,
   target,
@@ -78,32 +76,13 @@ function GoalMeter({
   target: number;
   label?: string;
 }) {
-  const ratio = target > 0 ? Math.min(1, Math.max(0, current / target)) : 0;
   return (
     <Stack direction="column" gap="xs">
-      <div
-        role="progressbar"
-        aria-valuemin={0}
-        aria-valuemax={target}
-        aria-valuenow={current}
-        aria-label={label ?? 'Progress toward goal'}
-        style={{
-          height: 6,
-          borderRadius: 3,
-          background: CHART_CHROME.grid,
-          overflow: 'hidden',
-        }}
-      >
-        <div
-          style={{
-            width: `${ratio * 100}%`,
-            height: '100%',
-            borderRadius: 3,
-            background:
-              'var(--wpds-color-background-interactive-brand-strong, #435ab8)',
-          }}
-        />
-      </div>
+      <Meter
+        value={current}
+        max={target}
+        label={label ?? 'Progress toward goal'}
+      />
       {label && <Text variant="body-sm">{label}</Text>}
     </Stack>
   );

@@ -1,7 +1,8 @@
 import { Stack, Text } from '@wordpress/ui';
 import { formatPercent } from '../lib/format';
 import type { Coverage } from '../lib/purchases';
-import { CHART_CHROME, SERIES } from './chartTheme';
+import { SERIES } from './chartTheme';
+import { Meter } from './Meter';
 
 /**
  * How much of the account actually resolves to a product — a first-class
@@ -33,39 +34,18 @@ export function CoverageMeter({
     );
   }
 
-  const ratio = matchedLines / totalLines;
-
   return (
     <Stack direction="column" gap="sm">
       <Text variant="body-sm">
         {`${matchedLines.toLocaleString('sv-SE')} of ${totalLines.toLocaleString('sv-SE')} lines matched to a product (${formatPercent(matchedLines, totalLines)}). ${nutritionLines.toLocaleString('sv-SE')} produced usable nutrition.`}
       </Text>
 
-      <div
-        role="progressbar"
-        aria-valuemin={0}
-        aria-valuemax={totalLines}
-        aria-valuenow={matchedLines}
-        aria-label="Receipt lines matched to a catalog product"
-        style={{
-          height: 6,
-          borderRadius: 3,
-          background: CHART_CHROME.grid,
-          overflow: 'hidden',
-        }}
-      >
-        <div
-          style={{
-            // A non-zero match always shows at least a sliver: rounding a real
-            // 0.4% down to an empty bar would read as "none", which is a
-            // different fact.
-            width: `${Math.max(ratio * 100, matchedLines > 0 ? 1 : 0)}%`,
-            height: '100%',
-            borderRadius: 3,
-            background: SERIES.protein,
-          }}
-        />
-      </div>
+      <Meter
+        value={matchedLines}
+        max={totalLines}
+        label="Receipt lines matched to a catalog product"
+        fill={SERIES.protein}
+      />
 
       {detail && <CoverageFunnel coverage={coverage} />}
     </Stack>

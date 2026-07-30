@@ -10,9 +10,6 @@ import {
   Tabs,
   Text,
 } from '@wordpress/ui';
-// Fallback: `@wordpress/ui` has no progress primitive, and a hand-rolled bar
-// would drift from the design system on the one screen a new user sees first.
-import { ProgressBar } from '@wordpress/components';
 import { STORE_LABELS } from '@matvis/shared';
 import { ActivityPanel } from './features/ActivityPanel';
 import { NutritionPanel } from './features/NutritionPanel';
@@ -23,6 +20,7 @@ import { StatsPanel } from './features/StatsPanel';
 import { UnmappedPanel } from './features/UnmappedPanel';
 import { ErrorNotice } from './components/ErrorNotice';
 import { InlineSpinner } from './components/InlineSpinner';
+import { Meter } from './components/Meter';
 import { usePurchaseData, type PurchaseData } from './hooks/usePurchaseData';
 import { api } from './lib/convexApi';
 import { looksLikeToken, useApiToken } from './lib/tokenStore';
@@ -195,10 +193,10 @@ function HydrationStatus({ data }: { data: PurchaseData }) {
       <Text variant="body-sm">
         {`Hydrating ${hydration.done} of ${hydration.total} receipts — cached after this, so the next load is instant.`}
       </Text>
-      <ProgressBar
-        value={
-          hydration.total > 0 ? (hydration.done / hydration.total) * 100 : 0
-        }
+      <Meter
+        value={hydration.done}
+        max={hydration.total}
+        label="Receipts hydrated"
       />
     </Stack>
   );

@@ -2,10 +2,9 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { ConvexProvider, ConvexReactClient } from 'convex/react';
 import { MatvisThemeProvider } from '@matvis/ui';
-// Fallback-only: styles for the classic `@wordpress/components` `Spinner` and
-// `ProgressBar`. The rest of the app is `@wordpress/ui` (see UI-component
-// policy). Scoped to `.components-*` classes, so it doesn't bleed into the ui
-// theme.
+// Fallback-only: styles for the classic `@wordpress/components` `Spinner`. The
+// rest of the app is `@wordpress/ui` (see UI-component policy). Scoped to
+// `.components-*` classes, so it doesn't bleed into the ui theme.
 import '@wordpress/components/build-style/style.css';
 // Styles for the `@wordpress/dataviews` tables (Purchases and Unmapped).
 import '@wordpress/dataviews/build-style/style.css';
