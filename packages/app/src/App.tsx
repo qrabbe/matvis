@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { useQuery } from 'convex/react';
 import {
   Badge,
@@ -25,6 +25,67 @@ import { usePurchaseData, type PurchaseData } from './hooks/usePurchaseData';
 import { api } from './lib/convexApi';
 import { looksLikeToken, useApiToken } from './lib/tokenStore';
 
+/** Everything a panel can draw on. Each tab takes what it needs and ignores the
+ * rest, which is what keeps the panels out of each other's prop lists. */
+type TabContext = {
+  data: PurchaseData;
+  token: string;
+  forgetToken: () => void;
+};
+
+/**
+ * The seven tabs, in the order they are shown.
+ *
+ * The order is the point of this array and is literal on purpose: it front-loads
+ * what works. Purchases, Activity and Stats derive from receipt HEADERS and are
+ * complete today; Pantry and Nutrition depend on a matching engine that does not
+ * exist yet and so start near-empty. Unmapped is where that gap is measured,
+ * which makes it the most useful tab at launch.
+ */
+const TABS: {
+  id: string;
+  label: string;
+  render: (context: TabContext) => ReactNode;
+}[] = [
+  {
+    id: 'pantry',
+    label: 'Pantry',
+    render: ({ data }) => <PantryPanel data={data} />,
+  },
+  {
+    id: 'nutrition',
+    label: 'Nutrition',
+    render: ({ data }) => <NutritionPanel data={data} />,
+  },
+  {
+    id: 'activity',
+    label: 'Activity',
+    render: ({ data }) => <ActivityPanel data={data} />,
+  },
+  {
+    id: 'stats',
+    label: 'Stats',
+    render: ({ data }) => <StatsPanel data={data} />,
+  },
+  {
+    id: 'purchases',
+    label: 'Purchases',
+    render: ({ data, token }) => <PurchasesPanel data={data} token={token} />,
+  },
+  {
+    id: 'unmapped',
+    label: 'Unmapped',
+    render: ({ data }) => <UnmappedPanel data={data} />,
+  },
+  {
+    id: 'preferences',
+    label: 'Preferences',
+    render: ({ forgetToken }) => (
+      <PreferencesPanel onForgetToken={forgetToken} />
+    ),
+  },
+];
+
 /**
  * The Matvis app: seven tabs over the two Convex deployments.
  *
@@ -34,11 +95,6 @@ import { looksLikeToken, useApiToken } from './lib/tokenStore';
  * `Unauthenticated` before it reaches a handler. The catalog exposes no public
  * write at all. The app holds one credential — the account API read token — and
  * both typed facades declare nothing but queries.
- *
- * Tab order front-loads what works. Purchases, Activity and Stats derive from
- * receipt HEADERS and are complete today; Pantry and Nutrition depend on a
- * matching engine that does not exist yet and so start near-empty. Unmapped is
- * where that gap is measured, which makes it the most useful tab at launch.
  */
 export function App() {
   const { token, setToken, forgetToken } = useApiToken();
@@ -65,36 +121,22 @@ export function App() {
 
           <Tabs.Root defaultValue="purchases">
             <Tabs.List>
-              <Tabs.Tab value="pantry">Pantry</Tabs.Tab>
-              <Tabs.Tab value="nutrition">Nutrition</Tabs.Tab>
-              <Tabs.Tab value="activity">Activity</Tabs.Tab>
-              <Tabs.Tab value="stats">Stats</Tabs.Tab>
-              <Tabs.Tab value="purchases">Purchases</Tabs.Tab>
-              <Tabs.Tab value="unmapped">Unmapped</Tabs.Tab>
-              <Tabs.Tab value="preferences">Preferences</Tabs.Tab>
+              {TABS.map((tab) => (
+                <Tabs.Tab key={tab.id} value={tab.id}>
+                  {tab.label}
+                </Tabs.Tab>
+              ))}
             </Tabs.List>
 
-            <Tabs.Panel value="pantry" style={{ paddingTop: 20 }}>
-              <PantryPanel data={data} />
-            </Tabs.Panel>
-            <Tabs.Panel value="nutrition" style={{ paddingTop: 20 }}>
-              <NutritionPanel data={data} />
-            </Tabs.Panel>
-            <Tabs.Panel value="activity" style={{ paddingTop: 20 }}>
-              <ActivityPanel data={data} />
-            </Tabs.Panel>
-            <Tabs.Panel value="stats" style={{ paddingTop: 20 }}>
-              <StatsPanel data={data} />
-            </Tabs.Panel>
-            <Tabs.Panel value="purchases" style={{ paddingTop: 20 }}>
-              <PurchasesPanel data={data} token={token} />
-            </Tabs.Panel>
-            <Tabs.Panel value="unmapped" style={{ paddingTop: 20 }}>
-              <UnmappedPanel data={data} />
-            </Tabs.Panel>
-            <Tabs.Panel value="preferences" style={{ paddingTop: 20 }}>
-              <PreferencesPanel onForgetToken={forgetToken} />
-            </Tabs.Panel>
+            {TABS.map((tab) => (
+              <Tabs.Panel
+                key={tab.id}
+                value={tab.id}
+                style={{ paddingTop: 20 }}
+              >
+                {tab.render({ data, token, forgetToken })}
+              </Tabs.Panel>
+            ))}
           </Tabs.Root>
         </>
       )}
