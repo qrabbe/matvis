@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from 'react';
+import { createLocalStorageStore } from '@matvis/ui';
 
 // ── Admin session token, in localStorage ─────────────────────────────────────
 // The console stores the token the sign-in action returned, never the password.
@@ -11,43 +11,21 @@ import { useSyncExternalStore } from 'react';
 // ask for the password again, which is the difference between a console someone
 // leaves open while a drain runs and one they close.
 
-const TOKEN_KEY = 'matvis.catalog.adminToken';
-
-const listeners = new Set<() => void>();
-
-function emit(): void {
-  for (const listener of listeners) listener();
-}
+const tokenStore = createLocalStorageStore('matvis.catalog.adminToken');
 
 /** Store the token from a successful sign-in. */
 export function storeAdminToken(token: string): void {
-  window.localStorage.setItem(TOKEN_KEY, token);
-  emit();
+  tokenStore.save(token);
 }
 
 /** Forget the token in THIS browser. Sessions the backend still holds are
  * untouched, which is what "sign out everywhere" is for. */
 export function clearAdminToken(): void {
-  window.localStorage.removeItem(TOKEN_KEY);
-  emit();
-}
-
-function readToken(): string | null {
-  return window.localStorage.getItem(TOKEN_KEY);
-}
-
-function subscribe(onChange: () => void): () => void {
-  listeners.add(onChange);
-  // `storage` fires in OTHER tabs, so signing out in one tab signs out the rest.
-  window.addEventListener('storage', onChange);
-  return () => {
-    listeners.delete(onChange);
-    window.removeEventListener('storage', onChange);
-  };
+  tokenStore.clear();
 }
 
 /** The stored admin token, or null. Re-renders when it is set or cleared,
- * including from another tab. */
+ * including from another tab, so signing out in one tab signs out the rest. */
 export function useAdminToken(): string | null {
-  return useSyncExternalStore(subscribe, readToken, () => null);
+  return tokenStore.use();
 }

@@ -1,4 +1,5 @@
-import { useCallback, useSyncExternalStore } from 'react';
+import { useCallback } from 'react';
+import { createLocalStorageStore } from '@matvis/ui';
 
 /**
  * Local-only persistence for the connector's account API token — the single
@@ -13,7 +14,7 @@ import { useCallback, useSyncExternalStore } from 'react';
  * the app must always offer a visible way to drop it. See the Preferences tab's
  * "Forget token" control.
  */
-const STORAGE_KEY = 'matvis.app.apiToken';
+const tokenStore = createLocalStorageStore('matvis.app.apiToken');
 
 /**
  * An earlier build stored live Coop access and refresh tokens here. Nothing
@@ -27,37 +28,22 @@ function dropLegacyCoopTokens(): void {
 
 dropLegacyCoopTokens();
 
-/** Notifies `useApiToken` subscribers in THIS tab; `storage` covers other tabs. */
-const listeners = new Set<() => void>();
-
-function emit(): void {
-  for (const listener of listeners) listener();
-}
-
-export function loadApiToken(): string | null {
-  const raw = localStorage.getItem(STORAGE_KEY);
+/** A blank stored token reads the same as no token at all. */
+function nonEmpty(raw: string | null): string | null {
   return raw && raw.trim() ? raw : null;
 }
 
+export function loadApiToken(): string | null {
+  return nonEmpty(tokenStore.load());
+}
+
 export function saveApiToken(token: string): void {
-  localStorage.setItem(STORAGE_KEY, token.trim());
-  emit();
+  tokenStore.save(token.trim());
 }
 
 export function clearApiToken(): void {
-  localStorage.removeItem(STORAGE_KEY);
+  tokenStore.clear();
   dropLegacyCoopTokens();
-  emit();
-}
-
-function subscribe(onChange: () => void): () => void {
-  listeners.add(onChange);
-  // A second tab writing the same key fires `storage` here but not our own emit.
-  window.addEventListener('storage', onChange);
-  return () => {
-    listeners.delete(onChange);
-    window.removeEventListener('storage', onChange);
-  };
 }
 
 /**
@@ -70,7 +56,7 @@ export function useApiToken(): {
   setToken: (token: string) => void;
   forgetToken: () => void;
 } {
-  const token = useSyncExternalStore(subscribe, loadApiToken, () => null);
+  const token = nonEmpty(tokenStore.use());
   const setToken = useCallback((next: string) => saveApiToken(next), []);
   const forgetToken = useCallback(() => clearApiToken(), []);
   return { token, setToken, forgetToken };

@@ -1,6 +1,8 @@
 // @matvis/ui
 export { MatvisThemeProvider } from './theme';
 export { mountApp, requireConvexUrl } from './mountApp';
+export { createLocalStorageStore } from './localStorageStore';
+export type { LocalStorageStore } from './localStorageStore';
 export { ErrorNotice } from './components/ErrorNotice';
 export { InlineSpinner } from './components/InlineSpinner';
 export { CopyButton } from './components/CopyButton';
