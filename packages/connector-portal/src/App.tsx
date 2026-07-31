@@ -2,11 +2,11 @@ import { useState } from 'react';
 import { Authenticated, AuthLoading, Unauthenticated } from 'convex/react';
 import { useAuthActions } from '@convex-dev/auth/react';
 import { Button, Card, Stack, Tabs, Text } from '@wordpress/ui';
+import { ErrorNotice } from '@matvis/ui';
 import { ConnectPanel } from './features/ConnectPanel';
 import { TokenPanel } from './features/TokenPanel';
 import { DemoPanel } from './features/DemoPanel';
 import { DevPortal } from './features/DevPortal';
-import { ErrorNotice } from './components/ErrorNotice';
 import { clearConnectionId } from './lib/connectionStore';
 import { errMsg } from './lib/format';
 

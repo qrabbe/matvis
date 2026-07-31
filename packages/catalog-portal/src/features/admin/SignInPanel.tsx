@@ -1,8 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { useAction } from 'convex/react';
 import { Button, Card, InputControl, Stack, Text } from '@wordpress/ui';
-import { ErrorNotice } from '../../components/ErrorNotice';
-import { InlineSpinner } from '../../components/InlineSpinner';
+import { ErrorNotice, InlineSpinner } from '@matvis/ui';
 import { adminApi } from '../../lib/adminApi';
 import { storeAdminToken } from '../../lib/adminSession';
 

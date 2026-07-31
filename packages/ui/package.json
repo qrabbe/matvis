@@ -29,6 +29,8 @@
     "react-dom": "^18 || ^19"
   },
   "dependencies": {
+    "@wordpress/components": "^37.0.0",
+    "@wordpress/compose": "^8.4.0",
     "@wordpress/theme": "^1.0.0",
     "@wordpress/ui": "^0.18.0"
   },

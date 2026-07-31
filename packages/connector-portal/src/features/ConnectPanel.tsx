@@ -3,9 +3,7 @@ import { useConvex } from 'convex/react';
 import type { FunctionReturnType } from 'convex/server';
 import { Badge, Button, Card, Notice, Stack, Text } from '@wordpress/ui';
 import { STORES, STORE_LABELS, type StoreSlug } from '@matvis/shared';
-import { CopyButton } from '../components/CopyButton';
-import { ErrorNotice } from '../components/ErrorNotice';
-import { InlineSpinner } from '../components/InlineSpinner';
+import { CopyButton, ErrorNotice, InlineSpinner } from '@matvis/ui';
 import { api, type Id } from '../lib/convexApi';
 import {
   clearConnectionId,

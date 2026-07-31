@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Button, Stack, Text } from '@wordpress/ui';
+import { InlineSpinner } from '@matvis/ui';
 import { Heatmap } from '../components/Heatmap';
-import { InlineSpinner } from '../components/InlineSpinner';
 import { NoReceipts } from '../components/NoReceipts';
 import { SectionCard } from '../components/SectionCard';
 import type { PurchaseData } from '../hooks/usePurchaseData';

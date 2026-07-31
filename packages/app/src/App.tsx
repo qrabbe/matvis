@@ -11,6 +11,7 @@ import {
   Text,
 } from '@wordpress/ui';
 import { STORE_LABELS } from '@matvis/shared';
+import { ErrorNotice, InlineSpinner } from '@matvis/ui';
 import { ActivityPanel } from './features/ActivityPanel';
 import { NutritionPanel } from './features/NutritionPanel';
 import { PantryPanel } from './features/PantryPanel';
@@ -18,8 +19,6 @@ import { PreferencesPanel } from './features/PreferencesPanel';
 import { PurchasesPanel } from './features/PurchasesPanel';
 import { StatsPanel } from './features/StatsPanel';
 import { UnmappedPanel } from './features/UnmappedPanel';
-import { ErrorNotice } from './components/ErrorNotice';
-import { InlineSpinner } from './components/InlineSpinner';
 import { Meter } from './components/Meter';
 import { usePurchaseData, type PurchaseData } from './hooks/usePurchaseData';
 import { api } from './lib/convexApi';

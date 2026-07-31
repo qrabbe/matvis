@@ -9,10 +9,13 @@ import {
   Stack,
   Text,
 } from '@wordpress/ui';
-import { CopyButton } from '../components/CopyButton';
-import { ErrorNotice } from '../components/ErrorNotice';
-import { InlineSpinner } from '../components/InlineSpinner';
-import { eyeIcon, eyeOffIcon } from '../components/icons';
+import {
+  CopyButton,
+  ErrorNotice,
+  InlineSpinner,
+  eyeIcon,
+  eyeOffIcon,
+} from '@matvis/ui';
 import { api } from '../lib/convexApi';
 import { errMsg } from '../lib/format';
 

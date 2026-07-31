@@ -6,8 +6,7 @@ import {
   type CatalogNutrition,
   type StoreSlug,
 } from '@matvis/shared';
-import { InlineSpinner } from '../components/InlineSpinner';
-import { sizedImageUrl } from '../lib/images';
+import { InlineSpinner, sizedImageUrl } from '@matvis/ui';
 import { href } from '../lib/route';
 import { api, type CatalogRow } from '../lib/convexApi';
 

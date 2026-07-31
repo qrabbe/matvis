@@ -21,9 +21,7 @@ import {
   type Field,
   type View,
 } from '@wordpress/dataviews';
-import { CopyButton } from '../components/CopyButton';
-import { ErrorNotice } from '../components/ErrorNotice';
-import { InlineSpinner } from '../components/InlineSpinner';
+import { CopyButton, ErrorNotice, InlineSpinner } from '@matvis/ui';
 import { api } from '../lib/convexApi';
 import { errMsg, formatAmount, formatPurchasedAt } from '../lib/format';
 

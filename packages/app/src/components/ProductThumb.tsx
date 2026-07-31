@@ -1,32 +1,8 @@
 import { useState } from 'react';
 import { Text } from '@wordpress/ui';
+import { sizedImageUrl } from '@matvis/ui';
 import type { CatalogRow } from '../lib/catalogApi';
 import { CHART_CHROME } from './chartTheme';
-
-/**
- * Ask for a width-capped rendition of a catalog image.
- *
- * The catalog's projector normalizes Coop's images to
- * `…/image/upload/f_auto,q_auto/…`, which picks a web format but still serves
- * full resolution — around 1 MB a row, far too much for a list of thumbnails.
- * Cloudinary chains transform segments, so inserting `w_<width>/` keeps the
- * format choice and adds the size. Anything that is not a Cloudinary upload URL
- * is returned untouched.
- *
- * Duplicated from `catalog-portal/src/lib/images.ts` rather than shared: it is
- * six lines, and the alternative is a new cross-package dependency for them.
- * Noted as a candidate for `@matvis/ui` alongside the other duplicated pieces.
- */
-export function sizedImageUrl(
-  url: string | undefined,
-  width: number,
-): string | undefined {
-  if (!url) return undefined;
-  return url.replace(
-    /^(https:\/\/res\.cloudinary\.com\/[^/]+\/image\/upload\/)/i,
-    `$1w_${width}/`,
-  );
-}
 
 /**
  * A product image at a fixed size, falling back to a neutral tile with the

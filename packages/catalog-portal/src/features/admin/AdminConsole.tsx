@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { Button, Stack, Text } from '@wordpress/ui';
-import { InlineSpinner } from '../../components/InlineSpinner';
+import { InlineSpinner } from '@matvis/ui';
 import { adminApi } from '../../lib/adminApi';
 import { clearAdminToken, useAdminToken } from '../../lib/adminSession';
 import { href } from '../../lib/route';

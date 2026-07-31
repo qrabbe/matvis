@@ -1,6 +1,6 @@
 import { useQuery } from 'convex/react';
 import { Badge, Card, EmptyState, Stack, Text } from '@wordpress/ui';
-import { InlineSpinner } from '../../components/InlineSpinner';
+import { InlineSpinner } from '@matvis/ui';
 import { adminApi, type RunRow } from '../../lib/adminApi';
 import { formatAge, formatDuration, formatSummary } from './format';
 

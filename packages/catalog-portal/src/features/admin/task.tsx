@@ -1,7 +1,6 @@
 import { useCallback, useState } from 'react';
 import { Notice } from '@wordpress/ui';
-import { InlineSpinner } from '../../components/InlineSpinner';
-import { ErrorNotice } from '../../components/ErrorNotice';
+import { ErrorNotice, InlineSpinner } from '@matvis/ui';
 import { clearAdminToken } from '../../lib/adminSession';
 
 /**

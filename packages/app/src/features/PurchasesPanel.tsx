@@ -11,9 +11,7 @@ import {
   type Field,
   type View,
 } from '@wordpress/dataviews';
-import { CopyButton } from '../components/CopyButton';
-import { ErrorNotice } from '../components/ErrorNotice';
-import { InlineSpinner } from '../components/InlineSpinner';
+import { CopyButton, ErrorNotice, InlineSpinner } from '@matvis/ui';
 import { NoReceipts } from '../components/NoReceipts';
 import { ProductThumb } from '../components/ProductThumb';
 import { SectionCard } from '../components/SectionCard';

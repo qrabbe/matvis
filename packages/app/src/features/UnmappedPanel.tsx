@@ -6,9 +6,8 @@ import {
   type Field,
   type View,
 } from '@wordpress/dataviews';
-import { CopyButton } from '../components/CopyButton';
+import { CopyButton, InlineSpinner } from '@matvis/ui';
 import { CoverageMeter } from '../components/CoverageMeter';
-import { InlineSpinner } from '../components/InlineSpinner';
 import { SectionCard } from '../components/SectionCard';
 import type { PurchaseData } from '../hooks/usePurchaseData';
 import { formatKr } from '../lib/format';

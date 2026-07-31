@@ -9,9 +9,9 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
+import { InlineSpinner } from '@matvis/ui';
 import { CoverageMeter } from '../components/CoverageMeter';
 import { DateRangePicker } from '../components/DateRangePicker';
-import { InlineSpinner } from '../components/InlineSpinner';
 import { NoReceipts } from '../components/NoReceipts';
 import { SectionCard } from '../components/SectionCard';
 import { StatCard } from '../components/StatCard';

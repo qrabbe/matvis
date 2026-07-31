@@ -19,8 +19,7 @@ import {
   type View,
 } from '@wordpress/dataviews';
 import { STORE_LABELS, type StoreSlug } from '@matvis/shared';
-import { InlineSpinner } from '../components/InlineSpinner';
-import { sizedImageUrl } from '../lib/images';
+import { InlineSpinner, sizedImageUrl } from '@matvis/ui';
 import { href, productPath } from '../lib/route';
 import { api, type CatalogRow } from '../lib/convexApi';
 

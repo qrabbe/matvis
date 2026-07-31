@@ -1,7 +1,7 @@
 import { useQuery } from 'convex/react';
 import { Badge, Card, Notice, Stack, Text } from '@wordpress/ui';
 import { STORE_LABELS } from '@matvis/shared';
-import { InlineSpinner } from '../components/InlineSpinner';
+import { InlineSpinner } from '@matvis/ui';
 import { api, type ConnectionPublic } from '../lib/convexApi';
 import { formatDateTime } from '../lib/format';
 

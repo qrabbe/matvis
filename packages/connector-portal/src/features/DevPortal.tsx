@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { Badge, Card, Stack, Text } from '@wordpress/ui';
 import { SCHEMA_VERSION } from '@matvis/shared';
-import { CopyButton } from '../components/CopyButton';
+import { CopyButton } from '@matvis/ui';
 
 // Hand-written v1 docs. The field table below mirrors `Receipt` in
 // packages/shared/src/receipt.ts — keep the two in sync when the contract moves

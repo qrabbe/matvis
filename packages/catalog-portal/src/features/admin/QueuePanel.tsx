@@ -10,7 +10,7 @@ import {
   Stack,
   Text,
 } from '@wordpress/ui';
-import { InlineSpinner } from '../../components/InlineSpinner';
+import { InlineSpinner } from '@matvis/ui';
 import { adminApi, type QueueRow, type QueueStatus } from '../../lib/adminApi';
 import { href, productPath } from '../../lib/route';
 import { formatAge } from './format';
