@@ -9,8 +9,8 @@
  *
  * The token family itself is generated from `palette.ts` and injected by
  * `MatvisThemeProvider`. What is left here is the static half: the repaints of the
- * surfaces that hardcode a color instead of reading a token. Import it last in
- * `main.tsx` so those overrides win.
+ * surfaces that hardcode a color instead of reading a token. `app.css` imports it
+ * last so those overrides win.
  */
 
 /*

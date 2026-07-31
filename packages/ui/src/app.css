@@ -1,0 +1,9 @@
+/* The fallback stylesheet stack every Matvis frontend needs, in the one order
+   that works. The two WordPress sheets are fallback-only: they style the classic
+   `@wordpress/components` Spinner and the `@wordpress/dataviews` tables, the
+   rest of each frontend is `@wordpress/ui`. `wp-fallback.css` bridges those
+   light-styled fallbacks onto the Matvis dark palette, so it MUST come last for
+   its overrides to win. */
+@import '@wordpress/components/build-style/style.css';
+@import '@wordpress/dataviews/build-style/style.css';
+@import './wp-fallback.css';
