@@ -148,11 +148,54 @@ const wpdsPins: Record<string, string> = {
 };
 
 /**
+ * The classic `@wordpress/components` and `@wordpress/dataviews` fallbacks read an
+ * older token family that `ThemeProvider` never sets, so the same palette has to be
+ * emitted a second time under those names. Keyed by the CSS variable they define.
+ * The static rules that go with them live in `wp-fallback.css`.
+ */
+const wpComponentsVars: Record<string, string> = {
+  // Brand accent: buttons, links, focus rings, active column header.
+  'wp-admin-theme-color': dark.primary,
+  'wp-components-color-accent': dark.primary,
+  'wp-components-color-accent-darker-10': dark.primaryHover,
+  'wp-components-color-accent-darker-20': dark.primaryActive,
+  'wp-components-color-accent-inverted': dark.primaryFg,
+
+  // Foreground / background.
+  'wp-components-color-foreground': dark.text,
+  'wp-components-color-foreground-inverted': dark.bg,
+  'wp-components-color-background': dark.bg,
+
+  // Gray ramp: low = subtle fills/hover, mid = borders, high = text.
+  'wp-components-color-gray-100': dark.surfaceStrong,
+  'wp-components-color-gray-400': dark.border,
+  'wp-components-color-gray-600': dark.borderStrong,
+  'wp-components-color-gray-700': dark.textMuted,
+  'wp-components-color-gray-800': dark.text,
+};
+
+/** Renders a token map as indented custom-property declarations. */
+const cssVars = (
+  vars: Record<string, string>,
+  prefix: string,
+  suffix = '',
+): string =>
+  Object.entries(vars)
+    .map(([token, value]) => `  --${prefix}${token}: ${value}${suffix};`)
+    .join('\n');
+
+/**
  * Generated CSS pinning the palette onto the semantic tokens. Applied to BOTH
  * `.matvis-theme` (beats the value inherited by in-app content) and `:root`
  * (beats the value `ThemeProvider` forwards to `<html>` for portaled modals/menus)
- * with `!important`, so the exact palette wins consistently everywhere.
+ * with `!important`, so the exact palette wins consistently everywhere. The
+ * `--wp-components-color-*` block rides along on `:root` for the same reason: the
+ * fallbacks that read it portal their menus and modals to `<body>`.
  */
-export const matvisPinsCss = `:root, .matvis-theme {\n${Object.entries(wpdsPins)
-  .map(([token, value]) => `  --wpds-${token}: ${value} !important;`)
-  .join('\n')}\n}`;
+export const matvisPinsCss = `:root, .matvis-theme {
+${cssVars(wpdsPins, 'wpds-', ' !important')}
+}
+
+:root {
+${cssVars(wpComponentsVars, '')}
+}`;

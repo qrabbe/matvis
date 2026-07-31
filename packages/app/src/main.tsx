@@ -10,7 +10,7 @@ import '@wordpress/components/build-style/style.css';
 import '@wordpress/dataviews/build-style/style.css';
 // Bridges the light-styled `@wordpress/components`/`dataviews` fallbacks onto
 // the Matvis dark palette — MUST be imported last so its overrides win.
-import './wp-fallback-theme.css';
+import '@matvis/ui/wp-fallback.css';
 import { App } from './App';
 
 const convexUrl = import.meta.env.VITE_CONVEX_URL as string | undefined;
