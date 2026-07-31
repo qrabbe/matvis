@@ -1,4 +1,4 @@
-import type { ReceiptItemDoc } from './convexApi';
+import type { ReceiptItemDoc } from '@matvis/shared';
 
 /**
  * IndexedDB cache of receipt LINE ITEMS, keyed by account scope and receipt

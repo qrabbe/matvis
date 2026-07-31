@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import type { ReceiptHeader } from '../../src/lib/convexApi';
+import type { ReceiptHeader } from '@matvis/shared';
 import {
   dailySpend,
   headersInRange,

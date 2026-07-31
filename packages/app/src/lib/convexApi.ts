@@ -5,7 +5,11 @@ import type {
 } from 'convex/server';
 import { anyApi } from 'convex/server';
 import type { GenericId } from 'convex/values';
-import type { Receipt, StoreSlug } from '@matvis/shared';
+import type {
+  ConnectionPublic,
+  ReceiptHeader,
+  ReceiptItemDoc,
+} from '@matvis/shared';
 
 // ── Typed facade over the connector's public READ API ────────────────────────
 // Same technique as the two portals: the app is a separate package from
@@ -14,7 +18,7 @@ import type { Receipt, StoreSlug } from '@matvis/shared';
 // connector's whole convex/ + src/ TS program into THIS package's typecheck.
 // So we call the deployment through Convex's runtime `anyApi` proxy (it builds
 // valid path-based references — `anyApi.receipts.list` → "receipts:list") and
-// layer static types on top. Shapes derive from @matvis/shared's `Receipt`, the
+// layer static types on top. The document shapes come from @matvis/shared, the
 // same source of truth the server's validators mirror.
 //
 // QUERIES ONLY, deliberately. Every declaration below is
@@ -23,43 +27,6 @@ import type { Receipt, StoreSlug } from '@matvis/shared';
 // — every connector write resolves the caller through `getAuthUserId` and throws
 // `Unauthenticated` without a session — the app is read-only by construction
 // rather than by convention. Adding a write here is a visible, reviewable act.
-
-/** A stored `receipts` header row (no `items`, no `rawText`), as the read API returns it. */
-export type ReceiptHeader = Omit<Receipt, 'items' | 'rawText'> & {
-  _id: GenericId<'receipts'>;
-  _creationTime: number;
-  connectionId: GenericId<'connections'>;
-  accountId: GenericId<'accounts'>;
-  externalId: string;
-  purchasedAtMs?: number;
-  pdfStorageId?: GenericId<'_storage'>;
-};
-
-/** A store connection minus its secrets, as `connections.list` returns it.
- * Expiry timestamps are epoch ms. The UI derives validity against the clock. */
-export type ConnectionPublic = {
-  _id: GenericId<'connections'>;
-  _creationTime: number;
-  store: StoreSlug;
-  status: 'active' | 'needs_reauth' | 'revoked';
-  accessTokenExpiresAt: number;
-  refreshTokenExpiresAt?: number;
-  lastSyncedAt?: number;
-};
-
-/** A full stored `receiptItems` document, as `getReceipt` returns it. */
-export type ReceiptItemDoc = {
-  _id: GenericId<'receiptItems'>;
-  _creationTime: number;
-  receiptId: GenericId<'receipts'>;
-  lineNo: number;
-  text: string;
-  price: number;
-  isDiscount: boolean;
-  quantity?: number;
-  unit?: string;
-  gtin?: string;
-};
 
 // Every read takes the account API `token`: the read is scoped by that token
 // alone, with no login. The app always passes it — it has no session to fall

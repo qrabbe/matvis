@@ -18,10 +18,10 @@ import {
   type Field,
   type View,
 } from '@wordpress/dataviews';
-import { STORE_LABELS, type StoreSlug } from '@matvis/shared';
+import { STORE_LABELS, type CatalogRow, type StoreSlug } from '@matvis/shared';
 import { InlineSpinner, sizedImageUrl } from '@matvis/ui';
 import { href, productPath } from '../lib/route';
-import { api, type CatalogRow } from '../lib/convexApi';
+import { api } from '../lib/convexApi';
 
 // The `store` value is a slug (`'coop'`); show its brand casing when we know it.
 function storeLabel(store: string): string {

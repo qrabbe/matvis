@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import type { CatalogRow } from '../../src/lib/catalogApi';
-import type { ReceiptHeader, ReceiptItemDoc } from '../../src/lib/convexApi';
+import type { CatalogRow, ReceiptHeader, ReceiptItemDoc } from '@matvis/shared';
 import { ZERO_MACROS, type Macros } from '../../src/lib/nutrition';
 import {
   groupPantry,

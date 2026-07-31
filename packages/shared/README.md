@@ -40,9 +40,12 @@ to a contract and nothing else fails the build — the validator now has fewer
 fields than the type. This is the guard working, not an obstacle: storage cannot
 silently disagree with the contract.
 
-Direct type consumers fail the build too, which is equally desirable:
-`app/src/lib/catalogApi.ts` and `catalog-portal/src/lib/convexApi.ts` both derive
-their row type from `CatalogItem`, so a removed field surfaces at every read site.
+Direct type consumers fail the build too, which is equally desirable. The stored
+document shapes — the contract type plus the Convex system fields around it —
+live here in [`documents.ts`](src/documents.ts) rather than being hand-copied
+into each frontend facade, so a removed field surfaces at every read site. Each
+frontend still declares its own `FunctionReference` layer: what a given frontend
+may name is a per-frontend decision, and the app deliberately names queries only.
 
 ### The mirrors that do NOT fail the build
 

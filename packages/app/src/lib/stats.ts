@@ -1,4 +1,4 @@
-import type { ReceiptHeader } from './convexApi';
+import type { ReceiptHeader } from '@matvis/shared';
 import { dayKey } from './format';
 import { inRange, type DateRange } from './dateRange';
 import { receiptDate } from './purchases';

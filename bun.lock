@@ -116,6 +116,7 @@
       "name": "@matvis/shared",
       "version": "0.0.0",
       "dependencies": {
+        "convex": "^1.42.3",
         "zod": "^4.1.13",
       },
     },

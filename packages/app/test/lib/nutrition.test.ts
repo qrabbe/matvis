@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import type { CatalogRow } from '../../src/lib/catalogApi';
-import type { ReceiptItemDoc } from '../../src/lib/convexApi';
+import type { CatalogRow, ReceiptItemDoc } from '@matvis/shared';
 import {
   CONSUMPTION_WINDOW_DAYS,
   energySplit,

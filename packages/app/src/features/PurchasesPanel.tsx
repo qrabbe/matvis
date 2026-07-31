@@ -16,10 +16,10 @@ import { NoReceipts } from '../components/NoReceipts';
 import { ProductThumb } from '../components/ProductThumb';
 import { SectionCard } from '../components/SectionCard';
 import type { PurchaseData } from '../hooks/usePurchaseData';
-import { api, type ReceiptHeader, type ReceiptItemDoc } from '../lib/convexApi';
+import { api } from '../lib/convexApi';
 import { downloadJson } from '../lib/download';
 import { errMsg, formatAmount, formatPurchasedAt } from '../lib/format';
-import type { CatalogRow } from '../lib/catalogApi';
+import type { CatalogRow, ReceiptHeader, ReceiptItemDoc } from '@matvis/shared';
 
 /**
  * The receipts table.

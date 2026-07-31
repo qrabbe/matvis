@@ -1,4 +1,4 @@
-import type { CatalogRow } from './catalogApi';
+import type { CatalogRow } from '@matvis/shared';
 import {
   CONSUMPTION_WINDOW_DAYS,
   addMacros,

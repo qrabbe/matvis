@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Text } from '@wordpress/ui';
 import { sizedImageUrl } from '@matvis/ui';
-import type { CatalogRow } from '../lib/catalogApi';
+import type { CatalogRow } from '@matvis/shared';
 import { CHART_CHROME } from './chartTheme';
 
 /**

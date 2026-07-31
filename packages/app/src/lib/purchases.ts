@@ -1,6 +1,9 @@
-import type { StoreSlug } from '@matvis/shared';
-import type { CatalogRow } from './catalogApi';
-import type { ReceiptHeader, ReceiptItemDoc } from './convexApi';
+import type {
+  CatalogRow,
+  ReceiptHeader,
+  ReceiptItemDoc,
+  StoreSlug,
+} from '@matvis/shared';
 import { dayKey } from './format';
 import { itemMacros, type Macros } from './nutrition';
 

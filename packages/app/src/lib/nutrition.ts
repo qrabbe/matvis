@@ -1,5 +1,4 @@
-import type { CatalogRow } from './catalogApi';
-import type { ReceiptItemDoc } from './convexApi';
+import type { CatalogRow, ReceiptItemDoc } from '@matvis/shared';
 import { dayKey } from './format';
 import { parseUnit, toBaseUnits } from './units';
 

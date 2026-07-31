@@ -4,8 +4,7 @@ import type {
   PaginationResult,
 } from 'convex/server';
 import { anyApi } from 'convex/server';
-import type { GenericId } from 'convex/values';
-import type { CatalogItem, StoreSlug } from '@matvis/shared';
+import type { CatalogRow, StoreSlug } from '@matvis/shared';
 
 // ── Typed facade over the catalog's public Convex API ────────────────────────
 // The portal is a separate package from @matvis/catalog, where the Convex
@@ -14,15 +13,9 @@ import type { CatalogItem, StoreSlug } from '@matvis/shared';
 // package's typecheck under its stricter tsconfig. Instead we call the
 // deployment through Convex's runtime `anyApi` proxy (it builds valid path-based
 // function references — `anyApi.catalog.search` then "catalog:search") and layer
-// static types on top. The row shape is derived from @matvis/shared's
-// `CatalogItem` (the SAME source of truth the server's validator mirrors), so
-// the UI can't drift on the contract.
-
-/** A stored clean-catalog row as the read API returns it. */
-export type CatalogRow = CatalogItem & {
-  _id: GenericId<'catalog'>;
-  _creationTime: number;
-};
+// static types on top. The row shape comes from @matvis/shared's `CatalogRow`
+// (the SAME source of truth the server's validator mirrors), so the UI can't
+// drift on the contract.
 
 type CatalogSearch = FunctionReference<
   'query',
