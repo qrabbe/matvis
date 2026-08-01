@@ -3,7 +3,6 @@ import type { CatalogRow, ReceiptHeader, ReceiptItemDoc } from '@matvis/shared';
 import {
   buildLines,
   computeCoverage,
-  distinctGtins,
   pickProduct,
   receiptDate,
 } from '../../src/lib/purchases';
@@ -157,22 +156,5 @@ describe('computeCoverage', () => {
 
   it('is all zeroes for no lines, which is a fresh account not an error', () => {
     expect(computeCoverage([]).totalLines).toBe(0);
-  });
-});
-
-describe('distinctGtins', () => {
-  it('dedupes across receipts and ignores discount lines', () => {
-    const map = new Map([
-      [
-        'r1',
-        [
-          item({ gtin: '111' }),
-          item({ gtin: '111' }),
-          item({ gtin: '222', isDiscount: true }),
-        ],
-      ],
-      ['r2', [item({ gtin: '333' })]],
-    ]);
-    expect(distinctGtins(map).sort()).toEqual(['111', '333']);
   });
 });

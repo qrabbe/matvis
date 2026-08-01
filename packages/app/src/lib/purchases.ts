@@ -144,17 +144,3 @@ export function computeCoverage(lines: readonly PurchaseLine[]): Coverage {
   }
   return coverage;
 }
-
-/** The distinct EANs a set of items needs looked up, in first-seen order so a
- * chunked fetch resolves the earliest receipts first. */
-export function distinctGtins(
-  itemsByReceipt: ReadonlyMap<string, ReceiptItemDoc[]>,
-): string[] {
-  const seen = new Set<string>();
-  for (const items of itemsByReceipt.values()) {
-    for (const item of items) {
-      if (item.gtin && !item.isDiscount) seen.add(item.gtin);
-    }
-  }
-  return [...seen];
-}

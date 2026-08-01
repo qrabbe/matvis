@@ -20,7 +20,6 @@ import {
 import {
   buildLines,
   computeCoverage,
-  distinctGtins,
   EMPTY_COVERAGE,
   type Coverage,
   type PurchaseLine,
@@ -66,6 +65,10 @@ const HEADER_PAGE_SIZE = 200;
  * memo hanging off it, so a thousand receipts stall the main thread; a flush
  * every quarter second keeps the progress bar moving without that. */
 const ITEM_FLUSH_MS = 250;
+
+/** Catalog chunks in flight at once. Each chunk is an independent read off an
+ * index, so fetching them one after another only adds round trips. */
+const EAN_LOOKUP_CONCURRENCY = 6;
 
 /** Progress of the per-receipt item hydration, derived from the items in hand.
  * `total` is every known receipt and `done` those whose items have landed, so a
@@ -244,6 +247,37 @@ export function usePurchaseData(token: string | null): PurchaseData {
     if (token) void cacheScope(token).then(clearOtherScopes);
   }, [token]);
 
+  // ── The stage 2 → 3 handover ───────────────────────────────────────────
+  // EANs are collected off each receipt as it lands, never rescanned off the
+  // accumulated map: a memo over `itemsByReceipt` would walk every item already
+  // in hand to discover the ten EANs the last batch introduced, then ask the
+  // catalog for those ten. Batches go out full instead, one per fifty distinct
+  // EANs, with whatever is left asked for when hydration settles.
+
+  /** EANs already asked for, so nothing is looked up twice. */
+  const fetchedEans = useRef<Set<string>>(new Set());
+  /** EANs seen but not yet asked for. */
+  const pendingEans = useRef<Set<string>>(new Set());
+  /** Bumped when a lookup should go out: a full batch, or hydration settling. */
+  const [eanRound, setEanRound] = useState(0);
+
+  /** Queue the unseen EANs on one receipt, and ask for a lookup once a full
+   * batch has piled up. */
+  const collectEans = useCallback((items: readonly ReceiptItemDoc[]) => {
+    for (const item of items) {
+      if (!item.gtin || item.isDiscount) continue;
+      if (fetchedEans.current.has(item.gtin)) continue;
+      fetchedEans.current.add(item.gtin);
+      pendingEans.current.add(item.gtin);
+    }
+    if (pendingEans.current.size >= MAX_EANS_PER_LOOKUP) {
+      setEanRound((round) => round + 1);
+    }
+  }, []);
+
+  /** Ask for a lookup of whatever is queued, however little. */
+  const settleEans = useCallback(() => setEanRound((round) => round + 1), []);
+
   useEffect(() => {
     if (!token || receiptIds.length === 0) return;
     const gen = generation.current;
@@ -266,12 +300,17 @@ export function usePurchaseData(token: string | null): PurchaseData {
         if (stale()) return;
         if (cached.size > 0) {
           for (const id of cached.keys()) fetchedIds.current.add(id);
+          for (const items of cached.values()) collectEans(items);
           setItemsByReceipt((prev) => new Map([...prev, ...cached]));
         }
       }
 
       const missing = receiptIds.filter((id) => !fetchedIds.current.has(id));
-      if (missing.length === 0) return;
+      // A warm cache settles here, with every EAN it holds still queued.
+      if (missing.length === 0) {
+        if (!stale()) settleEans();
+        return;
+      }
       // Claim them up front so a concurrent run of this effect cannot double-fetch.
       for (const id of missing) fetchedIds.current.add(id);
 
@@ -285,6 +324,7 @@ export function usePurchaseData(token: string | null): PurchaseData {
           const items = detail?.items ?? [];
           if (stale()) return;
           queueItems(id, items);
+          collectEans(items);
           // The connector is answering again, so whatever it last said went
           // wrong is history. Only the failure count outlives a success.
           setFetchError(null);
@@ -301,19 +341,30 @@ export function usePurchaseData(token: string | null): PurchaseData {
         }
       });
 
-      // The last wave never reaches its timer if the run ends first.
-      if (!stale()) flushItems();
+      // The last wave never reaches its timer if the run ends first, and the
+      // tail of the EAN queue never reaches a full batch.
+      if (!stale()) {
+        flushItems();
+        settleEans();
+      }
     };
 
     void hydrate();
-  }, [convex, flushItems, queueItems, receiptIds, token]);
+  }, [
+    collectEans,
+    convex,
+    flushItems,
+    queueItems,
+    receiptIds,
+    settleEans,
+    token,
+  ]);
 
   // ── Stage 3: products ──────────────────────────────────────────────────
   const [productsByEan, setProductsByEan] = useState<Map<string, CatalogRow[]>>(
     new Map(),
   );
   const [loadingProducts, setLoadingProducts] = useState(false);
-  const fetchedEans = useRef<Set<string>>(new Set());
   // Lookups in flight. Runs overlap while items stream in, so the flag has to
   // fall on the last one finishing rather than on the first.
   const productRuns = useRef(0);
@@ -321,19 +372,16 @@ export function usePurchaseData(token: string | null): PurchaseData {
 
   useEffect(() => {
     fetchedEans.current = new Set();
+    pendingEans.current = new Set();
     setProductsByEan(new Map());
   }, [token]);
 
-  const wantedEans = useMemo(
-    () => distinctGtins(itemsByReceipt),
-    [itemsByReceipt],
-  );
-
   useEffect(() => {
-    if (!client || wantedEans.length === 0) return;
-    const missing = wantedEans.filter((ean) => !fetchedEans.current.has(ean));
-    if (missing.length === 0) return;
-    for (const ean of missing) fetchedEans.current.add(ean);
+    if (!client || pendingEans.current.size === 0) return;
+    // Claimed synchronously: whatever lands while this run is in flight belongs
+    // to the next one.
+    const missing = [...pendingEans.current];
+    pendingEans.current = new Set();
 
     const gen = generation.current;
     const stale = () => gen !== generation.current;
@@ -342,28 +390,35 @@ export function usePurchaseData(token: string | null): PurchaseData {
       setLoadingProducts(true);
       try {
         // Chunked to the server's documented cap — it throws above it rather
-        // than truncating, so a caller cannot believe it got a full answer.
-        for (const batch of chunk(missing, MAX_EANS_PER_LOOKUP)) {
-          if (stale()) return;
-          const rows = await client.query(catalogApi.catalog.getManyByEan, {
-            eans: batch,
-          });
-          if (stale()) return;
-          setProductsByEan((prev) => {
-            const next = new Map(prev);
-            // Seed every requested EAN, so one that simply is not catalogued is
-            // remembered as "looked up, no rows" and never asked for again.
-            for (const ean of batch) if (!next.has(ean)) next.set(ean, []);
-            for (const row of rows) {
-              next.set(row.ean, [...(next.get(row.ean) ?? []), row]);
-            }
-            return next;
-          });
-        }
+        // than truncating, so a caller cannot believe it got a full answer — and
+        // the chunks go out together, since each is an independent index read.
+        await mapWithConcurrency(
+          chunk(missing, MAX_EANS_PER_LOOKUP),
+          EAN_LOOKUP_CONCURRENCY,
+          async (batch) => {
+            if (stale()) return;
+            const rows = await client.query(catalogApi.catalog.getManyByEan, {
+              eans: batch,
+            });
+            if (stale()) return;
+            setProductsByEan((prev) => {
+              const next = new Map(prev);
+              // Seed every requested EAN, so one that simply is not catalogued
+              // is remembered as "looked up, no rows" and never asked for again.
+              for (const ean of batch) if (!next.has(ean)) next.set(ean, []);
+              for (const row of rows) {
+                next.set(row.ean, [...(next.get(row.ean) ?? []), row]);
+              }
+              return next;
+            });
+          },
+        );
       } catch (e) {
-        // Let them be retried — a catalog blip should not permanently blank the
-        // product views.
-        for (const ean of missing) fetchedEans.current.delete(ean);
+        // Queue them again rather than dropping them — a catalog blip should not
+        // permanently blank the product views. Nothing bumps the round here: the
+        // next batch or the end of hydration retries them, where re-asking
+        // immediately would spin against a catalog that is down.
+        for (const ean of missing) pendingEans.current.add(ean);
         if (!stale()) setFetchError(errMsg(e));
       } finally {
         // Unconditional: a run that returns early still has to put the spinner
@@ -374,7 +429,7 @@ export function usePurchaseData(token: string | null): PurchaseData {
     };
 
     void load();
-  }, [client, wantedEans]);
+  }, [client, eanRound]);
 
   // ── The join ───────────────────────────────────────────────────────────
   const lines = useMemo(
