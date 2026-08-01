@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useMemo, useState, type ReactNode } from 'react';
 import { useQuery } from 'convex/react';
 import {
   Badge,
@@ -12,17 +12,50 @@ import {
 } from '@wordpress/ui';
 import { STORE_LABELS } from '@matvis/shared';
 import { ErrorNotice, InlineSpinner } from '@matvis/ui';
-import { ActivityPanel } from './features/ActivityPanel';
-import { NutritionPanel } from './features/NutritionPanel';
-import { PantryPanel } from './features/PantryPanel';
-import { PreferencesPanel } from './features/PreferencesPanel';
-import { PurchasesPanel } from './features/PurchasesPanel';
-import { StatsPanel } from './features/StatsPanel';
-import { UnmappedPanel } from './features/UnmappedPanel';
 import { Meter } from './components/Meter';
 import { usePurchaseData, type PurchaseData } from './hooks/usePurchaseData';
 import { api } from './lib/convexApi';
 import { looksLikeToken, useApiToken } from './lib/tokenStore';
+
+/**
+ * Every panel is loaded on demand, which is the only reason the entry chunk is
+ * not the whole app. `Tabs.Panel` defaults to `keepMounted = false`, so an
+ * unopened tab never renders and never asks for its chunk: recharts stays
+ * unfetched for anyone who does not open Nutrition, Stats or Activity, and
+ * dataviews for anyone who does not open Purchases or Unmapped. The panels are
+ * named exports, hence the mapping to `default`.
+ */
+const ActivityPanel = lazy(() =>
+  import('./features/ActivityPanel').then((m) => ({
+    default: m.ActivityPanel,
+  })),
+);
+const NutritionPanel = lazy(() =>
+  import('./features/NutritionPanel').then((m) => ({
+    default: m.NutritionPanel,
+  })),
+);
+const PantryPanel = lazy(() =>
+  import('./features/PantryPanel').then((m) => ({ default: m.PantryPanel })),
+);
+const PreferencesPanel = lazy(() =>
+  import('./features/PreferencesPanel').then((m) => ({
+    default: m.PreferencesPanel,
+  })),
+);
+const PurchasesPanel = lazy(() =>
+  import('./features/PurchasesPanel').then((m) => ({
+    default: m.PurchasesPanel,
+  })),
+);
+const StatsPanel = lazy(() =>
+  import('./features/StatsPanel').then((m) => ({ default: m.StatsPanel })),
+);
+const UnmappedPanel = lazy(() =>
+  import('./features/UnmappedPanel').then((m) => ({
+    default: m.UnmappedPanel,
+  })),
+);
 
 /** Everything a panel can draw on. Each tab takes what it needs and ignores the
  * rest, which is what keeps the panels out of each other's prop lists. */
@@ -133,7 +166,9 @@ export function App() {
                 value={tab.id}
                 style={{ paddingTop: 20 }}
               >
-                {tab.render({ data, token, forgetToken })}
+                <Suspense fallback={<InlineSpinner label="Loading…" />}>
+                  {tab.render({ data, token, forgetToken })}
+                </Suspense>
               </Tabs.Panel>
             ))}
           </Tabs.Root>
