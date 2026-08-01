@@ -18,6 +18,17 @@ import { ReceiptSource } from './stores';
 export const CATALOG_SCHEMA_VERSION = 1;
 
 /**
+ * Most EANs a single `getManyByEan` call may ask for. A receipt is ~20 lines, so
+ * this is still generous; the cap exists so one call can't turn into an
+ * unbounded fan-out of index reads. A caller with more splits into two calls.
+ *
+ * Contract rather than implementation: the server throws above it rather than
+ * truncating, so a client that batches by a stale copy fails at runtime with
+ * nothing failing at build time. Both sides import this one.
+ */
+export const MAX_EANS_PER_LOOKUP = 50;
+
+/**
  * Nutrition per {@link CatalogNutrition.basisQuantity} of the product. Fixed
  * slots rather than a free list: a store's own nutrient vocabulary is prose in
  * its own language, so the projector maps it onto these once and consumers

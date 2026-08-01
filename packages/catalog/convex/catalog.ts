@@ -1,4 +1,4 @@
-import { STORES } from '@matvis/shared';
+import { MAX_EANS_PER_LOOKUP, STORES } from '@matvis/shared';
 import { paginationOptsValidator } from 'convex/server';
 import { v } from 'convex/values';
 import { query } from './_generated/server';
@@ -8,11 +8,6 @@ import { readCounter, CATALOG_COUNT_KEY } from './model/counters';
 /** A clean catalog row as the read API returns it: the @matvis/shared
  * `CatalogItem` contract plus Convex system fields. */
 const catalogItem = catalogDocValidator;
-
-/** Most EANs a single `getManyByEan` call may ask for. A receipt is ~20 lines,
- * so this is still generous; the cap exists so one call can't turn into an
- * unbounded fan-out of index reads. A caller with more splits into two calls. */
-const MAX_EANS_PER_LOOKUP = 50;
 
 /**
  * A digit-only term this long is treated as an EAN rather than as words. Real

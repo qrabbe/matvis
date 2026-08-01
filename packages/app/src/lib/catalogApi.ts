@@ -13,8 +13,8 @@ import type { CatalogRow } from '@matvis/shared';
 // is no public write to reach even with a hand-built reference.
 
 /** Every store's row for each of many EANs at once, flat — the catalog is keyed
- * by (store, EAN) and the caller picks. Capped server side, see
- * {@link MAX_EANS_PER_LOOKUP}. */
+ * by (store, EAN) and the caller picks. Capped server side at
+ * `MAX_EANS_PER_LOOKUP`, which both sides import from @matvis/shared. */
 type CatalogGetManyByEan = FunctionReference<
   'query',
   'public',
@@ -27,14 +27,6 @@ type CatalogApi = {
     getManyByEan: CatalogGetManyByEan;
   };
 };
-
-/**
- * Most EANs one `getManyByEan` call may ask for. The server throws above its own
- * cap rather than truncating, so a caller that guesses high gets an error, not a
- * short answer. Mirrors `MAX_EANS_PER_LOOKUP` in packages/catalog/convex/catalog.ts
- * — keep the two in step.
- */
-export const MAX_EANS_PER_LOOKUP = 50;
 
 /** The catalog's public read API, statically typed, backed by the runtime proxy. */
 export const catalogApi = anyApi as unknown as CatalogApi;
