@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Stack, Text, Tooltip } from '@wordpress/ui';
 import { formatKr } from '../lib/format';
 import { buildHeatmapGrid } from '../lib/heatmap';
@@ -51,9 +51,22 @@ export function Heatmap({
     return peak;
   }, [spendByDay]);
 
+  // By column, so the ruler is a lookup per week rather than a scan per week.
+  const labelByColumn = useMemo(
+    () => new Map(monthLabels.map((m) => [m.column, m.label])),
+    [monthLabels],
+  );
+
+  const [hovered, setHovered] = useState<HoveredCell | null>(null);
+
   return (
     <Stack direction="column" gap="sm">
-      <div style={{ overflowX: 'auto', paddingBottom: 4 }}>
+      <div
+        data-heatmap
+        style={{ overflowX: 'auto', paddingBottom: 4, position: 'relative' }}
+        onPointerLeave={() => setHovered(null)}
+      >
+        <SharedTooltip hovered={hovered} />
         <Stack direction="column" gap="xs">
           {/* Month ruler, positioned by column so it tracks the grid exactly. */}
           <div
@@ -65,18 +78,15 @@ export function Heatmap({
             }}
           >
             <span />
-            {weeks.map((_, index) => {
-              const label = monthLabels.find((m) => m.column === index);
-              return (
-                <Text
-                  key={index}
-                  variant="body-sm"
-                  style={{ fontSize: 10, whiteSpace: 'nowrap' }}
-                >
-                  {label?.label ?? ''}
-                </Text>
-              );
-            })}
+            {weeks.map((_, index) => (
+              <Text
+                key={index}
+                variant="body-sm"
+                style={{ fontSize: 10, whiteSpace: 'nowrap' }}
+              >
+                {labelByColumn.get(index) ?? ''}
+              </Text>
+            ))}
           </div>
 
           {WEEKDAYS.map((weekday, row) => (
@@ -103,6 +113,7 @@ export function Heatmap({
                     day={day}
                     entry={entry}
                     max={max}
+                    onHover={setHovered}
                   />
                 );
               })}
@@ -116,17 +127,57 @@ export function Heatmap({
   );
 }
 
-/** One day. The tooltip carries the detail the old repo put in a `title`
- * attribute; because `Tooltip` is visual-only, the same text is also the cell's
- * `aria-label` so it reaches a screen reader. */
+/** The hovered cell's text plus where to put the tooltip, in coordinates
+ * relative to the scrolling grid wrapper. */
+type HoveredCell = { description: string; left: number; top: number };
+
+/**
+ * The calendar's one and only tooltip.
+ *
+ * A `Tooltip.Root` per cell is 371 stores and contexts at the 12-month setting,
+ * for text that is already on every cell's `aria-label`. Instead a single
+ * invisible trigger is parked over whichever cell the pointer is on. It covers
+ * only that cell, so the neighbours still receive their own `pointerenter` and
+ * move it along, and because the pointer never leaves the trigger the popup
+ * swaps text instead of closing and reopening between days.
+ */
+function SharedTooltip({ hovered }: { hovered: HoveredCell | null }) {
+  return (
+    <Tooltip.Root>
+      <Tooltip.Trigger
+        aria-hidden
+        tabIndex={-1}
+        style={{
+          position: 'absolute',
+          left: hovered?.left ?? 0,
+          top: hovered?.top ?? 0,
+          width: CELL,
+          height: CELL,
+          padding: 0,
+          border: 'none',
+          background: 'transparent',
+          cursor: 'default',
+          visibility: hovered ? 'visible' : 'hidden',
+        }}
+      />
+      <Tooltip.Popup>{hovered?.description ?? ''}</Tooltip.Popup>
+    </Tooltip.Root>
+  );
+}
+
+/** One day. The detail the old repo put in a `title` attribute is the cell's
+ * `aria-label`, which is what reaches a screen reader; the shared tooltip shows
+ * the same string to everyone else. */
 function HeatCell({
   day,
   entry,
   max,
+  onHover,
 }: {
   day: string | null;
   entry: DailySpend | undefined;
   max: number;
+  onHover: (cell: HoveredCell) => void;
 }) {
   if (!day) {
     return <span style={{ width: CELL, height: CELL }} />;
@@ -138,22 +189,29 @@ function HeatCell({
     : `${day}: nothing bought`;
 
   return (
-    <Tooltip.Root>
-      <Tooltip.Trigger
-        aria-label={description}
-        style={{
-          width: CELL,
-          height: CELL,
-          padding: 0,
-          border: 'none',
-          borderRadius: 2,
-          background: rampStep(total, max),
-          cursor: 'default',
-          display: 'block',
-        }}
-      />
-      <Tooltip.Popup>{description}</Tooltip.Popup>
-    </Tooltip.Root>
+    <span
+      role="img"
+      aria-label={description}
+      onPointerEnter={(event) => {
+        const cell = event.currentTarget.getBoundingClientRect();
+        const wrapper =
+          event.currentTarget.closest<HTMLElement>('[data-heatmap]');
+        if (!wrapper) return;
+        const bounds = wrapper.getBoundingClientRect();
+        onHover({
+          description,
+          left: cell.left - bounds.left + wrapper.scrollLeft,
+          top: cell.top - bounds.top + wrapper.scrollTop,
+        });
+      }}
+      style={{
+        width: CELL,
+        height: CELL,
+        borderRadius: 2,
+        background: rampStep(total, max),
+        display: 'block',
+      }}
+    />
   );
 }
 
