@@ -108,7 +108,7 @@ export function PurchasesPanel({
   // store returns a fresh object every render, so a memo on it never hits,
   // `RenderModal` gets a new identity, and React remounts the modal (losing its
   // fetch state and re-issuing `getReceipt`) on every parent render.
-  const { itemsByReceipt, lines } = data;
+  const { itemsByReceipt, linesByReceipt } = data;
   const actions = useMemo<Action<ReceiptHeader>[]>(
     () => [
       {
@@ -122,14 +122,14 @@ export function PurchasesPanel({
               header={items[0]}
               token={token}
               itemsByReceipt={itemsByReceipt}
-              lines={lines}
+              lines={linesByReceipt.get(items[0]._id) ?? []}
             />
           ) : (
             <></>
           ),
       },
     ],
-    [itemsByReceipt, lines, token],
+    [itemsByReceipt, linesByReceipt, token],
   );
 
   return (
@@ -165,6 +165,7 @@ function ReceiptModal({
   header: ReceiptHeader;
   token: string;
   itemsByReceipt: PurchaseData['itemsByReceipt'];
+  /** This receipt's joined lines only. */
   lines: PurchaseData['lines'];
 }) {
   const convex = useConvex();
@@ -259,6 +260,7 @@ function ReceiptItems({
 }: {
   items: ReceiptItemDoc[];
   header: ReceiptHeader;
+  /** This receipt's joined lines only. */
   lines: PurchaseData['lines'];
 }) {
   // Reuse the purchase store's join rather than re-picking a row here, so the
@@ -266,12 +268,10 @@ function ReceiptItems({
   const productByItemId = useMemo(() => {
     const out = new Map<string, CatalogRow>();
     for (const line of lines) {
-      if (line.header._id === header._id && line.product) {
-        out.set(line.item._id, line.product);
-      }
+      if (line.product) out.set(line.item._id, line.product);
     }
     return out;
-  }, [lines, header._id]);
+  }, [lines]);
 
   const productFor = useCallback(
     (item: ReceiptItemDoc): CatalogRow | null =>

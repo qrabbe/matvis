@@ -91,6 +91,13 @@ export function pickProduct(
   return rows.find((row) => row.store === source) ?? rows[0] ?? null;
 }
 
+/** The joined lines, flat and grouped by receipt. Both come out of the one
+ * walk, so a per-receipt view never has to filter the flat list. */
+export interface BuiltLines {
+  lines: PurchaseLine[];
+  linesByReceipt: Map<string, PurchaseLine[]>;
+}
+
 /**
  * Build the joined line list. Discount lines are dropped here rather than in
  * each consumer: they are a rebate against another line, not a purchase of
@@ -101,29 +108,34 @@ export function buildLines(
   headers: readonly ReceiptHeader[],
   itemsByReceipt: ReadonlyMap<string, ReceiptItemDoc[]>,
   productsByEan: ReadonlyMap<string, CatalogRow[]>,
-): PurchaseLine[] {
+): BuiltLines {
   const lines: PurchaseLine[] = [];
+  const linesByReceipt = new Map<string, PurchaseLine[]>();
   for (const header of headers) {
     const items = itemsByReceipt.get(header._id);
     if (!items) continue;
     const purchasedAt = receiptDate(header);
     const day = dayKey(purchasedAt);
+    const forReceipt: PurchaseLine[] = [];
     for (const item of items) {
       if (item.isDiscount) continue;
       const product = item.gtin
         ? pickProduct(productsByEan.get(item.gtin), header.source)
         : null;
-      lines.push({
+      const line: PurchaseLine = {
         item,
         header,
         day,
         purchasedAt,
         product,
         macros: product ? itemMacros(item, product) : null,
-      });
+      };
+      lines.push(line);
+      forReceipt.push(line);
     }
+    linesByReceipt.set(header._id, forReceipt);
   }
-  return lines;
+  return { lines, linesByReceipt };
 }
 
 /** Walk the funnel once. Every tab reads the slice it cares about from the

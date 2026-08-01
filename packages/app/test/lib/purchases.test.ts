@@ -97,7 +97,7 @@ describe('buildLines', () => {
         price: -5,
       }),
     ];
-    const lines = buildLines(
+    const { lines } = buildLines(
       [header()],
       new Map([['receipt_1', items]]),
       new Map(),
@@ -107,12 +107,18 @@ describe('buildLines', () => {
   });
 
   it('skips receipts whose items have not hydrated yet', () => {
-    expect(buildLines([header()], new Map(), new Map())).toEqual([]);
+    const { lines, linesByReceipt } = buildLines(
+      [header()],
+      new Map(),
+      new Map(),
+    );
+    expect(lines).toEqual([]);
+    expect(linesByReceipt.has('receipt_1')).toBe(false);
   });
 
   it('joins a matched line to its product and buckets it by local day', () => {
     const items = [item({ gtin: '111' })];
-    const lines = buildLines(
+    const { lines } = buildLines(
       [header()],
       new Map([['receipt_1', items]]),
       new Map([['111', [row('coop')]]]),
@@ -122,13 +128,26 @@ describe('buildLines', () => {
   });
 
   it('leaves an unmatched line with no product and no macros', () => {
-    const lines = buildLines(
+    const { lines } = buildLines(
       [header()],
       new Map([['receipt_1', [item()]]]),
       new Map(),
     );
     expect(lines[0]?.product).toBeNull();
     expect(lines[0]?.macros).toBeNull();
+  });
+
+  it('groups the same lines by receipt, discounts already dropped', () => {
+    const items = [
+      item({ _id: 'a' as ReceiptItemDoc['_id'] }),
+      item({ _id: 'b' as ReceiptItemDoc['_id'], isDiscount: true }),
+    ];
+    const { lines, linesByReceipt } = buildLines(
+      [header()],
+      new Map([['receipt_1', items]]),
+      new Map(),
+    );
+    expect(linesByReceipt.get('receipt_1')).toEqual(lines);
   });
 });
 
@@ -139,7 +158,7 @@ describe('computeCoverage', () => {
       item({ _id: 'b' as ReceiptItemDoc['_id'], gtin: '999' }), // matched, not catalogued
       item({ _id: 'c' as ReceiptItemDoc['_id'], gtin: '111' }), // catalogued, no nutrition
     ];
-    const lines = buildLines(
+    const { lines } = buildLines(
       [header()],
       new Map([['receipt_1', items]]),
       new Map([['111', [row('coop')]]]),

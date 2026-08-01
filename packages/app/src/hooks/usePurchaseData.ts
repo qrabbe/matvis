@@ -84,6 +84,9 @@ export interface PurchaseData {
   headers: ReceiptHeader[];
   /** Every non-discount line, joined to its product where one exists. */
   lines: PurchaseLine[];
+  /** The same lines grouped by receipt `_id`, so a single-receipt view does not
+   * scan the account to find its twenty. */
+  linesByReceipt: Map<string, PurchaseLine[]>;
   /** Line items by receipt `_id`, for the per-receipt views. */
   itemsByReceipt: Map<string, ReceiptItemDoc[]>;
   coverage: Coverage;
@@ -432,7 +435,7 @@ export function usePurchaseData(token: string | null): PurchaseData {
   }, [client, eanRound]);
 
   // ── The join ───────────────────────────────────────────────────────────
-  const lines = useMemo(
+  const { lines, linesByReceipt } = useMemo(
     () => buildLines(headers, itemsByReceipt, productsByEan),
     [headers, itemsByReceipt, productsByEan],
   );
@@ -454,6 +457,7 @@ export function usePurchaseData(token: string | null): PurchaseData {
   return {
     headers,
     lines,
+    linesByReceipt,
     itemsByReceipt,
     coverage,
     loadingHeaders: headerStatus === 'LoadingFirstPage',

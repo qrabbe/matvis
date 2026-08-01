@@ -109,6 +109,9 @@ const FIELDS: Field<UnmappedGroup>[] = [
   },
 ];
 
+/** Stable empty input for the paginate memo while hydration is still running. */
+const EMPTY_GROUPS: UnmappedGroup[] = [];
+
 const DEFAULT_VIEW: View = {
   type: 'table',
   page: 1,
@@ -126,14 +129,20 @@ const DEFAULT_VIEW: View = {
 
 export function UnmappedPanel({ data }: { data: PurchaseData }) {
   const [view, setView] = useState<View>(DEFAULT_VIEW);
-  const groups = useMemo(() => groupUnmapped(data.lines), [data.lines]);
+  const hydrating = data.hydration.total > data.hydration.done;
+
+  // Nothing below the spinner renders while hydrating, and the grouping runs two
+  // regexes and a `toLowerCase` per line — so a cold load's worth of it would be
+  // computed and thrown away once per batch of receipts.
+  const groups = useMemo(
+    () => (hydrating ? EMPTY_GROUPS : groupUnmapped(data.lines)),
+    [data.lines, hydrating],
+  );
 
   const { data: rows, paginationInfo } = useMemo(
     () => filterSortAndPaginate(groups, view, FIELDS),
     [groups, view],
   );
-
-  const hydrating = data.hydration.total > data.hydration.done;
 
   return (
     <Stack direction="column" gap="xl">
