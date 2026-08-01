@@ -8,7 +8,7 @@ import { TokenPanel } from './features/TokenPanel';
 import { DemoPanel } from './features/DemoPanel';
 import { DevPortal } from './features/DevPortal';
 import { clearConnectionId } from './lib/connectionStore';
-import { errMsg } from './lib/format';
+import { errMsg } from '@matvis/shared';
 
 export function App() {
   return (

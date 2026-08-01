@@ -23,7 +23,7 @@ import {
 } from '@wordpress/dataviews';
 import { CopyButton, ErrorNotice, InlineSpinner } from '@matvis/ui';
 import { api } from '../lib/convexApi';
-import { errMsg, formatAmount, formatPurchasedAt } from '../lib/format';
+import { errMsg, formatAmount, formatPurchasedAt } from '@matvis/shared';
 
 // Header + item row shapes derived straight from the connector's read API, so
 // the UI can't drift from what the server actually returns.

@@ -15,8 +15,8 @@ export type {
 export { getConnector, hasConnector, supportedStores } from './registry';
 export type { ConnectorFactory, ConnectorOptions } from './registry';
 
-// Matching: receipt line text → the lookup key for its EAN.
-export { normalizeItemText, stripQuantitySuffix } from './matching';
+// Matching: the aggressive cleanup on top of @matvis/shared's lookup key.
+export { stripQuantitySuffix } from './matching';
 
 // Token encryption at rest
 export {

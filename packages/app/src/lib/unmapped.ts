@@ -1,4 +1,4 @@
-import { normalizeItemText } from '@matvis/connector';
+import { normalizeItemText } from '@matvis/shared';
 import type { PurchaseLine } from './purchases';
 
 /**
@@ -10,9 +10,9 @@ import type { PurchaseLine } from './purchases';
  * here — which makes this the most valuable tab at launch, and the reason the
  * global coverage meter lives on it.
  *
- * Grouping goes through {@link normalizeItemText}, imported from
- * `@matvis/connector`'s **src** (a pure function, not a backend call). Using the
- * matcher's own key is the whole point: a group here is exactly one future
+ * Grouping goes through {@link normalizeItemText} from `@matvis/shared`, the
+ * same pure function the connector writes `itemGtinMap.normalizedText` with.
+ * Using the matcher's own key is the whole point: a group here is exactly one future
  * `itemGtinMap` row, so the counts say precisely how much coverage one mapping
  * would buy. Re-implementing the normalization locally would silently split or
  * merge groups the matcher would not.

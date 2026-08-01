@@ -8,7 +8,7 @@ import {
   launchBankIdApp,
   pendingHint,
 } from '../lib/bankid-copy';
-import { errMsg } from '../lib/format';
+import { errMsg } from '@matvis/shared';
 
 export type LinkPhase = 'idle' | 'starting' | 'polling' | 'error';
 

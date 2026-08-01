@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test';
-import { normalizeItemText, stripQuantitySuffix } from '../src/matching';
+import { normalizeItemText } from '@matvis/shared';
+import { stripQuantitySuffix } from '../src/matching';
 
 describe('normalizeItemText', () => {
   it('lowercases, trims, and collapses whitespace', () => {

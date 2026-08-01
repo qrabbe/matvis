@@ -122,7 +122,7 @@ export default defineSchema({
   // catalog: the connector only ever produces EANs.
   itemGtinMap: defineTable({
     store,
-    normalizedText: v.string(), // see src/matching.ts normalizeItemText
+    normalizedText: v.string(), // see normalizeItemText in @matvis/shared
     gtin: v.string(),
   }).index('by_store_text', ['store', 'normalizedText']),
 });

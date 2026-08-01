@@ -5,7 +5,10 @@ Part of the **Matvis** monorepo.
 The versioned contracts every other package agrees on: `Receipt` (`receipt.ts`),
 `CatalogItem` (`catalog.ts`), the store registry (`stores.ts`) and the auth
 shapes (`auth.ts`). Zod schemas, so the same definition is both the TypeScript
-type and a runtime validator.
+type and a runtime validator. Alongside them: the stored document shapes
+(`documents.ts`), and the few pure functions both sides of a boundary have to
+agree on — `normalizeItemText` (`matching.ts`), the receipt-level display helpers
+and `chunk` (`format.ts`).
 
 Each contract's own versioning policy is documented next to its
 `*_SCHEMA_VERSION` constant. This file covers something the policy does not: what

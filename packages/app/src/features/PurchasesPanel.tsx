@@ -18,8 +18,14 @@ import { SectionCard } from '../components/SectionCard';
 import type { PurchaseData } from '../hooks/usePurchaseData';
 import { api } from '../lib/convexApi';
 import { downloadJson } from '../lib/download';
-import { errMsg, formatAmount, formatPurchasedAt } from '../lib/format';
-import type { CatalogRow, ReceiptHeader, ReceiptItemDoc } from '@matvis/shared';
+import {
+  errMsg,
+  formatAmount,
+  formatPurchasedAt,
+  type CatalogRow,
+  type ReceiptHeader,
+  type ReceiptItemDoc,
+} from '@matvis/shared';
 
 /**
  * The receipts table.

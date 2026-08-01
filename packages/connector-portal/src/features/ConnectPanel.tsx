@@ -10,7 +10,7 @@ import {
   loadConnectionId,
   saveConnectionId,
 } from '../lib/connectionStore';
-import { errMsg } from '../lib/format';
+import { errMsg } from '@matvis/shared';
 import { pendingHint } from '../lib/bankid-copy';
 import { useBankIdLink } from '../hooks/useBankIdLink';
 import { QrCode } from '../components/QrCode';

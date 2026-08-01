@@ -17,7 +17,7 @@ import {
   eyeOffIcon,
 } from '@matvis/ui';
 import { api } from '../lib/convexApi';
-import { errMsg } from '../lib/format';
+import { errMsg } from '@matvis/shared';
 
 /** Reveals (and, on first use, mints) the account-wide API token. This is the
  * one credential a third-party service takes away: paired with the deployment's

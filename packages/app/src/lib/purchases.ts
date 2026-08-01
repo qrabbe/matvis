@@ -158,12 +158,3 @@ export function distinctGtins(
   }
   return [...seen];
 }
-
-/** Split a list into fixed-size chunks — `getManyByEan` is capped server side. */
-export function chunk<T>(values: readonly T[], size: number): T[][] {
-  const out: T[][] = [];
-  for (let i = 0; i < values.length; i += size) {
-    out.push(values.slice(i, i + size));
-  }
-  return out;
-}

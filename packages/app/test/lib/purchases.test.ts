@@ -2,7 +2,6 @@ import { describe, expect, it } from 'bun:test';
 import type { CatalogRow, ReceiptHeader, ReceiptItemDoc } from '@matvis/shared';
 import {
   buildLines,
-  chunk,
   computeCoverage,
   distinctGtins,
   pickProduct,
@@ -175,13 +174,5 @@ describe('distinctGtins', () => {
       ['r2', [item({ gtin: '333' })]],
     ]);
     expect(distinctGtins(map).sort()).toEqual(['111', '333']);
-  });
-});
-
-describe('chunk', () => {
-  it('splits to the server cap without losing the remainder', () => {
-    const values = Array.from({ length: 7 }, (_, i) => i);
-    expect(chunk(values, 3)).toEqual([[0, 1, 2], [3, 4, 5], [6]]);
-    expect(chunk([], 3)).toEqual([]);
   });
 });

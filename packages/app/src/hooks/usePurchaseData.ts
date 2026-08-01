@@ -4,12 +4,13 @@ import { catalogApi } from '../lib/catalogApi';
 import { catalogClient } from '../lib/catalogClient';
 import { api } from '../lib/convexApi';
 import {
+  chunk,
+  errMsg,
   MAX_EANS_PER_LOOKUP,
   type CatalogRow,
   type ReceiptHeader,
   type ReceiptItemDoc,
 } from '@matvis/shared';
-import { errMsg } from '../lib/format';
 import {
   cacheScope,
   clearOtherScopes,
@@ -18,7 +19,6 @@ import {
 } from '../lib/itemCache';
 import {
   buildLines,
-  chunk,
   computeCoverage,
   distinctGtins,
   EMPTY_COVERAGE,

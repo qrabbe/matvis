@@ -1,6 +1,6 @@
 import { v } from 'convex/values';
 import { internalMutation } from './_generated/server';
-import { normalizeItemText } from '../src/matching';
+import { normalizeItemText } from '@matvis/shared';
 import { MAX_RECEIPT_ITEMS } from './validators';
 
 /**
