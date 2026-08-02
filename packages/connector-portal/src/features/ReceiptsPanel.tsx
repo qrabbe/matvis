@@ -21,7 +21,7 @@ import {
   type Field,
   type View,
 } from '@wordpress/dataviews';
-import { CopyButton, ErrorNotice, InlineSpinner } from '@matvis/ui';
+import { ErrorNotice, InlineSpinner, JsonView } from '@matvis/ui';
 import { api } from '../lib/convexApi';
 import { errMsg, formatAmount, formatPurchasedAt } from '@matvis/shared';
 
@@ -255,7 +255,10 @@ function ReceiptDetailView({
         <ReceiptItems items={detail.items} header={header} />
       </Tabs.Panel>
       <Tabs.Panel value="json" style={{ paddingTop: 12 }}>
-        <ReceiptJson detail={detail} header={header} />
+        <JsonView
+          value={detail}
+          filename={`receipt-${header.externalId || header._id}.json`}
+        />
       </Tabs.Panel>
     </Tabs.Root>
   );
@@ -301,59 +304,6 @@ function ReceiptItems({
           </Text>
         </Stack>
       )}
-    </Stack>
-  );
-}
-
-/** Raw receipt payload (header + line items) with copy + download controls. */
-function ReceiptJson({
-  detail,
-  header,
-}: {
-  detail: ReceiptDetail;
-  header: ReceiptHeader;
-}) {
-  const json = useMemo(() => JSON.stringify(detail, null, 2), [detail]);
-  const filename = `receipt-${header.externalId ?? header._id}.json`;
-
-  const download = useCallback(() => {
-    const url = URL.createObjectURL(
-      new Blob([json], { type: 'application/json' }),
-    );
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
-  }, [json, filename]);
-
-  return (
-    <Stack direction="column" gap="sm">
-      <Stack direction="row" gap="sm" align="center" justify="end" wrap="wrap">
-        <CopyButton text={json} label="Copy JSON" />
-        <Button variant="outline" tone="neutral" onClick={download}>
-          Download JSON
-        </Button>
-      </Stack>
-      <Text
-        variant="body-sm"
-        render={
-          <pre
-            style={{
-              fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
-              background: 'rgba(127,127,127,0.16)',
-              padding: '10px 12px',
-              borderRadius: 6,
-              margin: 0,
-              maxHeight: 320,
-              overflow: 'auto',
-              whiteSpace: 'pre',
-            }}
-          />
-        }
-      >
-        {json}
-      </Text>
     </Stack>
   );
 }

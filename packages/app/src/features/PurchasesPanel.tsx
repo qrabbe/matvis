@@ -11,13 +11,12 @@ import {
   type Field,
   type View,
 } from '@wordpress/dataviews';
-import { CopyButton, ErrorNotice, InlineSpinner } from '@matvis/ui';
+import { ErrorNotice, InlineSpinner, JsonView } from '@matvis/ui';
 import { NoReceipts } from '../components/NoReceipts';
 import { ProductThumb } from '../components/ProductThumb';
 import { SectionCard } from '../components/SectionCard';
 import type { PurchaseData } from '../hooks/usePurchaseData';
 import { api } from '../lib/convexApi';
-import { downloadJson } from '../lib/download';
 import {
   errMsg,
   formatAmount,
@@ -30,12 +29,12 @@ import {
 /**
  * The receipts table.
  *
- * Deliberately written fresh against the same pattern as
- * `connector-portal`'s `ReceiptsPanel` rather than copied across package
- * boundaries — it reads the same API with the same token argument, so the shape
- * is the same, but 360 lines duplicated between packages would be worse than
- * two implementations that can diverge on purpose. Promoting it into
- * `@matvis/ui` is the DRY move and is noted as a follow-up.
+ * Deliberately a separate implementation from `connector-portal`'s
+ * `ReceiptsPanel` rather than one shared panel. The two read the same API with
+ * the same token argument, but the data access differs down the middle: the
+ * portal drives a live paginated query with a "load more" button, this reads a
+ * store that has already drained every header page. Only the parts that are
+ * genuinely identical are shared, and they live in `@matvis/ui` as `JsonView`.
  *
  * What is added over the portal's version: a line item shows its matched
  * product when the EAN resolves, and each receipt carries an "N unmapped" badge.
@@ -175,6 +174,9 @@ function ReceiptModal({
   const [pdfBusy, setPdfBusy] = useState(false);
 
   const items = cached ?? fetched;
+  // Memoized so the JSON tab does not re-serialize the receipt every time the
+  // PDF button flips `pdfBusy`.
+  const payload = useMemo(() => ({ receipt: header, items }), [header, items]);
 
   // Only runs when hydration has not reached this receipt yet; on a warm cache
   // `cached` is already there and this never fires.
@@ -240,7 +242,10 @@ function ReceiptModal({
             <ReceiptItems items={items} header={header} lines={lines} />
           </Tabs.Panel>
           <Tabs.Panel value="json" style={{ paddingTop: 12 }}>
-            <ReceiptJson items={items} header={header} />
+            <JsonView
+              value={payload}
+              filename={`receipt-${header.externalId || header._id}.json`}
+            />
           </Tabs.Panel>
         </Tabs.Root>
       ) : (
@@ -341,53 +346,6 @@ function ReceiptItems({
           </Text>
         </Stack>
       )}
-    </Stack>
-  );
-}
-
-/** Raw payload (header + line items) with copy and download controls. */
-function ReceiptJson({
-  items,
-  header,
-}: {
-  items: ReceiptItemDoc[];
-  header: ReceiptHeader;
-}) {
-  const payload = useMemo(() => ({ receipt: header, items }), [header, items]);
-  const json = useMemo(() => JSON.stringify(payload, null, 2), [payload]);
-  const filename = `receipt-${header.externalId || header._id}.json`;
-
-  return (
-    <Stack direction="column" gap="sm">
-      <Stack direction="row" gap="sm" align="center" justify="end" wrap="wrap">
-        <CopyButton text={json} label="Copy JSON" />
-        <Button
-          variant="outline"
-          tone="neutral"
-          onClick={() => downloadJson(payload, filename)}
-        >
-          Download JSON
-        </Button>
-      </Stack>
-      <Text
-        variant="body-sm"
-        render={
-          <pre
-            style={{
-              fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
-              background: 'rgba(127,127,127,0.16)',
-              padding: '10px 12px',
-              borderRadius: 6,
-              margin: 0,
-              maxHeight: 320,
-              overflow: 'auto',
-              whiteSpace: 'pre',
-            }}
-          />
-        }
-      >
-        {json}
-      </Text>
     </Stack>
   );
 }
