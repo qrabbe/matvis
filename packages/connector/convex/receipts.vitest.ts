@@ -156,6 +156,20 @@ describe('receipts read API', () => {
     expect(cross).toBeNull();
   });
 
+  test('getReceipt and getPdf are null for a receipt that is gone', async () => {
+    const t = convexTest(schema, modules);
+    const { r3 } = await seed(t);
+    await t.run(async (ctx) => await ctx.db.delete(r3));
+    const got = await as(t, 'sub-a').query(api.receipts.getReceipt, {
+      receiptId: r3,
+    });
+    expect(got).toBeNull();
+    const url = await as(t, 'sub-a').query(api.receipts.getPdf, {
+      receiptId: r3,
+    });
+    expect(url).toBeNull();
+  });
+
   test('getPdf: signed URL for owner, null cross-account, null when no PDF', async () => {
     const t = convexTest(schema, modules);
     const { r1, r3 } = await seed(t);
