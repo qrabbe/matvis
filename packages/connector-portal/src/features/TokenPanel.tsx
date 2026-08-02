@@ -9,13 +9,8 @@ import {
   Stack,
   Text,
 } from '@wordpress/ui';
-import {
-  CopyButton,
-  ErrorNotice,
-  InlineSpinner,
-  eyeIcon,
-  eyeOffIcon,
-} from '@matvis/ui';
+import { seen, unseen } from '@wordpress/icons';
+import { CopyButton, ErrorNotice, InlineSpinner } from '@matvis/ui';
 import { api } from '../lib/convexApi';
 import { errMsg } from '@matvis/shared';
 
@@ -106,7 +101,7 @@ function TokenField({ token }: { token: string }) {
             variant="minimal"
             tone="neutral"
             size="small"
-            icon={revealed ? eyeOffIcon : eyeIcon}
+            icon={revealed ? unseen : seen}
             label={revealed ? 'Hide token' : 'Show token'}
             onClick={() => setRevealed((r) => !r)}
           />

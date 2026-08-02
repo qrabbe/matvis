@@ -22,6 +22,7 @@
     "@matvis/ui": "workspace:*",
     "@wordpress/components": "^37.0.0",
     "@wordpress/dataviews": "^17.2.0",
+    "@wordpress/icons": "^15.2.0",
     "convex": "^1.42.3",
     "qrcode": "^1.5.4",
     "react": "^18.3.1",

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button, IconButton } from '@wordpress/ui';
 import { useCopyToClipboard } from '@wordpress/compose';
-import { checkIcon, copyIcon } from './icons';
+import { check, copy } from '@wordpress/icons';
 
 /**
  * Copy-to-clipboard control. A `@wordpress/ui` button driven by the
@@ -46,7 +46,7 @@ export function CopyButton({
         variant="minimal"
         tone="neutral"
         size="small"
-        icon={copied ? checkIcon : copyIcon}
+        icon={copied ? check : copy}
         label={copied ? 'Copied' : label}
       />
     );
