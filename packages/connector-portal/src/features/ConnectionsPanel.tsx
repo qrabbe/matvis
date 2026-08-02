@@ -1,9 +1,13 @@
-import { useQuery } from 'convex/react';
-import { Badge, Card, Notice, Stack, Text } from '@wordpress/ui';
-import { STORE_LABELS, type ConnectionPublic } from '@matvis/shared';
-import { InlineSpinner } from '@matvis/ui';
-import { api } from '../lib/convexApi';
+import { useCallback, useState } from 'react';
+import { useConvex, useQuery } from 'convex/react';
+import type { FunctionReturnType } from 'convex/server';
+import { Badge, Button, Card, Notice, Stack, Text } from '@wordpress/ui';
+import { errMsg, STORE_LABELS, type ConnectionPublic } from '@matvis/shared';
+import { ErrorNotice, InlineSpinner } from '@matvis/ui';
+import { api, type Id } from '../lib/convexApi';
 import { formatDateTime } from '../lib/format';
+
+type SyncResult = FunctionReturnType<typeof api.sync.sync>;
 
 /** How to render one connection's health, derived from its status and expiry.
  * `intent` maps to a `@wordpress/ui` Badge color and `note` explains the state. */
@@ -46,10 +50,16 @@ function health(c: ConnectionPublic, now: number): Health {
 /** The store connections reachable through a token (or, with none, the login
  * session): which stores are linked and whether each is still valid. Same
  * token-vs-session scoping as {@link ReceiptsPanel}, so a third-party service
- * holding the token sees exactly this. */
+ * holding the token sees exactly this.
+ *
+ * The per-connection "Sync now" control is session-only. `sync.sync` checks
+ * ownership against the login identity and takes no token, so a token holder
+ * cannot call it — and the token demo is meant to show what a third party can
+ * reach, not to borrow the session behind it. */
 export function ConnectionsPanel({ token }: { token?: string } = {}) {
   const connections = useQuery(api.connections.list, token ? { token } : {}); // undefined = loading
   const now = Date.now();
+  const canSync = token === undefined;
 
   return (
     <Card.Root>
@@ -62,13 +72,20 @@ export function ConnectionsPanel({ token }: { token?: string } = {}) {
         ) : connections.length === 0 ? (
           <Notice.Root intent="info">
             <Notice.Description>
-              This token isn’t linked to any store connections.
+              {canSync
+                ? 'No stores linked yet — link one above to start syncing receipts.'
+                : 'This token isn’t linked to any store connections.'}
             </Notice.Description>
           </Notice.Root>
         ) : (
           <Stack direction="column" gap="md">
             {connections.map((c) => (
-              <ConnectionRow key={c._id} connection={c} now={now} />
+              <ConnectionRow
+                key={c._id}
+                connection={c}
+                now={now}
+                canSync={canSync}
+              />
             ))}
           </Stack>
         )}
@@ -80,9 +97,11 @@ export function ConnectionsPanel({ token }: { token?: string } = {}) {
 function ConnectionRow({
   connection: c,
   now,
+  canSync,
 }: {
   connection: ConnectionPublic;
   now: number;
+  canSync: boolean;
 }) {
   const h = health(c, now);
   const lastSynced = formatDateTime(c.lastSyncedAt);
@@ -103,6 +122,67 @@ function ConnectionRow({
           ? 'access token expired (refreshes on next sync)'
           : `access token valid until ${accessValidUntil}`}
       </Text>
+      {canSync && (
+        <SyncNow connectionId={c._id} healthy={h.intent === 'stable'} />
+      )}
+    </Stack>
+  );
+}
+
+/** Force a sync of one connection, without going back through the link flow.
+ * Disabled on an unhealthy connection because every such state needs a re-link
+ * first, and the note above already says so. */
+function SyncNow({
+  connectionId,
+  healthy,
+}: {
+  connectionId: Id<'connections'>;
+  healthy: boolean;
+}) {
+  const convex = useConvex();
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<SyncResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const needsReauth = result?.status === 'needs_reauth';
+
+  const sync = useCallback(async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      setResult(await convex.action(api.sync.sync, { connectionId }));
+    } catch (e) {
+      setError(errMsg(e));
+    } finally {
+      setBusy(false);
+    }
+  }, [convex, connectionId]);
+
+  return (
+    <Stack direction="column" gap="xs" align="start">
+      {needsReauth && (
+        <Notice.Root intent="warning">
+          <Notice.Description>
+            The stored BankID session expired. Link the store again to keep
+            syncing.
+          </Notice.Description>
+        </Notice.Root>
+      )}
+      {error && <ErrorNotice title="Sync failed">{error}</ErrorNotice>}
+      {result && !needsReauth && (
+        <Text variant="body-sm">
+          Synced {result.synced} new · skipped {result.skipped}
+        </Text>
+      )}
+      <Button
+        variant="outline"
+        tone="neutral"
+        loading={busy}
+        disabled={!healthy}
+        onClick={() => void sync()}
+      >
+        Sync now
+      </Button>
     </Stack>
   );
 }

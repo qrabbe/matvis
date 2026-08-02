@@ -4,6 +4,7 @@ import { useAuthActions } from '@convex-dev/auth/react';
 import { Button, Card, Stack, Tabs, Text } from '@wordpress/ui';
 import { ErrorNotice } from '@matvis/ui';
 import { ConnectPanel } from './features/ConnectPanel';
+import { ConnectionsPanel } from './features/ConnectionsPanel';
 import { TokenPanel } from './features/TokenPanel';
 import { DemoPanel } from './features/DemoPanel';
 import { DevPortal } from './features/DevPortal';
@@ -48,6 +49,9 @@ export function App() {
           <Tabs.Panel value="connect">
             <Stack direction="column" gap="xl" style={{ paddingTop: 20 }}>
               <ConnectPanel />
+              {/* Session-scoped, so this is where the per-connection re-sync
+                  lives. The token demo renders the same panel read-only. */}
+              <ConnectionsPanel />
               <TokenPanel />
             </Stack>
           </Tabs.Panel>
