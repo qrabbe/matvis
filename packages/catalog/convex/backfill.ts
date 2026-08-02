@@ -27,22 +27,41 @@ export const rebuildCleanFromRaw = internalAction({
   returns: v.object({ pages: v.number(), inserted: v.number() }),
   handler: async (ctx, { batchSize }) => {
     const numItems = batchSize ?? 200;
-    let cursor: string | null = null;
     let pages = 0;
     let inserted = 0;
+
+    // The next page's read does not depend on this page's write, so start it
+    // before awaiting the write instead of after. At ~68 pages that turns 136
+    // strictly sequential round trips into about half as much wall clock. Both
+    // promises go into one `Promise.all` so a failed write cannot leave the
+    // in-flight read floating.
+    let page: CleanPage = await ctx.runQuery(internal.raw.pageRawCoop, {
+      cursor: null,
+      numItems,
+    });
     for (;;) {
-      const page: CleanPage = await ctx.runQuery(internal.raw.pageRawCoop, {
-        cursor,
-        numItems,
-      });
-      if (page.items.length > 0) {
-        inserted += await ctx.runMutation(internal.raw.upsertCleanBatch, {
-          items: page.items,
-        });
-      }
+      const nextPage = page.isDone
+        ? Promise.resolve(null)
+        : ctx.runQuery(internal.raw.pageRawCoop, {
+            cursor: page.continueCursor,
+            numItems,
+          });
+      const written =
+        page.items.length > 0
+          ? ctx.runMutation(internal.raw.upsertCleanBatch, {
+              items: page.items,
+            })
+          : Promise.resolve(0);
+
+      const [count, next]: [number, CleanPage | null] = await Promise.all([
+        written,
+        nextPage,
+      ]);
+
+      inserted += count;
       pages += 1;
-      if (page.isDone) break;
-      cursor = page.continueCursor;
+      if (!next) break;
+      page = next;
     }
     return { pages, inserted };
   },
