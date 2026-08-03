@@ -1,9 +1,10 @@
 name: CI + Deploy
 
-# One pipeline. On pull requests it only verifies (format · typecheck · build ·
-# test · secret scan). On a push to dev or main the same checks run first and the
-# deploy job runs ONLY if every check passes, so a broken build, a failing test,
-# a formatting slip, or a leaked secret blocks the release. Either branch pushes
+# One pipeline. On pull requests it only verifies (format · API spec · typecheck ·
+# build · test · secret scan). On a push to dev or main the same checks run first
+# and the deploy job runs ONLY if every check passes, so a broken build, a failing
+# test, a formatting slip, an unrecorded contract change, or a leaked secret
+# blocks the release. Either branch pushes
 # schema and functions to BOTH the development and the production Convex
 # deployments, so the two environments always run the same backend code. Only a
 # push to main additionally rebuilds the public site.
@@ -19,7 +20,7 @@ permissions:
 
 jobs:
   verify:
-    name: format · typecheck · build · test
+    name: format · spec · typecheck · build · test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -28,6 +29,11 @@ jobs:
           bun-version: latest
       - run: bun install --frozen-lockfile
       - run: bun run format:check
+      # Regenerates the catalog's public API spec from convex/catalog.ts and
+      # fails on a diff, so a change to the contract has to show up in the pull
+      # request that causes it rather than surfacing after a deploy. Reads the
+      # source, not a deployment, so it needs no deploy key.
+      - run: bun run spec:check
       - run: bun run typecheck # tsc -b: typechecks + builds every package
       - run: bun run test # bun unit tests, then vitest: convex-test + the frontends on jsdom
 

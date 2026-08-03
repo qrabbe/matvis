@@ -1,5 +1,17 @@
-import type { ReactNode } from 'react';
-import { Badge, Card, CollapsibleCard, Stack, Text } from '@wordpress/ui';
+import { useState, type ComponentProps, type ReactNode } from 'react';
+import { useConvex } from 'convex/react';
+import { makeFunctionReference } from 'convex/server';
+import {
+  Badge,
+  Button,
+  Card,
+  CollapsibleCard,
+  InputControl,
+  SelectControl,
+  Stack,
+  Text,
+} from '@wordpress/ui';
+import { CopyButton, ErrorNotice, InlineSpinner, JsonView } from '@matvis/ui';
 import { CATALOG_SCHEMA_VERSION } from '@matvis/shared';
 import {
   MODELS,
@@ -10,12 +22,16 @@ import {
   type Model,
   type Operation,
 } from '../lib/contract';
+import { argInputs, buildArgs, type ArgInput } from '../lib/tryIt';
 
 // v1 docs. Nothing here restates a field name, a type or a signature: the model
 // tables come from the zod contract via `z.toJSONSchema`, and the operations
 // come from the generated function spec (see src/lib/contract.ts). Only the
 // prose is written by hand, and prose that names a field is prose about that
 // field's meaning rather than about its shape.
+//
+// Depth is opt-in, so the page runs shallow to deep: how to call it, then the
+// four operations collapsed, then the models, then the reasoning.
 //
 // This is the clean, store-agnostic contract only; the raw per-chain product
 // tables behind it are NOT exposed here.
@@ -35,6 +51,7 @@ const OPERATION_NOTES: Record<string, string> = {
 };
 
 export function DevPortal() {
+  const deploymentUrl = useConvex().url;
   return (
     <Stack direction="column" gap="xl">
       <Card.Root>
@@ -49,17 +66,15 @@ export function DevPortal() {
         <Card.Content>
           <Stack direction="column" gap="md">
             <Text variant="body-md">
-              Every catalog entry is normalized to one EAN-keyed, store-agnostic
-              shape (source: <Code>packages/shared/src/catalog.ts</Code>). The
-              raw per-chain product data behind it is not part of this contract.
-              Everything past the identity block is optional — coverage differs
-              per field and per chain, so render around what is missing.
+              The catalog is a public, read-only Convex API — no account, no
+              auth, no key. Point a client at the deployment and read:
             </Text>
+            <CodeBlock text={installSnippet(deploymentUrl)} />
             <Text variant="body-md">
-              <strong>Price is deliberately absent.</strong> It is time-varying
-              and store-specific, so it belongs to its own contract rather than
-              to the description of a product. Package size and sales unit stay,
-              being product facts.
+              Every entry is normalized to one EAN-keyed, store-agnostic shape
+              (source: <Code>packages/shared/src/catalog.ts</Code>). Everything
+              past the identity block is optional — coverage differs per field
+              and per chain, so render around what is missing.
             </Text>
           </Stack>
         </Card.Content>
@@ -67,14 +82,10 @@ export function DevPortal() {
 
       <Card.Root>
         <Card.Header>
-          <Card.Title>Read endpoints</Card.Title>
+          <Card.Title>Operations</Card.Title>
         </Card.Header>
         <Card.Content>
           <Stack direction="column" gap="md">
-            <Text variant="body-md">
-              The catalog is a public, read-only Convex API — no account, no
-              auth. Point a Convex client at the deployment and read:
-            </Text>
             {OPERATIONS.map((op) => (
               <OperationEntry key={op.identifier} operation={op} />
             ))}
@@ -96,6 +107,12 @@ export function DevPortal() {
             {MODELS.map((model) => (
               <ModelSection key={model.name} model={model} />
             ))}
+            <Text variant="body-md">
+              <strong>Price is deliberately absent.</strong> It is time-varying
+              and store-specific, so it belongs to its own contract rather than
+              to the description of a product. Package size and sales unit stay,
+              being product facts.
+            </Text>
           </Stack>
         </Card.Content>
       </Card.Root>
@@ -140,6 +157,36 @@ export function DevPortal() {
 
       <Card.Root>
         <Card.Header>
+          <Card.Title>Provenance, and what is not behind it</Card.Title>
+        </Card.Header>
+        <Card.Content>
+          <Stack direction="column" gap="md">
+            <Text variant="body-md">
+              <strong>
+                <Code>sourceTable</Code> and <Code>sourceId</Code> look
+                dereferenceable and are not.
+              </strong>{' '}
+              They are breadcrumbs to quote in a bug report — they say which raw
+              row a clean row was projected from, so a wrong value can be traced
+              — and nothing more. No public function accepts either of them, and
+              none ever will: the raw row they name is not part of this
+              contract.
+            </Text>
+            <Text variant="body-md">
+              The raw per-chain tables (<Code>raw_coop</Code>, and one per chain
+              as connectors land) are not searchable and not part of any public
+              promise. That is <em>enforced</em> rather than documented: every{' '}
+              <Code>raw.js:*</Code> and <Code>backfill.js:*</Code> function is
+              registered <Code>internal</Code>, which makes it unreachable by
+              any client whatever it asks for. The operations above are the
+              whole public surface.
+            </Text>
+          </Stack>
+        </Card.Content>
+      </Card.Root>
+
+      <Card.Root>
+        <Card.Header>
           <Card.Title>Versioning policy</Card.Title>
         </Card.Header>
         <Card.Content>
@@ -150,8 +197,23 @@ export function DevPortal() {
   );
 }
 
-/** One operation: its signature, what it is for, its params and its response,
- * all but the prose read off the generated spec. */
+/** The two lines that get a consumer from nothing to a product. */
+function installSnippet(deploymentUrl: string): string {
+  return [
+    'npm install convex',
+    '',
+    'import { ConvexHttpClient } from "convex/browser";',
+    '',
+    `const catalog = new ConvexHttpClient("${deploymentUrl}");`,
+    'const rows = await catalog.query("catalog:getByEan", {',
+    '  ean: "11210000155",',
+    '});',
+  ].join('\n');
+}
+
+/** One operation: its signature, what it is for, its params, its response, and
+ * a button that runs it. Everything but the prose is read off the generated
+ * spec, and the response below the button is the real one. */
 function OperationEntry({ operation }: { operation: Operation }) {
   const params = Object.entries(operation.args.value);
   const note = OPERATION_NOTES[operationName(operation)];
@@ -184,9 +246,120 @@ function OperationEntry({ operation }: { operation: Operation }) {
             <Text variant="heading-sm">Response</Text>
             <Code>{typeExpression(operation.returns)}</Code>
           </Stack>
+          <TryIt operation={operation} />
         </Stack>
       </CollapsibleCard.Content>
     </CollapsibleCard.Root>
+  );
+}
+
+type CallState =
+  | { status: 'idle' }
+  | { status: 'running' }
+  | { status: 'done'; value: unknown }
+  | { status: 'failed'; message: string };
+
+/** Runs the operation against the live deployment and prints what came back.
+ * The catalog is public, so there is no key to handle, and what is printed
+ * cannot go stale because it is not a sample. */
+function TryIt({ operation }: { operation: Operation }) {
+  const convex = useConvex();
+  const name = operationName(operation);
+  const inputs = argInputs(operation);
+  const [values, setValues] = useState<Record<string, string>>(() =>
+    Object.fromEntries(inputs.map((input) => [input.name, input.example])),
+  );
+  const [state, setState] = useState<CallState>({ status: 'idle' });
+
+  async function run() {
+    setState({ status: 'running' });
+    try {
+      const value = await convex.query(
+        makeFunctionReference<'query'>(`catalog:${name}`),
+        buildArgs(operation, values),
+      );
+      setState({ status: 'done', value });
+    } catch (error) {
+      setState({
+        status: 'failed',
+        message: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  return (
+    <Stack direction="column" gap="sm">
+      <Text variant="heading-sm">Try it</Text>
+      <Stack direction="row" gap="md" align="end" wrap="wrap">
+        {inputs.map((input) => (
+          <ArgField
+            key={input.name}
+            input={input}
+            value={values[input.name] ?? ''}
+            onChange={(next) =>
+              setValues((current) => ({ ...current, [input.name]: next }))
+            }
+          />
+        ))}
+        <Button onClick={run} disabled={state.status === 'running'}>
+          Run
+        </Button>
+      </Stack>
+      {state.status === 'running' && <InlineSpinner label="Calling…" />}
+      {state.status === 'failed' && <ErrorNotice>{state.message}</ErrorNotice>}
+      {state.status === 'done' && (
+        <JsonView value={state.value} filename={`catalog-${name}.json`} />
+      )}
+    </Stack>
+  );
+}
+
+/** One `SelectControl` option. The package does not re-export the type, so it
+ * is read back off the component's own props rather than restated here. */
+type SelectItem = NonNullable<
+  ComponentProps<typeof SelectControl>['items']
+>[number];
+
+const UNSET: SelectItem = { label: 'Any', value: null };
+
+/** One argument's input, picked from the validator rather than hand-placed: a
+ * union of literals gets a select, everything else a text field. */
+function ArgField({
+  input,
+  value,
+  onChange,
+}: {
+  input: ArgInput;
+  value: string;
+  onChange: (next: string) => void;
+}) {
+  const label = `${input.name}${input.optional ? '?' : ''}`;
+  if (input.kind === 'choice') {
+    const items: SelectItem[] = [
+      ...(input.optional ? [UNSET] : []),
+      ...input.options.map((option) => ({ label: option, value: option })),
+    ];
+    const selection = items.find((item) => item.value === value) ?? UNSET;
+    return (
+      <div style={{ flex: '0 1 180px' }}>
+        <SelectControl
+          label={label}
+          items={items}
+          value={selection}
+          onValueChange={(item) => onChange(item?.value ?? '')}
+        />
+      </div>
+    );
+  }
+  return (
+    <div style={{ flex: '1 1 220px' }}>
+      <InputControl
+        label={label}
+        description={input.kind === 'list' ? 'Comma separated.' : undefined}
+        value={value}
+        onValueChange={(next) => onChange(next)}
+      />
+    </div>
   );
 }
 
@@ -247,6 +420,35 @@ function VersioningPolicy() {
       <Text variant="body-sm">
         <strong>Old rows are upcast on read.</strong> Storage may hold several
         versions while readers only ever see the latest.
+      </Text>
+    </Stack>
+  );
+}
+
+/** A copyable multi-line snippet. */
+function CodeBlock({ text }: { text: string }) {
+  return (
+    <Stack direction="column" gap="xs">
+      <Stack direction="row" gap="sm" justify="end">
+        <CopyButton text={text} label="Copy" />
+      </Stack>
+      <Text
+        variant="body-sm"
+        render={
+          <pre
+            style={{
+              fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+              background: 'rgba(127,127,127,0.16)',
+              padding: '10px 12px',
+              borderRadius: 6,
+              margin: 0,
+              overflow: 'auto',
+              whiteSpace: 'pre',
+            }}
+          />
+        }
+      >
+        {text}
       </Text>
     </Stack>
   );
