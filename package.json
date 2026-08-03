@@ -15,7 +15,7 @@
   ],
   "scripts": {
     "typecheck": "tsc -b",
-    "test": "bun test packages/app packages/catalog/test packages/connector/test && vitest run",
+    "test": "bun test && vitest run",
     "build": "tsc -b",
     "build:site": "bun tools/build-site.ts",
     "clean": "tsc -b --clean",
