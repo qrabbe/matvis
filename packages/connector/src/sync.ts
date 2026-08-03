@@ -1,6 +1,8 @@
 import {
   isAccessTokenValid,
+  type LineItem,
   type Receipt,
+  type ReceiptCore,
   type TokenSet,
 } from '@matvis/shared';
 import type { Connector } from './connector';
@@ -14,68 +16,44 @@ import type { Connector } from './connector';
 // caller's concern: it resolves the connector from `connection.store` through
 // the registry and passes it in.
 
-/** One receipt line, mapped to the connector's `receiptItems` shape. */
-export interface ReceiptItemRow {
-  text: string;
-  price: number;
-  isDiscount: boolean;
-  quantity?: number;
-  unit?: string;
-  // `gtin` is intentionally absent — matching is a separate later pass.
-}
+/** One receipt line, mapped to the connector's `receiptItems` shape: the shared
+ * {@link LineItem} without `gtin`, which a later matching pass fills. */
+export type ReceiptItemRow = Omit<LineItem, 'gtin'>;
 
-/** A parsed receipt, mapped to the connector's `receipts` header + items. */
-export interface ReceiptRow {
+/**
+ * A parsed receipt, mapped to the connector's `receipts` header + items. Derived
+ * from the contract's {@link ReceiptCore} rather than restated, so the two
+ * cannot drift. `source` is dropped because the connection knows which store it
+ * is and the PDF's own claim is not authoritative. `rawText` is carried because
+ * the row keeps it even though header reads do not return it.
+ */
+export type ReceiptRow = Omit<ReceiptCore, 'source'> & {
+  /** The store's id for this receipt. The deduplication key. */
   externalId: string;
-  schemaVersion: number;
-  store: Receipt['store'];
-  receiptNumber?: string;
-  purchasedAt?: string;
+  /** `purchasedAt` as epoch ms, `undefined` when it did not parse. */
   purchasedAtMs?: number;
-  currency: string;
-  total?: number;
-  itemCount?: number;
-  discountsTotal?: number;
-  pointsAmount?: number;
-  vat: Receipt['vat'];
-  loyaltyCardId?: string;
   rawText?: string;
   items: ReceiptItemRow[];
-}
+};
 
 /**
  * Map a parsed {@link Receipt} to the connector's storage row. Pure: no I/O.
- * `cashier`/`receiptType` are dropped (no schema column); `gtin` is omitted from
- * items (filled by the later matching pass); `purchasedAtMs` is derived from the
- * ISO `purchasedAt`, guarding an unparseable date to `undefined`.
+ * The rest spread carries the core across, so a field added to the contract
+ * lands here without an edit. `purchasedAtMs` is derived from the ISO
+ * `purchasedAt`, guarding an unparseable date to `undefined`.
  */
 export function mapReceiptToRow(
   receipt: Receipt,
   externalId: string,
 ): ReceiptRow {
-  const ms = receipt.purchasedAt ? Date.parse(receipt.purchasedAt) : NaN;
+  // `cashier` and `receiptType` are printed detail with no column.
+  const { source, cashier, receiptType, items, ...core } = receipt;
+  const ms = core.purchasedAt ? Date.parse(core.purchasedAt) : NaN;
   return {
+    ...core,
     externalId,
-    schemaVersion: receipt.schemaVersion,
-    store: receipt.store,
-    receiptNumber: receipt.receiptNumber,
-    purchasedAt: receipt.purchasedAt,
     purchasedAtMs: Number.isNaN(ms) ? undefined : ms,
-    currency: receipt.currency,
-    total: receipt.total,
-    itemCount: receipt.itemCount,
-    discountsTotal: receipt.discountsTotal,
-    pointsAmount: receipt.pointsAmount,
-    vat: receipt.vat,
-    loyaltyCardId: receipt.loyaltyCardId,
-    rawText: receipt.rawText,
-    items: receipt.items.map((it) => ({
-      text: it.text,
-      price: it.price,
-      isDiscount: it.isDiscount,
-      quantity: it.quantity,
-      unit: it.unit,
-    })),
+    items: items.map(({ gtin, ...line }) => line),
   };
 }
 

@@ -1,5 +1,5 @@
 import type { GenericId } from 'convex/values';
-import type { Receipt } from './receipt';
+import type { ReceiptCore } from './receipt';
 import type { CatalogItem } from './catalog';
 import type { StoreSlug } from './stores';
 
@@ -11,8 +11,9 @@ import type { StoreSlug } from './stores';
  * allowed to name is a per-frontend decision.
  */
 
-/** A stored `receipts` header row (no `items`, no `rawText`), as the read API returns it. */
-export type ReceiptHeader = Omit<Receipt, 'items' | 'rawText'> & {
+/** A stored `receipts` header row, as the read API returns it: the contract's
+ * {@link ReceiptCore} plus the ids and derived columns a deployment adds. */
+export type ReceiptHeader = ReceiptCore & {
   _id: GenericId<'receipts'>;
   _creationTime: number;
   connectionId: GenericId<'connections'>;

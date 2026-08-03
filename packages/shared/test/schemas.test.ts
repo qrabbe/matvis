@@ -4,6 +4,7 @@ import {
   isAccessTokenValid,
   LineItem,
   Receipt,
+  ReceiptCore,
   ReceiptSource,
   ReceiptSummary,
   TokenSet,
@@ -31,6 +32,24 @@ describe('schema defaults', () => {
     expect(r.schemaVersion).toBe(1);
     expect(r.currency).toBe('SEK');
     expect(r.vat).toEqual([]);
+  });
+
+  it('ReceiptCore keeps only what a header row stores', () => {
+    const core = ReceiptCore.parse({
+      source: 'coop',
+      store: { name: 's' },
+      items: [{ text: 'x', price: 1 }],
+      cashier: '9',
+      receiptType: 'Elektroniskt kassakvitto',
+      rawText: 'raw',
+    });
+    expect(Object.keys(core).sort()).toEqual([
+      'currency',
+      'schemaVersion',
+      'source',
+      'store',
+      'vat',
+    ]);
   });
 
   it('ReceiptSummary needs only an id', () => {

@@ -70,8 +70,16 @@ export const Store = z.object({
 });
 export type Store = z.infer<typeof Store>;
 
-/** A fully normalized receipt. */
-export const Receipt = z.object({
+/**
+ * The core of a receipt: the fields a consumer keeps as columns on its header
+ * row. Split out from the whole receipt because the three shapes below it (the
+ * Convex validators, the stored-document types in `documents.ts`, the sync
+ * engine's row) all mirror exactly this much, and each asserts against it at the
+ * type level. So adding a field here is a build error in every one of them until
+ * it gets a column, while adding one to {@link Receipt} instead says "printed,
+ * not stored" and costs nobody anything.
+ */
+export const ReceiptCore = z.object({
   /** Contract version this document was produced against. */
   schemaVersion: z.number().default(SCHEMA_VERSION),
   source: ReceiptSource,
@@ -80,10 +88,6 @@ export const Receipt = z.object({
   receiptNumber: z.string().optional(),
   /** Purchase timestamp ("Datum") as an ISO 8601 string when parseable. */
   purchasedAt: z.string().optional(),
-  /** Cashier id ("Kassör"). */
-  cashier: z.string().optional(),
-  /** Receipt type line, e.g. "Elektroniskt kassakvitto". */
-  receiptType: z.string().optional(),
   /** ISO 4217 currency code. Coop receipts are SEK. */
   currency: z.string().default('SEK'),
   /** Grand total ("Total SEK"). */
@@ -96,10 +100,24 @@ export const Receipt = z.object({
   pointsAmount: z.number().optional(),
   /** VAT breakdown rows ("Moms" table). */
   vat: z.array(VatLine).default([]),
-  /** Itemized purchase lines (products + discount lines). */
-  items: z.array(LineItem),
   /** Loyalty/membership card number ("Medlemskort"). Personal data. */
   loyaltyCardId: z.string().optional(),
+});
+export type ReceiptCore = z.infer<typeof ReceiptCore>;
+
+/**
+ * A fully normalized receipt: the stored core, the itemized lines, and the
+ * printed detail no header row carries. `cashier` and `receiptType` are
+ * provenance nothing queries, and `rawText` is the source blob a store keeps
+ * beside the row rather than in it, so all three stay out of {@link ReceiptCore}.
+ */
+export const Receipt = ReceiptCore.extend({
+  /** Itemized purchase lines (products + discount lines). */
+  items: z.array(LineItem),
+  /** Cashier id ("Kassör"). */
+  cashier: z.string().optional(),
+  /** Receipt type line, e.g. "Elektroniskt kassakvitto". */
+  receiptType: z.string().optional(),
   /** The raw extracted PDF text, kept for debugging/re-parsing. */
   rawText: z.string().optional(),
 });

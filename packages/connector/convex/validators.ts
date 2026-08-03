@@ -1,6 +1,9 @@
 import {
   STORES,
   type LineItem,
+  type ReceiptCore,
+  type ReceiptHeader,
+  type ReceiptItemDoc,
   type Store,
   type VatLine,
 } from '@matvis/shared';
@@ -185,6 +188,13 @@ export const receiptItemDocValidator = v.object({
   gtin: v.optional(v.string()),
 });
 
+// The frontends read this row through the hand-written document types in
+// @matvis/shared rather than through `Doc<'receiptItems'>`, so guard that copy
+// too: an unguarded facade type is how a frontend drifts from the API.
+type _ReceiptItemDocMatches = Assert<
+  Equal<Infer<typeof receiptItemDocValidator>, ReceiptItemDoc>
+>;
+
 /** The content columns of a `receipts` row (no system fields, relations, or
  * `rawText`). Single source spread into the schema, `insertReceipt`, and the
  * header validator so the three can't drift. */
@@ -206,6 +216,25 @@ export const receiptContentFields = {
   pdfStorageId: v.optional(v.id('_storage')),
 } as const;
 
+/** What this deployment adds on top of the contract's core: the store's own
+ * receipt id, the ISO `purchasedAt` re-derived as epoch ms for range queries,
+ * and the stored PDF. */
+type ConnectorReceiptColumns = 'externalId' | 'purchasedAtMs' | 'pdfStorageId';
+
+// Take those three away and what is left must be the shared core exactly, so a
+// field added to either side fails the build until the other side moves too.
+// Everything the contract carries but no column holds already lives outside
+// `ReceiptCore`, which is why nothing has to be subtracted on that side.
+type _ReceiptContentMatches = Assert<
+  Equal<
+    Omit<
+      Infer<ReturnType<typeof v.object<typeof receiptContentFields>>>,
+      ConnectorReceiptColumns
+    >,
+    ReceiptCore
+  >
+>;
+
 /** A stored `receipts` header row (system fields + content, minus `rawText`),
  * as returned by `list` / `changes` / `getReceipt`. */
 export const receiptHeaderValidator = v.object({
@@ -216,3 +245,8 @@ export const receiptHeaderValidator = v.object({
   ...receiptContentFields,
   // `rawText` intentionally dropped from the header.
 });
+
+// Same guard for the header the frontends type against.
+type _ReceiptHeaderDocMatches = Assert<
+  Equal<Infer<typeof receiptHeaderValidator>, ReceiptHeader>
+>;
