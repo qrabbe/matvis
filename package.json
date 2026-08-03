@@ -15,7 +15,7 @@
   ],
   "scripts": {
     "typecheck": "tsc -b",
-    "test": "bun test packages/app packages/catalog/test packages/connector/test && bunx vitest run --root packages/connector",
+    "test": "bun test packages/app packages/catalog/test packages/connector/test && vitest run",
     "build": "tsc -b",
     "build:site": "bun tools/build-site.ts",
     "clean": "tsc -b --clean",
@@ -25,6 +25,7 @@
   "devDependencies": {
     "@types/bun": "latest",
     "prettier": "^3.8.1",
-    "typescript": "^5.9.2"
+    "typescript": "^5.9.2",
+    "vitest": "^4.1.10"
   }
 }

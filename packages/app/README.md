@@ -51,7 +51,13 @@ src/
   components/             presentational, incl. the validated chartTheme
   features/               one file per tab
 test/lib/                 bun test over the pure logic
+test/*.vitest.tsx         vitest + jsdom over the hook and the panels
 ```
+
+Two runners, split by what a test needs rather than by taste: `test/lib` is pure
+and runs under `bun test` in milliseconds, while anything that renders needs a
+DOM and runs under vitest (`bun run test` in this package). The `.vitest.tsx`
+suffix is what keeps `bun test` from picking the second set up.
 
 Every tab reads from `usePurchaseData` and no tab talks to Convex directly, so
 two screens cannot disagree about the same number. First load hydrates line items

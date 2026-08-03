@@ -65,7 +65,8 @@ New systems follow the same pair.
 - **Backend:** [Convex](https://convex.dev)
 - **Frontends:** React 18 + [Vite](https://vitejs.dev) 8 (`app`, `connector-portal`)
 - **Design system:** `@wordpress/ui` + `@wordpress/theme`, Storybook 10
-- **Tests:** `bun test` for pure code, `vitest` + `convex-test` for Convex functions
+- **Tests:** `bun test` for pure code, `vitest` for everything that needs an
+  environment — `convex-test` on the edge runtime, components on jsdom
 
 ---
 
@@ -138,14 +139,14 @@ bun run --filter @matvis/ui storybook            # http://localhost:6006
 
 ## Common scripts (run from the repo root)
 
-| Command                | Does                                         |
-| ---------------------- | -------------------------------------------- |
-| `bun run typecheck`    | `tsc -b` typechecks and builds every package |
-| `bun run build`        | same as typecheck (`tsc -b`)                 |
-| `bun run test`         | `bun test`                                   |
-| `bun run format`       | Prettier write                               |
-| `bun run format:check` | Prettier check                               |
-| `bun run clean`        | `tsc -b --clean`                             |
+| Command                | Does                                             |
+| ---------------------- | ------------------------------------------------ |
+| `bun run typecheck`    | `tsc -b` typechecks and builds every package     |
+| `bun run build`        | same as typecheck (`tsc -b`)                     |
+| `bun run test`         | `bun test`, then `vitest run` over every project |
+| `bun run format`       | Prettier write                                   |
+| `bun run format:check` | Prettier check                                   |
+| `bun run clean`        | `tsc -b --clean`                                 |
 
 Per-package tasks use Bun's filter, e.g. `bun run --filter @matvis/connector test`.
 
