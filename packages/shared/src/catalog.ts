@@ -35,22 +35,42 @@ export const MAX_EANS_PER_LOOKUP = 50;
  * render a table without a lookup table of their own. Nutrients outside the
  * slots (vitamins, minerals) are dropped — they are on a small minority of rows
  * and adding a slot later is a compatible change.
+ *
+ * The per-field notes are `.meta({ description })` rather than JSDoc so the dev
+ * portal can render them straight off `z.toJSONSchema`, and the `id` puts this
+ * in `$defs` under its own name instead of being inlined into every parent.
  */
-export const CatalogNutrition = z.object({
-  /** Amount the values are stated per, e.g. 100. */
-  basisQuantity: z.number(),
-  /** Unit the basis is measured in: `"g"`, `"ml"` or `"st"` (pieces). */
-  basisUnit: z.string(),
-  energyKcal: z.number().optional(),
-  energyKj: z.number().optional(),
-  fatG: z.number().optional(),
-  saturatedFatG: z.number().optional(),
-  carbohydrateG: z.number().optional(),
-  sugarsG: z.number().optional(),
-  fiberG: z.number().optional(),
-  proteinG: z.number().optional(),
-  saltG: z.number().optional(),
-});
+export const CatalogNutrition = z
+  .object({
+    basisQuantity: z
+      .number()
+      .meta({ description: 'Amount the values are stated per, e.g. 100.' }),
+    basisUnit: z.string().meta({ description: '"g", "ml" or "st" (pieces).' }),
+    energyKcal: z
+      .number()
+      .optional()
+      .meta({ description: 'Energy in kilocalories.' }),
+    energyKj: z.number().optional().meta({
+      description: 'Energy in kilojoules, when the source states it.',
+    }),
+    fatG: z.number().optional().meta({ description: 'Fat, in grams.' }),
+    saturatedFatG: z
+      .number()
+      .optional()
+      .meta({ description: 'Of which saturated, in grams.' }),
+    carbohydrateG: z
+      .number()
+      .optional()
+      .meta({ description: 'Carbohydrate, in grams.' }),
+    sugarsG: z
+      .number()
+      .optional()
+      .meta({ description: 'Of which sugars, in grams.' }),
+    fiberG: z.number().optional().meta({ description: 'Fibre, in grams.' }),
+    proteinG: z.number().optional().meta({ description: 'Protein, in grams.' }),
+    saltG: z.number().optional().meta({ description: 'Salt, in grams.' }),
+  })
+  .meta({ id: 'CatalogNutrition' });
 export type CatalogNutrition = z.infer<typeof CatalogNutrition>;
 
 /**
@@ -65,11 +85,16 @@ export type CatalogNutrition = z.infer<typeof CatalogNutrition>;
  * offer is on too few rows to promise anything. Never present this block, or any
  * part of it, as allergen coverage.
  */
-export const CatalogFood = z.object({
-  /** Ingredient list as printed on the package, free prose. */
-  ingredients: z.string().optional(),
-  nutrition: CatalogNutrition.optional(),
-});
+export const CatalogFood = z
+  .object({
+    ingredients: z.string().optional().meta({
+      description: 'Ingredient list as printed on the package, free prose.',
+    }),
+    nutrition: CatalogNutrition.optional().meta({
+      description: 'Fixed nutrient slots, stated per basisQuantity basisUnit.',
+    }),
+  })
+  .meta({ id: 'CatalogFood' });
 export type CatalogFood = z.infer<typeof CatalogFood>;
 
 /**
@@ -83,42 +108,64 @@ export type CatalogFood = z.infer<typeof CatalogFood>;
  */
 export const CatalogItem = z.object({
   // ── Identity and provenance ──
-  /** GTIN/EAN, the cross-system join key. */
-  ean: z.string(),
-  /** Product display name. */
-  name: z.string(),
-  /** Which store chain this entry was sourced from. */
-  store: ReceiptSource,
-  /** Raw table the clean row was projected from, e.g. "raw_coop". */
-  sourceTable: z.string(),
-  /** Id of the backing raw row, as a string (references any `raw_*` table). */
-  sourceId: z.string(),
+  ean: z.string().meta({ description: 'GTIN/EAN, the cross-system join key.' }),
+  name: z.string().meta({ description: 'Product display name.' }),
+  store: ReceiptSource.meta({
+    description: 'Store chain the entry was sourced from, e.g. "coop".',
+  }),
+  sourceTable: z.string().meta({
+    description:
+      'Raw table the clean row was projected from, e.g. "raw_coop". A provenance breadcrumb to quote in a bug report, not a handle: no public function accepts it.',
+  }),
+  sourceId: z.string().meta({
+    description:
+      'Id of the backing raw row, as a string. Provenance only, like sourceTable, and not dereferenceable.',
+  }),
 
   // ── Shelf card ──
-  /** Manufacturer or brand name, e.g. "Santa Maria". */
-  brand: z.string().optional(),
-  /** Product image, normalized to an https URL a browser can render. */
-  imageUrl: z.string().optional(),
-  /** Numeric package size, e.g. 360. Pairs with {@link packageSizeUnit}. */
-  packageSize: z.number().optional(),
-  /** Unit of {@link packageSize}, verbatim from the source, e.g. "Gram". */
-  packageSizeUnit: z.string().optional(),
-  /** Package size as printed, e.g. "360g". Prefer this for display. */
-  packageSizeText: z.string().optional(),
-  /** How the product is sold, e.g. "Styck" or "Vikt". */
-  salesUnit: z.string().optional(),
-  /** Category breadcrumb, root first and leaf last. */
-  categoryPath: z.array(z.string()).optional(),
+  brand: z
+    .string()
+    .optional()
+    .meta({ description: 'Manufacturer or brand name, e.g. "Santa Maria".' }),
+  imageUrl: z.string().optional().meta({
+    description:
+      'Product image, normalized to an https URL a browser can render.',
+  }),
+  packageSize: z.number().optional().meta({
+    description: 'Numeric package size, e.g. 360. Pairs with packageSizeUnit.',
+  }),
+  packageSizeUnit: z.string().optional().meta({
+    description: 'Unit of packageSize, verbatim from the source, e.g. "Gram".',
+  }),
+  packageSizeText: z.string().optional().meta({
+    description:
+      'Package size as printed, e.g. "360g". Prefer this for display.',
+  }),
+  salesUnit: z
+    .string()
+    .optional()
+    .meta({ description: 'How the product is sold, e.g. "Styck" or "Vikt".' }),
+  categoryPath: z
+    .array(z.string())
+    .optional()
+    .meta({ description: 'Category breadcrumb, root first and leaf last.' }),
 
   // ── Descriptive ──
-  /** Marketing description, free prose. */
-  description: z.string().optional(),
-  /** Country of origin as a display name, e.g. "Sverige". */
-  countryOfOrigin: z.string().optional(),
-  /** Certification labels, e.g. "KRAV", "Nyckelhålet". Display names only. */
-  labels: z.array(z.string()).optional(),
+  description: z
+    .string()
+    .optional()
+    .meta({ description: 'Marketing description, free prose.' }),
+  countryOfOrigin: z.string().optional().meta({
+    description: 'Country of origin as a display name, e.g. "Sverige".',
+  }),
+  labels: z.array(z.string()).optional().meta({
+    description:
+      'Certification labels, e.g. "KRAV", "Nyckelhålet". Display names only.',
+  }),
 
-  /** Present only for consumable products. Absent entirely for a toothbrush. */
-  food: CatalogFood.optional(),
+  food: CatalogFood.optional().meta({
+    description:
+      'Present only for consumable products, absent entirely for a toothbrush. Its presence IS the "this is food" signal; there is no kind classifier.',
+  }),
 });
 export type CatalogItem = z.infer<typeof CatalogItem>;

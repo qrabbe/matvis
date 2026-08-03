@@ -1,166 +1,38 @@
 import type { ReactNode } from 'react';
-import { Badge, Card, Stack, Text } from '@wordpress/ui';
+import { Badge, Card, CollapsibleCard, Stack, Text } from '@wordpress/ui';
 import { CATALOG_SCHEMA_VERSION } from '@matvis/shared';
+import {
+  MODELS,
+  OPERATIONS,
+  operationName,
+  signature,
+  typeExpression,
+  type Model,
+  type Operation,
+} from '../lib/contract';
 
-// Hand-written v1 docs. The field table below mirrors `CatalogItem` in
-// packages/shared/src/catalog.ts — keep the two in sync when the contract moves
-// (its `CATALOG_SCHEMA_VERSION` is imported live so the header can never lie).
+// v1 docs. Nothing here restates a field name, a type or a signature: the model
+// tables come from the zod contract via `z.toJSONSchema`, and the operations
+// come from the generated function spec (see src/lib/contract.ts). Only the
+// prose is written by hand, and prose that names a field is prose about that
+// field's meaning rather than about its shape.
+//
 // This is the clean, store-agnostic contract only; the raw per-chain product
 // tables behind it are NOT exposed here.
 
-type Field = { name: string; type: string; note: string };
-
-const CATALOG_FIELDS: Field[] = [
-  { name: 'ean', type: 'string', note: 'GTIN/EAN, the cross-system join key.' },
-  { name: 'name', type: 'string', note: 'Product display name.' },
-  {
-    name: 'store',
-    type: 'ReceiptSource',
-    note: 'Store chain the entry was sourced from, e.g. "coop".',
-  },
-  {
-    name: 'sourceTable',
-    type: 'string',
-    note: 'Raw table the clean row was projected from, e.g. "raw_coop".',
-  },
-  {
-    name: 'sourceId',
-    type: 'string',
-    note: 'Id of the backing raw row, as a string.',
-  },
-  {
-    name: 'brand?',
-    type: 'string',
-    note: 'Manufacturer or brand name, e.g. "Santa Maria".',
-  },
-  {
-    name: 'imageUrl?',
-    type: 'string',
-    note: 'Product image, normalized to an https URL a browser can render.',
-  },
-  {
-    name: 'packageSize?',
-    type: 'number',
-    note: 'Numeric package size, e.g. 360. Pairs with packageSizeUnit.',
-  },
-  {
-    name: 'packageSizeUnit?',
-    type: 'string',
-    note: 'Unit of packageSize, verbatim from the source, e.g. "Gram".',
-  },
-  {
-    name: 'packageSizeText?',
-    type: 'string',
-    note: 'Package size as printed, e.g. "360g". Prefer this for display.',
-  },
-  {
-    name: 'salesUnit?',
-    type: 'string',
-    note: 'How the product is sold, e.g. "Styck" or "Vikt".',
-  },
-  {
-    name: 'categoryPath?',
-    type: 'string[]',
-    note: 'Category breadcrumb, root first and leaf last.',
-  },
-  {
-    name: 'description?',
-    type: 'string',
-    note: 'Marketing description, free prose.',
-  },
-  {
-    name: 'countryOfOrigin?',
-    type: 'string',
-    note: 'Country of origin as a display name, e.g. "Sverige".',
-  },
-  {
-    name: 'labels?',
-    type: 'string[]',
-    note: 'Certification labels, e.g. "KRAV", "Nyckelhålet". Display names only.',
-  },
-  {
-    name: 'food?',
-    type: 'CatalogFood',
-    note: 'Present only for consumable products — absent entirely for a toothbrush. Its presence IS the "this is food" signal; there is no kind classifier.',
-  },
-  {
-    name: '_id',
-    type: 'Id<"catalog">',
-    note: 'Convex document id (system field).',
-  },
-  {
-    name: '_creationTime',
-    type: 'number',
-    note: 'Epoch ms the row was created (system field).',
-  },
-];
-
-const FOOD_FIELDS: Field[] = [
-  {
-    name: 'ingredients?',
-    type: 'string',
-    note: 'Ingredient list as printed on the package, free prose.',
-  },
-  {
-    name: 'nutrition?',
-    type: 'CatalogNutrition',
-    note: 'Fixed nutrient slots, stated per basisQuantity basisUnit.',
-  },
-];
-
-const NUTRITION_FIELDS: Field[] = [
-  {
-    name: 'basisQuantity',
-    type: 'number',
-    note: 'Amount the values are stated per, e.g. 100.',
-  },
-  {
-    name: 'basisUnit',
-    type: 'string',
-    note: '"g", "ml" or "st" (pieces).',
-  },
-  {
-    name: 'energyKcal? / energyKj?',
-    type: 'number',
-    note: 'Energy, both units when the source states both.',
-  },
-  {
-    name: 'fatG? / saturatedFatG?',
-    type: 'number',
-    note: 'Fat, and of which saturated, in grams.',
-  },
-  {
-    name: 'carbohydrateG? / sugarsG?',
-    type: 'number',
-    note: 'Carbohydrate, and of which sugars, in grams.',
-  },
-  {
-    name: 'fiberG? / proteinG? / saltG?',
-    type: 'number',
-    note: 'Fibre, protein and salt, in grams.',
-  },
-];
-
-type Endpoint = { sig: string; desc: string };
-
-const READ_ENDPOINTS: Endpoint[] = [
-  {
-    sig: 'catalog.getByEan({ ean })',
-    desc: 'Every clean row for one EAN. Returns an ARRAY: the catalog is keyed by (store, EAN), so each chain keeps its own row for a shared product and the caller picks. Empty when the EAN is not catalogued.',
-  },
-  {
-    sig: 'catalog.getManyByEan({ eans })',
-    desc: 'The same lookup for up to 100 EANs at once — a whole receipt without the round trips. One flat array; group by `ean` and `store` yourself.',
-  },
-  {
-    sig: 'catalog.search({ q?, store?, paginationOpts })',
-    desc: 'Reactive, paginated rows. Empty `q` returns newest-first; a digit-only `q` of 6+ characters searches EANs; anything else runs the full-text name search (relevance-ordered). `store` narrows any of the three to one chain.',
-  },
-  {
-    sig: 'catalog.stats()',
-    desc: 'Cheap totals for the header — the maintained catalog count, plus which chains actually have rows.',
-  },
-];
+/** Why a caller reaches for each operation. The spec carries shape, not intent,
+ * so this is the one hand-written half — keyed by function name, and an
+ * operation without an entry simply renders without prose. */
+const OPERATION_NOTES: Record<string, string> = {
+  getByEan:
+    'Every clean row for one EAN. Returns an ARRAY: the catalog is keyed by (store, EAN), so each chain keeps its own row for a shared product and the caller picks. Empty when the EAN is not catalogued.',
+  getManyByEan:
+    'The same lookup for a whole receipt at once, without the round trips. One flat array; group by `ean` and `store` yourself. The server throws above its cap rather than truncating.',
+  search:
+    'Reactive, paginated rows. Empty `q` returns newest-first; a digit-only `q` of 6+ characters searches EANs; anything else runs the full-text name search (relevance-ordered). `store` narrows any of the three to one chain.',
+  stats:
+    'Cheap totals for a header — the maintained catalog count, plus which chains actually have rows.',
+};
 
 export function DevPortal() {
   return (
@@ -177,14 +49,12 @@ export function DevPortal() {
         <Card.Content>
           <Stack direction="column" gap="md">
             <Text variant="body-md">
-              Every catalog entry is normalized to this EAN-keyed,
-              store-agnostic shape (source:{' '}
-              <Code>packages/shared/src/catalog.ts</Code>). The raw per-chain
-              product data behind it is not part of this contract. Everything
-              past the identity block is optional — coverage differs per field
-              and per chain, so render around what is missing.
+              Every catalog entry is normalized to one EAN-keyed, store-agnostic
+              shape (source: <Code>packages/shared/src/catalog.ts</Code>). The
+              raw per-chain product data behind it is not part of this contract.
+              Everything past the identity block is optional — coverage differs
+              per field and per chain, so render around what is missing.
             </Text>
-            <FieldTable fields={CATALOG_FIELDS} />
             <Text variant="body-md">
               <strong>Price is deliberately absent.</strong> It is time-varying
               and store-specific, so it belongs to its own contract rather than
@@ -197,9 +67,44 @@ export function DevPortal() {
 
       <Card.Root>
         <Card.Header>
+          <Card.Title>Read endpoints</Card.Title>
+        </Card.Header>
+        <Card.Content>
+          <Stack direction="column" gap="md">
+            <Text variant="body-md">
+              The catalog is a public, read-only Convex API — no account, no
+              auth. Point a Convex client at the deployment and read:
+            </Text>
+            {OPERATIONS.map((op) => (
+              <OperationEntry key={op.identifier} operation={op} />
+            ))}
+          </Stack>
+        </Card.Content>
+      </Card.Root>
+
+      <Card.Root>
+        <Card.Header>
+          <Card.Title>Models</Card.Title>
+        </Card.Header>
+        <Card.Content>
+          <Stack direction="column" gap="lg">
+            <Text variant="body-md">
+              Reads also carry the two Convex system fields, <Code>_id</Code>{' '}
+              and <Code>_creationTime</Code>, which are not part of the contract
+              itself.
+            </Text>
+            {MODELS.map((model) => (
+              <ModelSection key={model.name} model={model} />
+            ))}
+          </Stack>
+        </Card.Content>
+      </Card.Root>
+
+      <Card.Root>
+        <Card.Header>
           <Card.Title>
             <Stack direction="row" gap="sm" align="center">
-              <span>CatalogFood</span>
+              <span>Reading a product</span>
               <Code>item.food</Code>
             </Stack>
           </Card.Title>
@@ -215,7 +120,6 @@ export function DevPortal() {
               classifier, because deriving one needs a per-store category
               mapping that is wrong at the edges.
             </Text>
-            <FieldTable fields={FOOD_FIELDS} />
             <Text variant="body-md">
               <strong>Not an allergen source.</strong> Allergens appear in the
               catalog only as prose inside <Code>food.ingredients</Code>. The
@@ -230,7 +134,6 @@ export function DevPortal() {
               (vitamins, minerals) are dropped; they are on a small minority of
               rows, and adding a slot later is a compatible change.
             </Text>
-            <FieldTable fields={NUTRITION_FIELDS} />
           </Stack>
         </Card.Content>
       </Card.Root>
@@ -243,50 +146,81 @@ export function DevPortal() {
           <VersioningPolicy />
         </Card.Content>
       </Card.Root>
-
-      <Card.Root>
-        <Card.Header>
-          <Card.Title>Read endpoints</Card.Title>
-        </Card.Header>
-        <Card.Content>
-          <Stack direction="column" gap="md">
-            <Text variant="body-md">
-              The catalog is a public, read-only Convex API — no account, no
-              auth. Point a Convex client at the deployment and read:
-            </Text>
-            {READ_ENDPOINTS.map((e) => (
-              <Stack key={e.sig} direction="column" gap="xs">
-                <Stack direction="row" gap="sm" align="center" wrap="wrap">
-                  <Code>{e.sig}</Code>
-                  <Badge intent="stable">live</Badge>
-                </Stack>
-                <Text variant="body-sm">{e.desc}</Text>
-              </Stack>
-            ))}
-          </Stack>
-        </Card.Content>
-      </Card.Root>
     </Stack>
   );
 }
 
-/** One `name — type — note` row per field. */
-function FieldTable({ fields }: { fields: Field[] }) {
+/** One operation: its signature, what it is for, its params and its response,
+ * all but the prose read off the generated spec. */
+function OperationEntry({ operation }: { operation: Operation }) {
+  const params = Object.entries(operation.args.value);
+  const note = OPERATION_NOTES[operationName(operation)];
+  return (
+    <CollapsibleCard.Root>
+      <CollapsibleCard.Header>
+        <Stack direction="row" gap="sm" align="center" wrap="wrap">
+          <Code>{signature(operation)}</Code>
+          <Badge intent="stable">live</Badge>
+        </Stack>
+      </CollapsibleCard.Header>
+      <CollapsibleCard.Content>
+        <Stack direction="column" gap="md" style={{ paddingTop: 12 }}>
+          {note && <Text variant="body-sm">{note}</Text>}
+          <Stack direction="column" gap="xs">
+            <Text variant="heading-sm">Parameters</Text>
+            {params.length === 0 ? (
+              <Text variant="body-sm">None.</Text>
+            ) : (
+              params.map(([name, field]) => (
+                <Row
+                  key={name}
+                  name={`${name}${field.optional ? '?' : ''}`}
+                  type={typeExpression(field.fieldType)}
+                />
+              ))
+            )}
+          </Stack>
+          <Stack direction="column" gap="xs">
+            <Text variant="heading-sm">Response</Text>
+            <Code>{typeExpression(operation.returns)}</Code>
+          </Stack>
+        </Stack>
+      </CollapsibleCard.Content>
+    </CollapsibleCard.Root>
+  );
+}
+
+/** One model's `name — type — note` table. */
+function ModelSection({ model }: { model: Model }) {
   return (
     <Stack direction="column" gap="xs">
-      {fields.map((f) => (
-        <Stack
-          key={f.name}
-          direction="row"
-          gap="md"
-          align="baseline"
-          wrap="wrap"
-        >
-          <Code>{f.name}</Code>
-          <Badge intent="none">{f.type}</Badge>
-          <Text variant="body-sm">{f.note}</Text>
-        </Stack>
+      <Text variant="heading-sm">{model.name}</Text>
+      {model.fields.map((field) => (
+        <Row
+          key={field.name}
+          name={`${field.name}${field.required ? '' : '?'}`}
+          type={field.type}
+          note={field.note}
+        />
       ))}
+    </Stack>
+  );
+}
+
+function Row({
+  name,
+  type,
+  note,
+}: {
+  name: string;
+  type: string;
+  note?: string;
+}) {
+  return (
+    <Stack direction="row" gap="md" align="baseline" wrap="wrap">
+      <Code>{name}</Code>
+      <Badge intent="none">{type}</Badge>
+      {note && <Text variant="body-sm">{note}</Text>}
     </Stack>
   );
 }

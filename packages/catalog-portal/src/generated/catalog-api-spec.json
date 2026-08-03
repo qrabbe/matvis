@@ -1,0 +1,1037 @@
+{
+  "module": "catalog.js",
+  "functions": [
+    {
+      "identifier": "catalog.js:getByEan",
+      "functionType": "Query",
+      "visibility": {
+        "kind": "public"
+      },
+      "args": {
+        "type": "object",
+        "value": {
+          "ean": {
+            "fieldType": {
+              "type": "string"
+            },
+            "optional": false
+          }
+        }
+      },
+      "returns": {
+        "type": "array",
+        "value": {
+          "type": "object",
+          "value": {
+            "_id": {
+              "fieldType": {
+                "type": "id",
+                "tableName": "catalog"
+              },
+              "optional": false
+            },
+            "_creationTime": {
+              "fieldType": {
+                "type": "number"
+              },
+              "optional": false
+            },
+            "ean": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "name": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "store": {
+              "fieldType": {
+                "type": "union",
+                "value": [
+                  {
+                    "type": "literal",
+                    "value": "ica"
+                  },
+                  {
+                    "type": "literal",
+                    "value": "coop"
+                  },
+                  {
+                    "type": "literal",
+                    "value": "willys"
+                  },
+                  {
+                    "type": "literal",
+                    "value": "hemkop"
+                  },
+                  {
+                    "type": "literal",
+                    "value": "lidl"
+                  },
+                  {
+                    "type": "literal",
+                    "value": "citygross"
+                  },
+                  {
+                    "type": "literal",
+                    "value": "tempo"
+                  },
+                  {
+                    "type": "literal",
+                    "value": "matoppet"
+                  },
+                  {
+                    "type": "literal",
+                    "value": "handlarn"
+                  },
+                  {
+                    "type": "literal",
+                    "value": "netto"
+                  }
+                ]
+              },
+              "optional": false
+            },
+            "sourceTable": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "sourceId": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "brand": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": true
+            },
+            "imageUrl": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": true
+            },
+            "packageSize": {
+              "fieldType": {
+                "type": "number"
+              },
+              "optional": true
+            },
+            "packageSizeUnit": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": true
+            },
+            "packageSizeText": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": true
+            },
+            "salesUnit": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": true
+            },
+            "categoryPath": {
+              "fieldType": {
+                "type": "array",
+                "value": {
+                  "type": "string"
+                }
+              },
+              "optional": true
+            },
+            "description": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": true
+            },
+            "countryOfOrigin": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": true
+            },
+            "labels": {
+              "fieldType": {
+                "type": "array",
+                "value": {
+                  "type": "string"
+                }
+              },
+              "optional": true
+            },
+            "food": {
+              "fieldType": {
+                "type": "object",
+                "value": {
+                  "ingredients": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": true
+                  },
+                  "nutrition": {
+                    "fieldType": {
+                      "type": "object",
+                      "value": {
+                        "basisQuantity": {
+                          "fieldType": {
+                            "type": "number"
+                          },
+                          "optional": false
+                        },
+                        "basisUnit": {
+                          "fieldType": {
+                            "type": "string"
+                          },
+                          "optional": false
+                        },
+                        "energyKcal": {
+                          "fieldType": {
+                            "type": "number"
+                          },
+                          "optional": true
+                        },
+                        "energyKj": {
+                          "fieldType": {
+                            "type": "number"
+                          },
+                          "optional": true
+                        },
+                        "fatG": {
+                          "fieldType": {
+                            "type": "number"
+                          },
+                          "optional": true
+                        },
+                        "saturatedFatG": {
+                          "fieldType": {
+                            "type": "number"
+                          },
+                          "optional": true
+                        },
+                        "carbohydrateG": {
+                          "fieldType": {
+                            "type": "number"
+                          },
+                          "optional": true
+                        },
+                        "sugarsG": {
+                          "fieldType": {
+                            "type": "number"
+                          },
+                          "optional": true
+                        },
+                        "fiberG": {
+                          "fieldType": {
+                            "type": "number"
+                          },
+                          "optional": true
+                        },
+                        "proteinG": {
+                          "fieldType": {
+                            "type": "number"
+                          },
+                          "optional": true
+                        },
+                        "saltG": {
+                          "fieldType": {
+                            "type": "number"
+                          },
+                          "optional": true
+                        }
+                      }
+                    },
+                    "optional": true
+                  }
+                }
+              },
+              "optional": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "identifier": "catalog.js:getManyByEan",
+      "functionType": "Query",
+      "visibility": {
+        "kind": "public"
+      },
+      "args": {
+        "type": "object",
+        "value": {
+          "eans": {
+            "fieldType": {
+              "type": "array",
+              "value": {
+                "type": "string"
+              }
+            },
+            "optional": false
+          }
+        }
+      },
+      "returns": {
+        "type": "array",
+        "value": {
+          "type": "object",
+          "value": {
+            "_id": {
+              "fieldType": {
+                "type": "id",
+                "tableName": "catalog"
+              },
+              "optional": false
+            },
+            "_creationTime": {
+              "fieldType": {
+                "type": "number"
+              },
+              "optional": false
+            },
+            "ean": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "name": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "store": {
+              "fieldType": {
+                "type": "union",
+                "value": [
+                  {
+                    "type": "literal",
+                    "value": "ica"
+                  },
+                  {
+                    "type": "literal",
+                    "value": "coop"
+                  },
+                  {
+                    "type": "literal",
+                    "value": "willys"
+                  },
+                  {
+                    "type": "literal",
+                    "value": "hemkop"
+                  },
+                  {
+                    "type": "literal",
+                    "value": "lidl"
+                  },
+                  {
+                    "type": "literal",
+                    "value": "citygross"
+                  },
+                  {
+                    "type": "literal",
+                    "value": "tempo"
+                  },
+                  {
+                    "type": "literal",
+                    "value": "matoppet"
+                  },
+                  {
+                    "type": "literal",
+                    "value": "handlarn"
+                  },
+                  {
+                    "type": "literal",
+                    "value": "netto"
+                  }
+                ]
+              },
+              "optional": false
+            },
+            "sourceTable": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "sourceId": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "brand": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": true
+            },
+            "imageUrl": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": true
+            },
+            "packageSize": {
+              "fieldType": {
+                "type": "number"
+              },
+              "optional": true
+            },
+            "packageSizeUnit": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": true
+            },
+            "packageSizeText": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": true
+            },
+            "salesUnit": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": true
+            },
+            "categoryPath": {
+              "fieldType": {
+                "type": "array",
+                "value": {
+                  "type": "string"
+                }
+              },
+              "optional": true
+            },
+            "description": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": true
+            },
+            "countryOfOrigin": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": true
+            },
+            "labels": {
+              "fieldType": {
+                "type": "array",
+                "value": {
+                  "type": "string"
+                }
+              },
+              "optional": true
+            },
+            "food": {
+              "fieldType": {
+                "type": "object",
+                "value": {
+                  "ingredients": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": true
+                  },
+                  "nutrition": {
+                    "fieldType": {
+                      "type": "object",
+                      "value": {
+                        "basisQuantity": {
+                          "fieldType": {
+                            "type": "number"
+                          },
+                          "optional": false
+                        },
+                        "basisUnit": {
+                          "fieldType": {
+                            "type": "string"
+                          },
+                          "optional": false
+                        },
+                        "energyKcal": {
+                          "fieldType": {
+                            "type": "number"
+                          },
+                          "optional": true
+                        },
+                        "energyKj": {
+                          "fieldType": {
+                            "type": "number"
+                          },
+                          "optional": true
+                        },
+                        "fatG": {
+                          "fieldType": {
+                            "type": "number"
+                          },
+                          "optional": true
+                        },
+                        "saturatedFatG": {
+                          "fieldType": {
+                            "type": "number"
+                          },
+                          "optional": true
+                        },
+                        "carbohydrateG": {
+                          "fieldType": {
+                            "type": "number"
+                          },
+                          "optional": true
+                        },
+                        "sugarsG": {
+                          "fieldType": {
+                            "type": "number"
+                          },
+                          "optional": true
+                        },
+                        "fiberG": {
+                          "fieldType": {
+                            "type": "number"
+                          },
+                          "optional": true
+                        },
+                        "proteinG": {
+                          "fieldType": {
+                            "type": "number"
+                          },
+                          "optional": true
+                        },
+                        "saltG": {
+                          "fieldType": {
+                            "type": "number"
+                          },
+                          "optional": true
+                        }
+                      }
+                    },
+                    "optional": true
+                  }
+                }
+              },
+              "optional": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "identifier": "catalog.js:search",
+      "functionType": "Query",
+      "visibility": {
+        "kind": "public"
+      },
+      "args": {
+        "type": "object",
+        "value": {
+          "q": {
+            "fieldType": {
+              "type": "string"
+            },
+            "optional": true
+          },
+          "store": {
+            "fieldType": {
+              "type": "union",
+              "value": [
+                {
+                  "type": "literal",
+                  "value": "ica"
+                },
+                {
+                  "type": "literal",
+                  "value": "coop"
+                },
+                {
+                  "type": "literal",
+                  "value": "willys"
+                },
+                {
+                  "type": "literal",
+                  "value": "hemkop"
+                },
+                {
+                  "type": "literal",
+                  "value": "lidl"
+                },
+                {
+                  "type": "literal",
+                  "value": "citygross"
+                },
+                {
+                  "type": "literal",
+                  "value": "tempo"
+                },
+                {
+                  "type": "literal",
+                  "value": "matoppet"
+                },
+                {
+                  "type": "literal",
+                  "value": "handlarn"
+                },
+                {
+                  "type": "literal",
+                  "value": "netto"
+                }
+              ]
+            },
+            "optional": true
+          },
+          "paginationOpts": {
+            "fieldType": {
+              "type": "object",
+              "value": {
+                "numItems": {
+                  "fieldType": {
+                    "type": "number"
+                  },
+                  "optional": false
+                },
+                "cursor": {
+                  "fieldType": {
+                    "type": "union",
+                    "value": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "optional": false
+                },
+                "endCursor": {
+                  "fieldType": {
+                    "type": "union",
+                    "value": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "optional": true
+                },
+                "id": {
+                  "fieldType": {
+                    "type": "number"
+                  },
+                  "optional": true
+                },
+                "maximumRowsRead": {
+                  "fieldType": {
+                    "type": "number"
+                  },
+                  "optional": true
+                },
+                "maximumBytesRead": {
+                  "fieldType": {
+                    "type": "number"
+                  },
+                  "optional": true
+                }
+              }
+            },
+            "optional": false
+          }
+        }
+      },
+      "returns": {
+        "type": "object",
+        "value": {
+          "page": {
+            "fieldType": {
+              "type": "array",
+              "value": {
+                "type": "object",
+                "value": {
+                  "_id": {
+                    "fieldType": {
+                      "type": "id",
+                      "tableName": "catalog"
+                    },
+                    "optional": false
+                  },
+                  "_creationTime": {
+                    "fieldType": {
+                      "type": "number"
+                    },
+                    "optional": false
+                  },
+                  "ean": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": false
+                  },
+                  "name": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": false
+                  },
+                  "store": {
+                    "fieldType": {
+                      "type": "union",
+                      "value": [
+                        {
+                          "type": "literal",
+                          "value": "ica"
+                        },
+                        {
+                          "type": "literal",
+                          "value": "coop"
+                        },
+                        {
+                          "type": "literal",
+                          "value": "willys"
+                        },
+                        {
+                          "type": "literal",
+                          "value": "hemkop"
+                        },
+                        {
+                          "type": "literal",
+                          "value": "lidl"
+                        },
+                        {
+                          "type": "literal",
+                          "value": "citygross"
+                        },
+                        {
+                          "type": "literal",
+                          "value": "tempo"
+                        },
+                        {
+                          "type": "literal",
+                          "value": "matoppet"
+                        },
+                        {
+                          "type": "literal",
+                          "value": "handlarn"
+                        },
+                        {
+                          "type": "literal",
+                          "value": "netto"
+                        }
+                      ]
+                    },
+                    "optional": false
+                  },
+                  "sourceTable": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": false
+                  },
+                  "sourceId": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": false
+                  },
+                  "brand": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": true
+                  },
+                  "imageUrl": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": true
+                  },
+                  "packageSize": {
+                    "fieldType": {
+                      "type": "number"
+                    },
+                    "optional": true
+                  },
+                  "packageSizeUnit": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": true
+                  },
+                  "packageSizeText": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": true
+                  },
+                  "salesUnit": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": true
+                  },
+                  "categoryPath": {
+                    "fieldType": {
+                      "type": "array",
+                      "value": {
+                        "type": "string"
+                      }
+                    },
+                    "optional": true
+                  },
+                  "description": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": true
+                  },
+                  "countryOfOrigin": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": true
+                  },
+                  "labels": {
+                    "fieldType": {
+                      "type": "array",
+                      "value": {
+                        "type": "string"
+                      }
+                    },
+                    "optional": true
+                  },
+                  "food": {
+                    "fieldType": {
+                      "type": "object",
+                      "value": {
+                        "ingredients": {
+                          "fieldType": {
+                            "type": "string"
+                          },
+                          "optional": true
+                        },
+                        "nutrition": {
+                          "fieldType": {
+                            "type": "object",
+                            "value": {
+                              "basisQuantity": {
+                                "fieldType": {
+                                  "type": "number"
+                                },
+                                "optional": false
+                              },
+                              "basisUnit": {
+                                "fieldType": {
+                                  "type": "string"
+                                },
+                                "optional": false
+                              },
+                              "energyKcal": {
+                                "fieldType": {
+                                  "type": "number"
+                                },
+                                "optional": true
+                              },
+                              "energyKj": {
+                                "fieldType": {
+                                  "type": "number"
+                                },
+                                "optional": true
+                              },
+                              "fatG": {
+                                "fieldType": {
+                                  "type": "number"
+                                },
+                                "optional": true
+                              },
+                              "saturatedFatG": {
+                                "fieldType": {
+                                  "type": "number"
+                                },
+                                "optional": true
+                              },
+                              "carbohydrateG": {
+                                "fieldType": {
+                                  "type": "number"
+                                },
+                                "optional": true
+                              },
+                              "sugarsG": {
+                                "fieldType": {
+                                  "type": "number"
+                                },
+                                "optional": true
+                              },
+                              "fiberG": {
+                                "fieldType": {
+                                  "type": "number"
+                                },
+                                "optional": true
+                              },
+                              "proteinG": {
+                                "fieldType": {
+                                  "type": "number"
+                                },
+                                "optional": true
+                              },
+                              "saltG": {
+                                "fieldType": {
+                                  "type": "number"
+                                },
+                                "optional": true
+                              }
+                            }
+                          },
+                          "optional": true
+                        }
+                      }
+                    },
+                    "optional": true
+                  }
+                }
+              }
+            },
+            "optional": false
+          },
+          "isDone": {
+            "fieldType": {
+              "type": "boolean"
+            },
+            "optional": false
+          },
+          "continueCursor": {
+            "fieldType": {
+              "type": "string"
+            },
+            "optional": false
+          },
+          "splitCursor": {
+            "fieldType": {
+              "type": "union",
+              "value": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "optional": true
+          },
+          "pageStatus": {
+            "fieldType": {
+              "type": "union",
+              "value": [
+                {
+                  "type": "literal",
+                  "value": "SplitRecommended"
+                },
+                {
+                  "type": "literal",
+                  "value": "SplitRequired"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "optional": true
+          }
+        }
+      }
+    },
+    {
+      "identifier": "catalog.js:stats",
+      "functionType": "Query",
+      "visibility": {
+        "kind": "public"
+      },
+      "args": {
+        "type": "object",
+        "value": {}
+      },
+      "returns": {
+        "type": "object",
+        "value": {
+          "total": {
+            "fieldType": {
+              "type": "number"
+            },
+            "optional": false
+          },
+          "stores": {
+            "fieldType": {
+              "type": "array",
+              "value": {
+                "type": "union",
+                "value": [
+                  {
+                    "type": "literal",
+                    "value": "ica"
+                  },
+                  {
+                    "type": "literal",
+                    "value": "coop"
+                  },
+                  {
+                    "type": "literal",
+                    "value": "willys"
+                  },
+                  {
+                    "type": "literal",
+                    "value": "hemkop"
+                  },
+                  {
+                    "type": "literal",
+                    "value": "lidl"
+                  },
+                  {
+                    "type": "literal",
+                    "value": "citygross"
+                  },
+                  {
+                    "type": "literal",
+                    "value": "tempo"
+                  },
+                  {
+                    "type": "literal",
+                    "value": "matoppet"
+                  },
+                  {
+                    "type": "literal",
+                    "value": "handlarn"
+                  },
+                  {
+                    "type": "literal",
+                    "value": "netto"
+                  }
+                ]
+              }
+            },
+            "optional": false
+          }
+        }
+      }
+    }
+  ]
+}
