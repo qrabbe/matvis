@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { memo, useMemo, useState } from 'react';
 import { Stack, Text, Tooltip } from '@wordpress/ui';
 import { formatKr } from '../lib/format';
 import { buildHeatmapGrid } from '../lib/heatmap';
@@ -31,16 +31,19 @@ const GAP = 3;
 export function Heatmap({
   spendByDay,
   months = 6,
-  today = new Date(),
+  todayMs,
 }: {
   spendByDay: ReadonlyMap<string, DailySpend>;
   /** How far back the calendar reaches. */
   months?: number;
-  today?: Date;
+  /** Where the calendar ends. A timestamp rather than a `Date` because the
+   * caller has to hold it steady, and a number cannot silently churn identity
+   * and rebuild the grid on every render. */
+  todayMs: number;
 }) {
   const { weeks, monthLabels } = useMemo(
-    () => buildHeatmapGrid(today, months),
-    [months, today],
+    () => buildHeatmapGrid(new Date(todayMs), months),
+    [months, todayMs],
   );
 
   const max = useMemo(() => {
@@ -167,8 +170,12 @@ function SharedTooltip({ hovered }: { hovered: HoveredCell | null }) {
 
 /** One day. The detail the old repo put in a `title` attribute is the cell's
  * `aria-label`, which is what reaches a screen reader; the shared tooltip shows
- * the same string to everyone else. */
-function HeatCell({
+ * the same string to everyone else.
+ *
+ * Memoised because hovering sets parent state: without it a single pointer move
+ * re-renders all 371 cells at the 12-month setting. `onHover` is the `setState`
+ * setter, so the memo holds for every cell but the one entered. */
+const HeatCell = memo(function HeatCell({
   day,
   entry,
   max,
@@ -213,7 +220,7 @@ function HeatCell({
       }}
     />
   );
-}
+});
 
 /** Dim-to-bright key. Always present: the ramp encodes magnitude and a reader
  * cannot infer the direction from the cells alone. */

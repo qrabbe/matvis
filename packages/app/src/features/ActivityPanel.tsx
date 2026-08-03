@@ -19,6 +19,9 @@ const MONTH_OPTIONS = [3, 6, 12] as const;
 
 export function ActivityPanel({ data }: { data: PurchaseData }) {
   const [months, setMonths] = useState<number>(6);
+  // Read once and held: a fresh timestamp per render would rebuild the whole
+  // calendar grid every time the panel re-renders.
+  const [todayMs] = useState(() => Date.now());
   const spendByDay = useMemo(() => dailySpend(data.headers), [data.headers]);
 
   const busiest = useMemo(() => {
@@ -66,7 +69,11 @@ export function ActivityPanel({ data }: { data: PurchaseData }) {
           <NoReceipts />
         ) : (
           <>
-            <Heatmap spendByDay={spendByDay} months={months} />
+            <Heatmap
+              spendByDay={spendByDay}
+              months={months}
+              todayMs={todayMs}
+            />
             <Stack direction="row" gap="lg" wrap="wrap">
               <Text variant="body-sm">
                 {`${spendByDay.size} shopping ${spendByDay.size === 1 ? 'day' : 'days'} on record`}
