@@ -18,7 +18,6 @@ import { bytesResponse, jsonResponse } from './helpers';
 // ── mapReceiptToRow (pure) ──────────────────────────────────────────────────
 
 const baseReceipt: Receipt = {
-  schemaVersion: 1,
   source: 'coop',
   store: { name: 'Stora Coop Test', city: 'Test' },
   receiptNumber: '100000-001-00001',

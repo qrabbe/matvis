@@ -21,6 +21,9 @@ export type ReceiptHeader = ReceiptCore & {
   externalId: string;
   purchasedAtMs?: number;
   pdfStorageId?: GenericId<'_storage'>;
+  /** Retired contract version. Nothing writes it, rows stored before it was
+   * dropped still return it. */
+  schemaVersion?: number;
 };
 
 /** A full stored `receiptItems` document, as `getReceipt` returns it. */

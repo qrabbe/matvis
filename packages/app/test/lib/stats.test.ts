@@ -18,7 +18,6 @@ function header(
     connectionId: 'connection_1' as ReceiptHeader['connectionId'],
     accountId: 'account_1' as ReceiptHeader['accountId'],
     externalId: `ext-${day}`,
-    schemaVersion: 1,
     source: 'coop',
     store: { name: 'Stora Coop' },
     currency: 'SEK',

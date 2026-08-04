@@ -26,7 +26,6 @@ async function seed(t: ReturnType<typeof convexTest>) {
       accountId,
       source: 'coop',
       externalId: 'a-1',
-      schemaVersion: 1,
       store: { name: 'Stora Coop' },
       currency: 'SEK',
       vat: [],

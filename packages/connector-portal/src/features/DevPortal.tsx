@@ -9,11 +9,6 @@ type Field = { name: string; type: string; note: string };
 
 const RECEIPT_FIELDS: Field[] = [
   {
-    name: 'schemaVersion',
-    type: 'number',
-    note: 'Contract version stored on every receipt.',
-  },
-  {
     name: 'source',
     type: 'StoreSlug',
     note: 'Which connector produced it, e.g. "coop".',

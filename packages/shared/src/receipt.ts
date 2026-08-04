@@ -8,22 +8,6 @@ import { ReceiptSource } from './stores';
  */
 
 /**
- * Versioning policy (same rules for every contract in this package):
- *
- * - Adding a field, or making a required field optional, does NOT bump the
- *   version. Consumers must ignore fields they do not know.
- * - Renaming a field, removing one, or retyping a required one DOES bump it,
- *   and the API keeps serving the previous version until consumers migrate.
- * - Every document carries the version it was produced against
- *   ({@link Receipt.schemaVersion}). As soon as a second version exists, add an
- *   `upcast(old): latest` here and have readers upcast on read, so storage may
- *   hold several versions while readers only ever see the latest.
- */
-
-/** Bumped when the {@link Receipt} shape changes in a breaking way. */
-export const SCHEMA_VERSION = 1;
-
-/**
  * A single printed line on the receipt. `gtin` stays empty for the connector
  * and is populated later by the catalog layer.
  */
@@ -80,8 +64,6 @@ export type Store = z.infer<typeof Store>;
  * not stored" and costs nobody anything.
  */
 export const ReceiptCore = z.object({
-  /** Contract version this document was produced against. */
-  schemaVersion: z.number().default(SCHEMA_VERSION),
   source: ReceiptSource,
   store: Store,
   /** Receipt number ("Kvitto"), e.g. "100000-001-00001". */

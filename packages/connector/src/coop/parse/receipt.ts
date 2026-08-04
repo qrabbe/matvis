@@ -1,4 +1,4 @@
-import { Receipt, SCHEMA_VERSION } from '@matvis/shared';
+import { Receipt } from '@matvis/shared';
 import { extractPdfText } from './extract-pdf';
 import { parseCoopReceiptMetadata } from './metadata';
 import { parseCoopReceiptItems } from './items';
@@ -22,7 +22,6 @@ export function parseCoopReceipt(
   const items = parseCoopReceiptItems(text);
 
   return Receipt.parse({
-    schemaVersion: SCHEMA_VERSION,
     source: 'coop',
     store: meta.store,
     receiptNumber: meta.receiptNumber,

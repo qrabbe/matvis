@@ -5,7 +5,6 @@ import { fixture } from '../../helpers';
 describe('parseCoopReceipt (assembly + validation)', () => {
   it('assembles a validated Receipt from receipt text', () => {
     const r = parseCoopReceipt(fixture('simple.txt'));
-    expect(r.schemaVersion).toBe(1);
     expect(r.source).toBe('coop');
     expect(r.currency).toBe('SEK');
     expect(r.store.name).toBe('Stora Coop Location');

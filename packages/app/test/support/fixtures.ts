@@ -17,7 +17,6 @@ export function header(overrides: Partial<ReceiptHeader> = {}): ReceiptHeader {
     connectionId: 'connection_1' as ReceiptHeader['connectionId'],
     accountId: 'account_1' as ReceiptHeader['accountId'],
     externalId: 'ext-1',
-    schemaVersion: 1,
     source: 'coop',
     store: { name: 'Stora Coop' },
     currency: 'SEK',

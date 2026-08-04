@@ -23,13 +23,12 @@ describe('schema defaults', () => {
     expect(LineItem.parse({ text: 'x', price: 1 }).isDiscount).toBe(false);
   });
 
-  it('Receipt fills schemaVersion, currency, and vat defaults', () => {
+  it('Receipt fills currency and vat defaults', () => {
     const r = Receipt.parse({
       source: 'coop',
       store: { name: 's' },
       items: [],
     });
-    expect(r.schemaVersion).toBe(1);
     expect(r.currency).toBe('SEK');
     expect(r.vat).toEqual([]);
   });
@@ -45,7 +44,6 @@ describe('schema defaults', () => {
     });
     expect(Object.keys(core).sort()).toEqual([
       'currency',
-      'schemaVersion',
       'source',
       'store',
       'vat',
