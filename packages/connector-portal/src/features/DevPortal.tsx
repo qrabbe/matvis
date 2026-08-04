@@ -1,11 +1,9 @@
 import type { ReactNode } from 'react';
 import { Badge, Card, Stack, Text } from '@wordpress/ui';
-import { SCHEMA_VERSION } from '@matvis/shared';
 import { CopyButton } from '@matvis/ui';
 
-// Hand-written v1 docs. The field table below mirrors `Receipt` in
-// packages/shared/src/receipt.ts — keep the two in sync when the contract moves
-// (its `SCHEMA_VERSION` is imported live so the header can never lie).
+// Hand-written docs. The field table below mirrors `Receipt` in
+// packages/shared/src/receipt.ts — keep the two in sync when the contract moves.
 
 type Field = { name: string; type: string; note: string };
 
@@ -13,7 +11,7 @@ const RECEIPT_FIELDS: Field[] = [
   {
     name: 'schemaVersion',
     type: 'number',
-    note: 'Contract version (see badge above).',
+    note: 'Contract version stored on every receipt.',
   },
   {
     name: 'source',
@@ -96,22 +94,14 @@ export function DevPortal() {
     <Stack direction="column" gap="xl">
       <Card.Root>
         <Card.Header>
-          <Card.Title>
-            <Stack direction="row" gap="sm" align="center">
-              <span>The Receipt contract</span>
-              <Badge intent="informational">{`v${SCHEMA_VERSION}`}</Badge>
-            </Stack>
-          </Card.Title>
+          <Card.Title>The Receipt contract</Card.Title>
         </Card.Header>
         <Card.Content>
           <Stack direction="column" gap="md">
             <Text variant="body-md">
-              Every stored receipt is normalized to this store-agnostic,
-              versioned shape (source:{' '}
-              <Code>packages/shared/src/receipt.ts</Code>
-              ). Fields only some stores print are optional (marked{' '}
-              <Code>?</Code>
-              ).
+              Every stored receipt is normalized to this store-agnostic shape
+              (source: <Code>packages/shared/src/receipt.ts</Code>). Fields only
+              some stores print are optional (marked <Code>?</Code>).
             </Text>
             <Stack direction="column" gap="xs">
               {RECEIPT_FIELDS.map((f) => (
@@ -129,15 +119,6 @@ export function DevPortal() {
               ))}
             </Stack>
           </Stack>
-        </Card.Content>
-      </Card.Root>
-
-      <Card.Root>
-        <Card.Header>
-          <Card.Title>Versioning policy</Card.Title>
-        </Card.Header>
-        <Card.Content>
-          <VersioningPolicy versionField="schemaVersion" />
         </Card.Content>
       </Card.Root>
 
@@ -178,42 +159,6 @@ export function DevPortal() {
           </Stack>
         </Card.Content>
       </Card.Root>
-    </Stack>
-  );
-}
-
-/** The compatibility rules behind the version badge. Mirrors the policy block in
- * packages/shared/src/receipt.ts, saying the same thing to a second audience. */
-function VersioningPolicy({ versionField }: { versionField?: string }) {
-  return (
-    <Stack direction="column" gap="sm">
-      <Text variant="body-md">
-        The version above is a promise, not a stamp. What it means for you as a
-        consumer:
-      </Text>
-      <Text variant="body-sm">
-        <strong>New fields do not bump it.</strong> Adding a field, or making a
-        required field optional, is a compatible change — ignore fields you
-        don&rsquo;t know rather than rejecting the document.
-      </Text>
-      <Text variant="body-sm">
-        <strong>Breaking changes do.</strong> Renaming a field, removing one, or
-        retyping a required one bumps the version, and the API keeps serving the
-        previous version until consumers have migrated.
-      </Text>
-      <Text variant="body-sm">
-        <strong>Old documents are upcast on read.</strong>
-        {versionField ? (
-          <>
-            {' '}
-            Every document carries the version it was written against (
-            <Code>{versionField}</Code>), so storage may hold several versions
-            while readers only ever see the latest.
-          </>
-        ) : (
-          ' Storage may hold several versions while readers only ever see the latest.'
-        )}
-      </Text>
     </Stack>
   );
 }

@@ -12,7 +12,6 @@ import {
   Text,
 } from '@wordpress/ui';
 import { CopyButton, ErrorNotice, InlineSpinner, JsonView } from '@matvis/ui';
-import { CATALOG_SCHEMA_VERSION } from '@matvis/shared';
 import {
   MODELS,
   OPERATIONS,
@@ -24,7 +23,7 @@ import {
 } from '../lib/contract';
 import { argInputs, buildArgs, type ArgInput } from '../lib/tryIt';
 
-// v1 docs. Nothing here restates a field name, a type or a signature: the model
+// Nothing here restates a field name, a type or a signature: the model
 // tables come from the zod contract via `z.toJSONSchema`, and the operations
 // come from the generated function spec (see src/lib/contract.ts). Only the
 // prose is written by hand, and prose that names a field is prose about that
@@ -56,12 +55,7 @@ export function DevPortal() {
     <Stack direction="column" gap="xl">
       <Card.Root>
         <Card.Header>
-          <Card.Title>
-            <Stack direction="row" gap="sm" align="center">
-              <span>The Catalog contract</span>
-              <Badge intent="informational">{`v${CATALOG_SCHEMA_VERSION}`}</Badge>
-            </Stack>
-          </Card.Title>
+          <Card.Title>The Catalog contract</Card.Title>
         </Card.Header>
         <Card.Content>
           <Stack direction="column" gap="md">
@@ -182,15 +176,6 @@ export function DevPortal() {
               whole public surface.
             </Text>
           </Stack>
-        </Card.Content>
-      </Card.Root>
-
-      <Card.Root>
-        <Card.Header>
-          <Card.Title>Versioning policy</Card.Title>
-        </Card.Header>
-        <Card.Content>
-          <VersioningPolicy />
         </Card.Content>
       </Card.Root>
     </Stack>
@@ -394,33 +379,6 @@ function Row({
       <Code>{name}</Code>
       <Badge intent="none">{type}</Badge>
       {note && <Text variant="body-sm">{note}</Text>}
-    </Stack>
-  );
-}
-
-/** The compatibility rules behind the version badge. Mirrors the policy block in
- * packages/shared/src/catalog.ts, saying the same thing to a second audience. */
-function VersioningPolicy() {
-  return (
-    <Stack direction="column" gap="sm">
-      <Text variant="body-md">
-        The version above is a promise, not a stamp. What it means for you as a
-        consumer:
-      </Text>
-      <Text variant="body-sm">
-        <strong>New fields do not bump it.</strong> Adding a field, or making a
-        required field optional, is a compatible change — ignore fields you
-        don&rsquo;t know rather than rejecting the row.
-      </Text>
-      <Text variant="body-sm">
-        <strong>Breaking changes do.</strong> Renaming a field, removing one, or
-        retyping a required one bumps the version, and the API keeps serving the
-        previous version until consumers have migrated.
-      </Text>
-      <Text variant="body-sm">
-        <strong>Old rows are upcast on read.</strong> Storage may hold several
-        versions while readers only ever see the latest.
-      </Text>
     </Stack>
   );
 }
