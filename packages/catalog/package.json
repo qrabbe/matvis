@@ -16,10 +16,16 @@
     "directory": "packages/catalog"
   },
   "scripts": {
-    "typecheck": "tsc -b"
+    "typecheck": "tsc -b",
+    "test": "vitest run"
   },
   "dependencies": {
     "@matvis/shared": "workspace:*",
     "convex": "^1.42.3"
+  },
+  "devDependencies": {
+    "@edge-runtime/vm": "^5.0.0",
+    "convex-test": "^0.0.54",
+    "vitest": "^4.1.10"
   }
 }
