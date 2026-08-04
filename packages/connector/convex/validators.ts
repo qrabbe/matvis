@@ -201,9 +201,6 @@ type _ReceiptItemDocMatches = Assert<
 export const receiptContentFields = {
   source: storeValidator,
   externalId: v.string(),
-  // Legacy: nothing writes it any more, but stored rows still carry it and the
-  // schema cannot drop a column while they do.
-  schemaVersion: v.optional(v.number()),
   store: storeObjectValidator,
   receiptNumber: v.optional(v.string()),
   purchasedAt: v.optional(v.string()),
@@ -220,9 +217,8 @@ export const receiptContentFields = {
 
 /** What this deployment adds on top of the contract's core: the store's own
  * receipt id, the ISO `purchasedAt` re-derived as epoch ms for range queries,
- * the stored PDF, and the retired `schemaVersion` still held by old rows. */
-type ConnectorReceiptColumns =
-  'externalId' | 'purchasedAtMs' | 'pdfStorageId' | 'schemaVersion';
+ * and the stored PDF. */
+type ConnectorReceiptColumns = 'externalId' | 'purchasedAtMs' | 'pdfStorageId';
 
 // Take those away and what is left must be the shared core exactly, so a
 // field added to either side fails the build until the other side moves too.
