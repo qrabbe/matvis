@@ -3,7 +3,7 @@ import { useConvex, useQuery } from 'convex/react';
 import type { FunctionReturnType } from 'convex/server';
 import { Badge, Button, Card, Notice, Stack, Text } from '@wordpress/ui';
 import { errMsg, STORE_LABELS, type ConnectionPublic } from '@matvis/shared';
-import { ErrorNotice, InlineSpinner } from '@matvis/ui';
+import { ErrorNotice, SkeletonList } from '@matvis/ui';
 import { api, type Id } from '../lib/convexApi';
 import { formatDateTime } from '../lib/format';
 
@@ -68,7 +68,7 @@ export function ConnectionsPanel({ token }: { token?: string } = {}) {
       </Card.Header>
       <Card.Content>
         {connections === undefined ? (
-          <InlineSpinner label="Loading connections…" />
+          <SkeletonList label="Loading connections…" rowHeight={32} />
         ) : connections.length === 0 ? (
           <Notice.Root intent="info">
             <Notice.Description>

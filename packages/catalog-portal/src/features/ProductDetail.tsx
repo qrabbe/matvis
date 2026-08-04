@@ -7,7 +7,7 @@ import {
   type CatalogRow,
   type StoreSlug,
 } from '@matvis/shared';
-import { InlineSpinner, sizedImageUrl } from '@matvis/ui';
+import { SkeletonList, sizedImageUrl } from '@matvis/ui';
 import { href } from '../lib/route';
 import { api } from '../lib/convexApi';
 
@@ -23,7 +23,9 @@ export function ProductDetail({ ean }: { ean: string }) {
   const rows = useQuery(api.catalog.getByEan, { ean });
   const [storeIndex, setStoreIndex] = useState(0);
 
-  if (rows === undefined) return <InlineSpinner label="Loading product…" />;
+  if (rows === undefined) {
+    return <SkeletonList label="Loading product…" rows={4} rowHeight={32} />;
+  }
 
   const item = rows[storeIndex] ?? rows[0];
   if (!item) {

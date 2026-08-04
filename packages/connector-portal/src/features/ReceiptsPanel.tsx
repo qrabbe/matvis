@@ -21,7 +21,7 @@ import {
   type Field,
   type View,
 } from '@wordpress/dataviews';
-import { ErrorNotice, InlineSpinner, JsonView } from '@matvis/ui';
+import { ErrorNotice, InlineSpinner, JsonView, SkeletonList } from '@matvis/ui';
 import { api } from '../lib/convexApi';
 import { errMsg, formatAmount, formatPurchasedAt } from '@matvis/shared';
 
@@ -230,7 +230,7 @@ function ReceiptModal({
       {detail ? (
         <ReceiptDetailView detail={detail} header={header} />
       ) : (
-        !loadError && <InlineSpinner label="Loading items…" />
+        !loadError && <SkeletonList label="Loading items…" rows={5} />
       )}
     </Stack>
   );
@@ -272,7 +272,14 @@ function ReceiptItems({
   header: ReceiptHeader;
 }) {
   if (items.length === 0) {
-    return <Text variant="body-sm">No line items recorded.</Text>;
+    return (
+      <EmptyState.Root>
+        <EmptyState.Title>No line items</EmptyState.Title>
+        <EmptyState.Description>
+          This receipt has a total but no itemised lines.
+        </EmptyState.Description>
+      </EmptyState.Root>
+    );
   }
   return (
     <Stack direction="column" gap="xs">

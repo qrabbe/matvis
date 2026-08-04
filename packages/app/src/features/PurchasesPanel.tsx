@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useConvex } from 'convex/react';
-import { Badge, Button, Stack, Tabs, Text } from '@wordpress/ui';
+import { Badge, Button, EmptyState, Stack, Tabs, Text } from '@wordpress/ui';
 // The receipts list is a `@wordpress/dataviews` table — `@wordpress/ui` has no
 // data-grid equivalent, so this is a justified fallback (like `Spinner`). Its
 // stylesheet is loaded once in `main.tsx`.
@@ -11,7 +11,7 @@ import {
   type Field,
   type View,
 } from '@wordpress/dataviews';
-import { ErrorNotice, InlineSpinner, JsonView } from '@matvis/ui';
+import { ErrorNotice, JsonView, SkeletonList } from '@matvis/ui';
 import { NoReceipts } from '../components/NoReceipts';
 import { ProductThumb } from '../components/ProductThumb';
 import { SectionCard } from '../components/SectionCard';
@@ -249,7 +249,7 @@ function ReceiptModal({
           </Tabs.Panel>
         </Tabs.Root>
       ) : (
-        !loadError && <InlineSpinner label="Loading items…" />
+        !loadError && <SkeletonList label="Loading items…" rows={5} />
       )}
     </Stack>
   );
@@ -285,7 +285,14 @@ function ReceiptItems({
   );
 
   if (items.length === 0) {
-    return <Text variant="body-sm">No line items recorded.</Text>;
+    return (
+      <EmptyState.Root>
+        <EmptyState.Title>No line items</EmptyState.Title>
+        <EmptyState.Description>
+          This receipt has a total but no itemised lines.
+        </EmptyState.Description>
+      </EmptyState.Root>
+    );
   }
 
   const purchased = items.filter((item) => !item.isDiscount);

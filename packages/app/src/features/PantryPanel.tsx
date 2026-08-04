@@ -134,7 +134,12 @@ export function PantryPanel({ data }: { data: PurchaseData }) {
       <SectionCard title="Products">
         <Stack direction="column" gap="md">
           {groups.length === 0 ? (
-            <Text variant="body-sm">Nothing grouped yet.</Text>
+            <EmptyState.Root>
+              <EmptyState.Title>Nothing grouped yet</EmptyState.Title>
+              <EmptyState.Description>
+                No line in the selected receipts resolves to a catalog product.
+              </EmptyState.Description>
+            </EmptyState.Root>
           ) : (
             groups.map((group) => <PantryRow key={group.ean} group={group} />)
           )}

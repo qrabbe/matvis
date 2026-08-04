@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Card, Stack, Text } from '@wordpress/ui';
+import { Card, EmptyState, Stack, Text } from '@wordpress/ui';
 import {
   Bar,
   BarChart,
@@ -153,7 +153,12 @@ export function StatsPanel({ data }: { data: PurchaseData }) {
 
       <SectionCard title="Spend by month">
         {months.length === 0 ? (
-          <Text variant="body-sm">No purchases in the selected range.</Text>
+          <EmptyState.Root>
+            <EmptyState.Title>No purchases in this range</EmptyState.Title>
+            <EmptyState.Description>
+              Widen the date range to see spending by month.
+            </EmptyState.Description>
+          </EmptyState.Root>
         ) : (
           <div style={{ width: '100%', height: 260 }}>
             <ResponsiveContainer>

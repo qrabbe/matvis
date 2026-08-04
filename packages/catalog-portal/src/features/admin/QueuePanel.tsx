@@ -10,7 +10,7 @@ import {
   Stack,
   Text,
 } from '@wordpress/ui';
-import { InlineSpinner } from '@matvis/ui';
+import { SkeletonList } from '@matvis/ui';
 import { adminApi, type QueueRow, type QueueStatus } from '../../lib/adminApi';
 import { href, productPath } from '../../lib/route';
 import { formatAge } from './format';
@@ -105,7 +105,7 @@ export function QueuePanel({ token }: { token: string }) {
           </Stack>
 
           {page === undefined ? (
-            <InlineSpinner label="Loading queue…" />
+            <SkeletonList label="Loading queue…" rows={5} />
           ) : page === null || page.rows.length === 0 ? (
             <EmptyState.Root>
               <EmptyState.Title>Nothing {status}</EmptyState.Title>

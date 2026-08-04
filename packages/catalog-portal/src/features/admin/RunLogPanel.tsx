@@ -1,6 +1,6 @@
 import { useQuery } from 'convex/react';
 import { Badge, Card, EmptyState, Stack, Text } from '@wordpress/ui';
-import { InlineSpinner } from '@matvis/ui';
+import { SkeletonList } from '@matvis/ui';
 import { adminApi, type RunRow } from '../../lib/adminApi';
 import { formatAge, formatDuration, formatSummary } from './format';
 
@@ -25,7 +25,7 @@ export function RunLogPanel({ token }: { token: string }) {
       </Card.Header>
       <Card.Content>
         {runs === undefined ? (
-          <InlineSpinner label="Loading runs…" />
+          <SkeletonList label="Loading runs…" />
         ) : runs === null || runs.length === 0 ? (
           <EmptyState.Root>
             <EmptyState.Title>No runs yet</EmptyState.Title>

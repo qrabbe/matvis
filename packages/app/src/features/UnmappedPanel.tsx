@@ -6,7 +6,7 @@ import {
   type Field,
   type View,
 } from '@wordpress/dataviews';
-import { CopyButton, InlineSpinner } from '@matvis/ui';
+import { CopyButton, SkeletonList } from '@matvis/ui';
 import { CoverageMeter } from '../components/CoverageMeter';
 import { SectionCard } from '../components/SectionCard';
 import type { PurchaseData } from '../hooks/usePurchaseData';
@@ -131,9 +131,9 @@ export function UnmappedPanel({ data }: { data: PurchaseData }) {
   const [view, setView] = useState<View>(DEFAULT_VIEW);
   const hydrating = data.hydration.total > data.hydration.done;
 
-  // Nothing below the spinner renders while hydrating, and the grouping runs two
-  // regexes and a `toLowerCase` per line — so a cold load's worth of it would be
-  // computed and thrown away once per batch of receipts.
+  // Nothing below the placeholder renders while hydrating, and the grouping
+  // runs two regexes and a `toLowerCase` per line — so a cold load's worth of it
+  // would be computed and thrown away once per batch of receipts.
   const groups = useMemo(
     () => (hydrating ? EMPTY_GROUPS : groupUnmapped(data.lines)),
     [data.lines, hydrating],
@@ -160,7 +160,7 @@ export function UnmappedPanel({ data }: { data: PurchaseData }) {
 
       <SectionCard title="Unmapped items">
         {hydrating ? (
-          <InlineSpinner label="Loading line items…" />
+          <SkeletonList label="Loading line items…" rows={5} />
         ) : (
           <DataViews
             data={rows}
