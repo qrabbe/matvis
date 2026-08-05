@@ -1,0 +1,84 @@
+{
+  "tolerance": {
+    "entry": {
+      "fraction": 0.02,
+      "floor": 2048
+    },
+    "chunk": {
+      "fraction": 0.05,
+      "floor": 4096
+    },
+    "total": {
+      "fraction": 0.05,
+      "floor": 8192
+    }
+  },
+  "builds": {
+    "@matvis/landing": {
+      "entry": "assets/index.js",
+      "totalBytes": 285025,
+      "chunks": {
+        "assets/index.css": 9290,
+        "assets/index.js": 275090
+      }
+    },
+    "@matvis/connector-portal": {
+      "entry": "assets/index.js",
+      "totalBytes": 2413414,
+      "chunks": {
+        "assets/index.css": 207408,
+        "assets/index.js": 2205555
+      }
+    },
+    "@matvis/catalog-portal": {
+      "entry": "assets/index.js",
+      "totalBytes": 2564054,
+      "chunks": {
+        "assets/index.css": 207408,
+        "assets/index.js": 2356197
+      }
+    },
+    "@matvis/app": {
+      "entry": "assets/index.js",
+      "totalBytes": 2872231,
+      "chunks": {
+        "assets/ActivityPanel.js": 4835,
+        "assets/button.js": 32278,
+        "assets/chartTheme.js": 908,
+        "assets/chevron-down.js": 427,
+        "assets/chevron-right.js": 1076,
+        "assets/composite.js": 63552,
+        "assets/CoverageMeter.js": 1989,
+        "assets/dateRange.js": 1216,
+        "assets/filter-sort-and-paginate.js": 1528410,
+        "assets/format.js": 779,
+        "assets/index.css": 207408,
+        "assets/index.js": 238896,
+        "assets/NoReceipts.js": 334,
+        "assets/nutrition.js": 3109,
+        "assets/NutritionPanel.js": 76066,
+        "assets/PantryPanel.js": 5769,
+        "assets/PreferencesPanel.js": 1860,
+        "assets/ProductThumb.js": 813,
+        "assets/published.js": 8890,
+        "assets/PurchasesPanel.js": 5903,
+        "assets/redux.js": 2773,
+        "assets/rolldown-runtime.js": 1269,
+        "assets/root.js": 31426,
+        "assets/SectionCard.js": 8323,
+        "assets/shim.js": 135274,
+        "assets/spinner.js": 29789,
+        "assets/stack.js": 42229,
+        "assets/StatGrid.js": 1028,
+        "assets/stats.js": 923,
+        "assets/StatsPanel.js": 3195,
+        "assets/TrendBadge.js": 353197,
+        "assets/UnmappedPanel.js": 15446,
+        "assets/useControlled.js": 282,
+        "assets/visually-hidden.js": 1501,
+        "assets/with-selector.js": 949,
+        "assets/wp-compat-overlay-slot.js": 58580
+      }
+    }
+  }
+}

@@ -20,6 +20,8 @@
     "build:site": "bun tools/build-site.ts",
     "spec": "bun tools/catalog-api-spec.ts",
     "spec:check": "bun tools/catalog-api-spec.ts --check",
+    "size": "bun tools/bundle-size.ts",
+    "size:check": "bun tools/bundle-size.ts --check",
     "clean": "tsc -b --clean",
     "format": "prettier --write .",
     "format:check": "prettier --check ."

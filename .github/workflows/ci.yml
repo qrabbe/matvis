@@ -1,7 +1,7 @@
 name: CI + Deploy
 
 # One pipeline. On pull requests it only verifies (format · API spec · typecheck ·
-# build · test · secret scan). On a push to dev or main the same checks run first
+# build · bundle size · test · secret scan). On a push to dev or main the same checks run first
 # and the deploy job runs ONLY if every check passes, so a broken build, a failing
 # test, a formatting slip, an unrecorded contract change, or a leaked secret
 # blocks the release. Either branch pushes
@@ -20,7 +20,7 @@ permissions:
 
 jobs:
   verify:
-    name: format · spec · typecheck · build · test
+    name: format · spec · typecheck · build · size · test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -35,6 +35,12 @@ jobs:
       # source, not a deployment, so it needs no deploy key.
       - run: bun run spec:check
       - run: bun run typecheck # tsc -b: typechecks + builds every package
+      # Builds the four frontends and diffs the emitted chunk sizes against the
+      # committed bundle-size.json. The entry chunk is gated hardest: the app
+      # loads its panels through React.lazy so recharts and dataviews stay out
+      # of it, and a stray top-level import that undoes that is invisible in
+      # review. Runs before the slow suite so it fails with the other gates.
+      - run: bun run size:check
       - run: bun run test # bun unit tests, then vitest: convex-test + the frontends on jsdom
 
   secrets:
