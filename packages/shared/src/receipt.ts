@@ -1,123 +1,66 @@
 import { z } from 'zod';
 import { ReceiptSource } from './stores';
 
-/**
- * Versioned contract for a normalized purchase receipt. Fields are defined once
- * as zod schemas and the TypeScript types are inferred from them. The shape is
- * store-agnostic. Anything only some stores print is `.optional()`.
- */
-
-/**
- * A single printed line on the receipt. `gtin` stays empty for the connector
- * and is populated later by the catalog layer.
- */
 export const LineItem = z.object({
-  /** Raw description as printed, e.g. "PESTO PEPERONICO 32,95". */
   text: z.string(),
-  /** Line price in the receipt currency. Negative for discounts/rebates. */
   price: z.number(),
-  /** True when this line is a discount/rebate (negative price). */
+  /** Always true exactly when `price` is negative. */
   isDiscount: z.boolean().default(false),
-  /** Parsed quantity when the line encodes one (e.g. "0.652 KG"). */
   quantity: z.number().optional(),
-  /** Parsed unit when present, e.g. "KG" | "ST" | "L". */
   unit: z.string().optional(),
-  /** GTIN/EAN, the cross-system join key. Populated later by the catalog. */
   gtin: z.string().optional(),
 });
 export type LineItem = z.infer<typeof LineItem>;
 
-/** One row of the VAT ("Moms") breakdown table printed at the foot of a receipt. */
 export const VatLine = z.object({
-  /** VAT rate as a percentage, e.g. 12 for "12%". */
   rate: z.number(),
-  /** VAT amount ("Belopp"). */
   vat: z.number(),
-  /** Net amount ("Netto"). */
   net: z.number(),
-  /** Gross amount ("Brutto"). */
   gross: z.number(),
 });
 export type VatLine = z.infer<typeof VatLine>;
 
-/** Store / point-of-sale identity, as far as it is printed on the receipt. */
 export const Store = z.object({
-  /** Store name, e.g. "Stora Coop Location". */
   name: z.string(),
   city: z.string().optional(),
   postalCode: z.string().optional(),
   phone: z.string().optional(),
-  /** Swedish organisation number ("Org.Nr"). */
   orgNr: z.string().optional(),
-  /** Legal entity line, e.g. "Coop Region ekonomisk förening". */
   legalEntity: z.string().optional(),
 });
 export type Store = z.infer<typeof Store>;
 
-/**
- * The core of a receipt: the fields a consumer keeps as columns on its header
- * row. Split out from the whole receipt because the three shapes below it (the
- * Convex validators, the stored-document types in `documents.ts`, the sync
- * engine's row) all mirror exactly this much, and each asserts against it at the
- * type level. So adding a field here is a build error in every one of them until
- * it gets a column, while adding one to {@link Receipt} instead says "printed,
- * not stored" and costs nobody anything.
- */
+/** A field added here needs a matching column in the three shapes that assert
+ * against it. Printed but unstored fields go on {@link Receipt} instead. */
 export const ReceiptCore = z.object({
   source: ReceiptSource,
   store: Store,
-  /** Receipt number ("Kvitto"), e.g. "100000-001-00001". */
   receiptNumber: z.string().optional(),
-  /** Purchase timestamp ("Datum") as an ISO 8601 string when parseable. */
   purchasedAt: z.string().optional(),
-  /** ISO 4217 currency code. Coop receipts are SEK. */
   currency: z.string().default('SEK'),
-  /** Grand total ("Total SEK"). */
   total: z.number().optional(),
-  /** Article count as printed ("Antal artiklar"). Excludes discount lines. */
+  /** Article count as the store prints it, which excludes discount lines. */
   itemCount: z.number().optional(),
-  /** Sum of discounts ("Erhållna rabatter"), when printed. */
   discountsTotal: z.number().optional(),
-  /** Points-earning amount ("Poänggrundade belopp"). */
   pointsAmount: z.number().optional(),
-  /** VAT breakdown rows ("Moms" table). */
   vat: z.array(VatLine).default([]),
-  /** Loyalty/membership card number ("Medlemskort"). Personal data. */
+  /** Personal data. */
   loyaltyCardId: z.string().optional(),
 });
 export type ReceiptCore = z.infer<typeof ReceiptCore>;
 
-/**
- * A fully normalized receipt: the stored core, the itemized lines, and the
- * printed detail no header row carries. `cashier` and `receiptType` are
- * provenance nothing queries, and `rawText` is the source blob a store keeps
- * beside the row rather than in it, so all three stay out of {@link ReceiptCore}.
- */
 export const Receipt = ReceiptCore.extend({
-  /** Itemized purchase lines (products + discount lines). */
   items: z.array(LineItem),
-  /** Cashier id ("Kassör"). */
   cashier: z.string().optional(),
-  /** Receipt type line, e.g. "Elektroniskt kassakvitto". */
   receiptType: z.string().optional(),
-  /** The raw extracted PDF text, kept for debugging/re-parsing. */
   rawText: z.string().optional(),
 });
 export type Receipt = z.infer<typeof Receipt>;
 
-/**
- * One entry of a connector's receipt listing: metadata only, enough to show a
- * row and to fetch the full receipt by `id`. Store-agnostic, so a connector
- * maps its chain's raw list rows onto this shape.
- */
 export const ReceiptSummary = z.object({
-  /** The connector's receipt id. Pass it back to fetch the PDF/receipt. */
   id: z.string(),
-  /** Purchase timestamp as the store reports it, when present. */
   purchasedAt: z.string().optional(),
-  /** Store/point-of-sale name as printed in the listing. */
   place: z.string().optional(),
-  /** Receipt total in the store's currency. */
   amount: z.number().optional(),
 });
 export type ReceiptSummary = z.infer<typeof ReceiptSummary>;

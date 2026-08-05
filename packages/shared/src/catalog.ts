@@ -1,29 +1,12 @@
 import { z } from 'zod';
 import { ReceiptSource } from './stores';
 
-/**
- * Most EANs a single `getManyByEan` call may ask for. A receipt is ~20 lines, so
- * this is still generous; the cap exists so one call can't turn into an
- * unbounded fan-out of index reads. A caller with more splits into two calls.
- *
- * Contract rather than implementation: the server throws above it rather than
- * truncating, so a client that batches by a stale copy fails at runtime with
- * nothing failing at build time. Both sides import this one.
- */
+/** The server throws above this rather than truncating, so both sides import
+ * this one constant instead of copying it. */
 export const MAX_EANS_PER_LOOKUP = 50;
 
-/**
- * Nutrition per {@link CatalogNutrition.basisQuantity} of the product. Fixed
- * slots rather than a free list: a store's own nutrient vocabulary is prose in
- * its own language, so the projector maps it onto these once and consumers
- * render a table without a lookup table of their own. Nutrients outside the
- * slots (vitamins, minerals) are dropped — they are on a small minority of rows
- * and adding a slot later is a compatible change.
- *
- * The per-field notes are `.meta({ description })` rather than JSDoc so the dev
- * portal can render them straight off `z.toJSONSchema`, and the `id` puts this
- * in `$defs` under its own name instead of being inlined into every parent.
- */
+/** Field notes are `.meta({ description })` and not JSDoc because the dev portal
+ * renders them straight off `z.toJSONSchema`. */
 export const CatalogNutrition = z
   .object({
     basisQuantity: z
@@ -57,18 +40,8 @@ export const CatalogNutrition = z
   .meta({ id: 'CatalogNutrition' });
 export type CatalogNutrition = z.infer<typeof CatalogNutrition>;
 
-/**
- * The consumable-product block. Present only when the source actually carries
- * ingredients or nutrition, so its presence IS the "this is food" signal — there
- * is deliberately no `kind` classifier, which would need a per-store category
- * mapping that is wrong at the edges. A consumer checks `item.food` once and
- * renders either the full card or the simple one.
- *
- * NOT an allergen source. Allergens are only ever prose inside
- * {@link CatalogFood.ingredients}; the structured allergen field the sources
- * offer is on too few rows to promise anything. Never present this block, or any
- * part of it, as allergen coverage.
- */
+/** Not an allergen source. Allergens are only ever prose inside `ingredients`,
+ * so never present any part of this block as allergen coverage. */
 export const CatalogFood = z
   .object({
     ingredients: z.string().optional().meta({
@@ -81,17 +54,7 @@ export const CatalogFood = z
   .meta({ id: 'CatalogFood' });
 export type CatalogFood = z.infer<typeof CatalogFood>;
 
-/**
- * A single clean catalog item, keyed by GTIN/EAN across every store chain.
- *
- * Everything past the identity block is optional: coverage differs per field and
- * per chain, and a consumer must render around what is missing rather than
- * assume a full row. Price is deliberately absent — it is time-varying and
- * store-specific, so it belongs to its own contract, not to the product
- * description. Package size and sales unit stay, being product facts.
- */
 export const CatalogItem = z.object({
-  // ── Identity and provenance ──
   ean: z.string().meta({ description: 'GTIN/EAN, the cross-system join key.' }),
   name: z.string().meta({ description: 'Product display name.' }),
   store: ReceiptSource.meta({
@@ -106,7 +69,6 @@ export const CatalogItem = z.object({
       'Id of the backing raw row, as a string. Provenance only, like sourceTable, and not dereferenceable.',
   }),
 
-  // ── Shelf card ──
   brand: z
     .string()
     .optional()
@@ -134,7 +96,6 @@ export const CatalogItem = z.object({
     .optional()
     .meta({ description: 'Category breadcrumb, root first and leaf last.' }),
 
-  // ── Descriptive ──
   description: z
     .string()
     .optional()

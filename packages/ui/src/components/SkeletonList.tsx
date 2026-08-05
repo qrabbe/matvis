@@ -1,15 +1,7 @@
 import { Skeleton, Stack, VisuallyHidden } from '@wordpress/ui';
 
-/** Cycled row widths, so the placeholder reads as ragged rows of content rather
- * than one solid block. */
 const ROW_WIDTHS = ['100%', '84%', '92%', '76%'];
 
-/**
- * The standard content placeholder for a list or table loading into a layout we
- * already know the shape of. Prefer this to `InlineSpinner` there: it holds the
- * space, so the rows do not jump when they land. A spinner still belongs on
- * indeterminate progress and on action feedback.
- */
 export function SkeletonList({
   label,
   rows = 3,

@@ -3,9 +3,8 @@ import { Button, Stack, Text } from '@wordpress/ui';
 import { CopyButton } from './CopyButton';
 import { downloadJson } from '../download';
 
-/** A JSON payload as a scrollable monospace block with copy and download
- * controls above it. Pass a stable `value` (memoize it at the call site) so the
- * pretty-print is not redone on every parent render. */
+/** Pass a stable `value`, memoized at the call site, or the pretty-print reruns
+ * on every parent render. */
 export function JsonView({
   value,
   filename,

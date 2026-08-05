@@ -1,11 +1,6 @@
-/**
- * Matvis theme surface. The token *values* live in `palette.ts` (the single
- * source of truth) — seeded via `ThemeProvider` and pinned by the generated CSS
- * it injects. This rule just consumes the resulting tokens.
- */
 .matvis-theme {
   isolation: isolate; /* so portaled popovers layer correctly */
-  min-height: 100dvh; /* fill the viewport so the surface color reaches the edges */
+  min-height: 100dvh;
   background-color: var(--wpds-color-background-surface-neutral);
   color: var(--wpds-color-foreground-content-neutral);
 }

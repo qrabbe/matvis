@@ -1,24 +1,7 @@
-/**
- * Dark-theme bridge for the classic `@wordpress/components` + `@wordpress/dataviews`
- * fallbacks (Spinner, and the DataViews tables with their modals — see the
- * UI-component policy). Those libraries are styled for the light WP-admin palette:
- * they read the `--wp-components-color-*` token family, which `MatvisThemeProvider`
- * never sets, and the Modal hardcodes `#fff` / `#1e1e1e`. Without this, table
- * header/menu text renders dark-on-dark (invisible until hover) and the popup is a
- * white island.
- *
- * The token family itself is generated from `palette.ts` and injected by
- * `MatvisThemeProvider`. What is left here is the static half: the repaints of the
- * surfaces that hardcode a color instead of reading a token. `app.css` imports it
- * last so those overrides win.
- */
+/* Repaints the classic fallback surfaces that hardcode a light color instead of
+   reading a token. Every `!important` here is beating such a declaration. */
 
-/*
- * The Modal frame hardcodes a white background + dark text (no token). Repaint it
- * on the elevated dark surface so our `@wordpress/ui` content (light text) is
- * readable. `!important` beats the library's equal-specificity rule regardless of
- * stylesheet order under HMR.
- */
+/* Modal frame. */
 .components-modal__frame {
   background: var(
     --wpds-color-background-surface-neutral-strong,
@@ -27,13 +10,7 @@
   color: var(--wpds-color-foreground-content-neutral, #e0e0e0) !important;
 }
 
-/*
- * DataViews column headers (and other classic-components internals) are plain
- * `<button>`s. These apps ship no CSS reset, so form controls keep the browser
- * default `serif`. Give `body` the design-system font and make form controls
- * inherit it — `@wordpress/ui` components set their own font, so they're
- * unaffected; only the un-styled fallbacks change.
- */
+/* No CSS reset ships, so form controls keep the browser default serif. */
 body {
   font-family: var(
     --wpds-typography-font-family-body,
@@ -54,16 +31,7 @@ textarea {
   font-family: inherit;
 }
 
-/*
- * Every remaining white surface below is a classic `@wordpress/components` element
- * that hardcodes `#fff` (and a light `#ccc` border) instead of reading a token, so
- * it ignores the dark palette entirely. These are the ones that can surface in a
- * DataViews table + its modal: popovers/menus (row-action & view-options dropdowns),
- * the modal header, and the toggles/checkboxes inside the view-options dropdown.
- * `!important` is required — we're beating the library's own hardcoded declaration.
- */
-
-/* Popovers = every dropdown/menu (portaled to <body>). */
+/* Popovers, meaning every dropdown and menu. */
 .components-popover__content {
   background: var(
     --wpds-color-background-surface-neutral-strong,
@@ -88,13 +56,12 @@ textarea {
   ) !important;
 }
 
-/* Modal header/close bar (frame itself is repainted above). */
+/* Modal header and close bar. */
 .components-modal__header {
   background: transparent !important;
   color: var(--wpds-color-foreground-content-neutral, #f0f0f0);
 }
 
-/* Surfaces some components render onto. */
 .components-panel {
   background: transparent !important;
 }
@@ -106,7 +73,7 @@ textarea {
   color: var(--wpds-color-foreground-content-neutral, #f0f0f0);
 }
 
-/* Unchecked toggles/checkboxes/radios in the view-options dropdown. */
+/* Unchecked toggles, checkboxes and radios. */
 .components-form-toggle .components-form-toggle__track {
   background-color: var(
     --wpds-color-background-track-neutral,
@@ -129,10 +96,7 @@ textarea {
   ) !important;
 }
 
-/*
- * DataViews hides row-action buttons (`opacity: 0`) until the row is hovered — a
- * dense-table convention. We keep our single-action rows always visible instead.
- */
+/* DataViews hides row actions until hover. Ours stay visible. */
 .dataviews-view-table
   tr
   .dataviews-item-actions

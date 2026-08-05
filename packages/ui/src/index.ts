@@ -1,4 +1,3 @@
-// @matvis/ui
 export { MatvisThemeProvider } from './theme';
 export { mountApp, requireConvexUrl } from './mountApp';
 export { createLocalStorageStore } from './localStorageStore';
