@@ -71,7 +71,7 @@ export const rebuildCleanFromRaw = internalAction({
  * bytes; `raw_coop`'s are full Coop payloads averaging ~3 kB with much fatter
  * outliers, so they get a smaller page to stay well inside a transaction. */
 const RECOUNT_QUEUE_PAGE = 1000;
-const RECOUNT_RAW_PAGE = 200;
+export const RECOUNT_RAW_PAGE = 200;
 
 type CountPage = {
   counts: Record<string, number>;
