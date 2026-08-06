@@ -16,6 +16,7 @@
     "directory": "packages/connector"
   },
   "scripts": {
+    "dev": "convex dev",
     "typecheck": "tsc -b"
   },
   "dependencies": {

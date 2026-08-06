@@ -16,6 +16,7 @@
     "directory": "packages/catalog"
   },
   "scripts": {
+    "dev": "convex dev",
     "typecheck": "tsc -b",
     "test": "vitest run"
   },

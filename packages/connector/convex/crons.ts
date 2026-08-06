@@ -43,6 +43,7 @@ export const dispatchSync = internalMutation({
 
 const crons = cronJobs();
 
-crons.cron('daily receipt sync', '20 2 * * *', internal.crons.dispatchSync, {});
+// Disabled by request. Re-enable deliberately, and only with the run log watched.
+// crons.cron('daily receipt sync', '20 2 * * *', internal.crons.dispatchSync, {});
 
 export default crons;
