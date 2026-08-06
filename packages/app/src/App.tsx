@@ -17,14 +17,6 @@ import { usePurchaseData, type PurchaseData } from './hooks/usePurchaseData';
 import { api } from './lib/convexApi';
 import { looksLikeToken, useApiToken } from './lib/tokenStore';
 
-/**
- * Every panel is loaded on demand, which is the only reason the entry chunk is
- * not the whole app. `Tabs.Panel` defaults to `keepMounted = false`, so an
- * unopened tab never renders and never asks for its chunk: recharts stays
- * unfetched for anyone who does not open Nutrition, Stats or Activity, and
- * dataviews for anyone who does not open Purchases or Unmapped. The panels are
- * named exports, hence the mapping to `default`.
- */
 const ActivityPanel = lazy(() =>
   import('./features/ActivityPanel').then((m) => ({
     default: m.ActivityPanel,
@@ -57,23 +49,12 @@ const UnmappedPanel = lazy(() =>
   })),
 );
 
-/** Everything a panel can draw on. Each tab takes what it needs and ignores the
- * rest, which is what keeps the panels out of each other's prop lists. */
 type TabContext = {
   data: PurchaseData;
   token: string;
   forgetToken: () => void;
 };
 
-/**
- * The seven tabs, in the order they are shown.
- *
- * The order is the point of this array and is literal on purpose: it front-loads
- * what works. Purchases, Activity and Stats derive from receipt HEADERS and are
- * complete today; Pantry and Nutrition depend on a matching engine that does not
- * exist yet and so start near-empty. Unmapped is where that gap is measured,
- * which makes it the most useful tab at launch.
- */
 const TABS: {
   id: string;
   label: string;
@@ -118,16 +99,6 @@ const TABS: {
   },
 ];
 
-/**
- * The Matvis app: seven tabs over the two Convex deployments.
- *
- * Read-only by construction, not by convention. `main.tsx` mounts
- * `ConvexProvider` and never `ConvexAuthProvider`, so there is no session; every
- * connector write resolves its caller through `getAuthUserId` and throws
- * `Unauthenticated` before it reaches a handler. The catalog exposes no public
- * write at all. The app holds one credential — the account API read token — and
- * both typed facades declare nothing but queries.
- */
 export function App() {
   const { token, setToken, forgetToken } = useApiToken();
   const data = usePurchaseData(token);
@@ -178,8 +149,6 @@ export function App() {
   );
 }
 
-/** Title plus the stores behind the token — the quickest confirmation that the
- * pasted credential resolves to the account the user expected. */
 function Header({ token }: { token: string | null }) {
   const connections = useQuery(
     api.connections.list,
@@ -206,12 +175,6 @@ function Header({ token }: { token: string | null }) {
   );
 }
 
-/**
- * Onboarding is a paste step, not a sign-in button — a direct consequence of the
- * app having no session. The token is minted in the connector portal, which is
- * also where a store gets linked, so the gate points there rather than trying to
- * do either job itself.
- */
 function TokenGate({ onSubmit }: { onSubmit: (token: string) => void }) {
   const [value, setValue] = useState('');
 
@@ -251,8 +214,6 @@ function TokenGate({ onSubmit }: { onSubmit: (token: string) => void }) {
   );
 }
 
-/** First-load progress. Shown only while there is genuinely something to wait
- * for: a warm IndexedDB cache reports nothing to hydrate and this disappears. */
 function HydrationStatus({ data }: { data: PurchaseData }) {
   const { hydration, loadingHeaders, loadingMoreHeaders } = data;
   const pending = hydration.total > hydration.done;

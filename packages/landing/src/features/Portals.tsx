@@ -6,10 +6,8 @@ type Portal = {
   status: { label: string; intent: 'stable' | 'draft' };
   desc: string;
   points: string[];
-  /** Relative to the Pages root, so the same links work under any base path. */
   href?: string;
   cta?: string;
-  /** Matches the button treatment this portal has in the hero. */
   variant?: 'solid' | 'outline';
 };
 
@@ -55,7 +53,6 @@ const PORTALS: Portal[] = [
   },
 ];
 
-/** The three entry points, each a card. A system without a UI shows without a link. */
 export function Portals() {
   return (
     <Section

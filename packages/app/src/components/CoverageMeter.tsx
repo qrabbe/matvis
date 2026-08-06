@@ -4,24 +4,11 @@ import type { Coverage } from '../lib/purchases';
 import { SERIES } from './chartTheme';
 import { Meter } from './Meter';
 
-/**
- * How much of the account actually resolves to a product — a first-class
- * element on every product-dependent view, not an error state.
- *
- * This exists because of a fact about the system rather than a design
- * preference: `receiptItems.gtin` is the only join key between a receipt line
- * and a product, it is filled from `itemGtinMap`, and that table starts empty
- * with nothing filling it yet. So today this reads close to "0 of N matched".
- * A view that hid that would just look broken; a view that states it is honest,
- * and the number doubles as the progress bar for the matching engine.
- */
 export function CoverageMeter({
   coverage,
   detail = false,
 }: {
   coverage: Coverage;
-  /** Show the full funnel underneath, not just the headline. Used on the
-   * Unmapped tab, which is where the gap is the subject. */
   detail?: boolean;
 }) {
   const { totalLines, matchedLines, nutritionLines } = coverage;
@@ -52,15 +39,6 @@ export function CoverageMeter({
   );
 }
 
-/**
- * The funnel step by step, so it is clear WHERE coverage is lost — unmatched
- * text, an EAN nothing has catalogued, a product with no nutrition table, or a
- * unit that would not resolve. Each of those needs a different fix, so each is
- * worth its own row and its own one-line explanation. The explanations are plain
- * text rather than tooltips on purpose: `Tooltip` is visual-only, not exposed to
- * assistive technology and absent on touch, which is the wrong carrier for the
- * only thing that explains the number.
- */
 function CoverageFunnel({ coverage }: { coverage: Coverage }) {
   const rows: { label: string; value: number; hint: string }[] = [
     {

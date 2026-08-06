@@ -8,19 +8,10 @@ import type { PurchaseData } from '../hooks/usePurchaseData';
 import { formatKr } from '../lib/format';
 import { dailySpend } from '../lib/stats';
 
-/**
- * The contribution-style spend calendar.
- *
- * Header-derived, with no product join anywhere in it, so **this tab is complete
- * today** — unlike Pantry and Nutrition, which wait on a matching engine. That
- * is also why it sits early in the tab order.
- */
 const MONTH_OPTIONS = [3, 6, 12] as const;
 
 export function ActivityPanel({ data }: { data: PurchaseData }) {
   const [months, setMonths] = useState<number>(6);
-  // Read once and held: a fresh timestamp per render would rebuild the whole
-  // calendar grid every time the panel re-renders.
   const [todayMs] = useState(() => Date.now());
   const spendByDay = useMemo(() => dailySpend(data.headers), [data.headers]);
 

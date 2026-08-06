@@ -4,12 +4,6 @@ import { sizedImageUrl } from '@matvis/ui';
 import type { CatalogRow } from '@matvis/shared';
 import { CHART_CHROME } from './chartTheme';
 
-/**
- * A product image at a fixed size, falling back to a neutral tile with the
- * product's initial. The fallback is deliberately quiet: a missing image is
- * extremely common in the catalog and a loud placeholder would make a normal
- * row look like an error.
- */
 export function ProductThumb({
   product,
   size = 48,

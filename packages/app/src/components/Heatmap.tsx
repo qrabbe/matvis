@@ -5,24 +5,6 @@ import { buildHeatmapGrid } from '../lib/heatmap';
 import type { DailySpend } from '../lib/stats';
 import { EMPTY_CELL, rampStep, SEQUENTIAL } from './chartTheme';
 
-/**
- * The contribution-style spend calendar: one column per week, one row per
- * weekday, cell brightness by that day's spend.
- *
- * Not recharts — it has no calendar heatmap, and a plain grid of divs was
- * already the right answer in the old repo. It reads `chartTheme.ts` for its
- * ramp, so it and the bar charts stay one system rather than two.
- *
- * Brightness is on a **log₂** scale (see `rampStep`), which was a considered
- * choice worth preserving: grocery spend spans two orders of magnitude across
- * days, so a linear ramp paints every ordinary day the same dim step and leaves
- * one big shop as the only visible cell.
- *
- * This tab needs no product join — it reads receipt headers only — so it works
- * fully today, while the matching-dependent views wait.
- */
-
-/** Weekday row labels, Monday-first (the Swedish convention). */
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 const CELL = 12;
@@ -34,11 +16,7 @@ export function Heatmap({
   todayMs,
 }: {
   spendByDay: ReadonlyMap<string, DailySpend>;
-  /** How far back the calendar reaches. */
   months?: number;
-  /** Where the calendar ends. A timestamp rather than a `Date` because the
-   * caller has to hold it steady, and a number cannot silently churn identity
-   * and rebuild the grid on every render. */
   todayMs: number;
 }) {
   const { weeks, monthLabels } = useMemo(
@@ -54,7 +32,6 @@ export function Heatmap({
     return peak;
   }, [spendByDay]);
 
-  // By column, so the ruler is a lookup per week rather than a scan per week.
   const labelByColumn = useMemo(
     () => new Map(monthLabels.map((m) => [m.column, m.label])),
     [monthLabels],
@@ -71,7 +48,6 @@ export function Heatmap({
       >
         <SharedTooltip hovered={hovered} />
         <Stack direction="column" gap="xs">
-          {/* Month ruler, positioned by column so it tracks the grid exactly. */}
           <div
             style={{
               display: 'grid',
@@ -102,8 +78,6 @@ export function Heatmap({
                 alignItems: 'center',
               }}
             >
-              {/* Only alternate rows are labelled — seven labels on a 12px grid
-                  is denser than it is legible. */}
               <Text variant="body-sm" style={{ fontSize: 10 }}>
                 {row % 2 === 1 ? weekday : ''}
               </Text>
@@ -130,20 +104,8 @@ export function Heatmap({
   );
 }
 
-/** The hovered cell's text plus where to put the tooltip, in coordinates
- * relative to the scrolling grid wrapper. */
 type HoveredCell = { description: string; left: number; top: number };
 
-/**
- * The calendar's one and only tooltip.
- *
- * A `Tooltip.Root` per cell is 371 stores and contexts at the 12-month setting,
- * for text that is already on every cell's `aria-label`. Instead a single
- * invisible trigger is parked over whichever cell the pointer is on. It covers
- * only that cell, so the neighbours still receive their own `pointerenter` and
- * move it along, and because the pointer never leaves the trigger the popup
- * swaps text instead of closing and reopening between days.
- */
 function SharedTooltip({ hovered }: { hovered: HoveredCell | null }) {
   return (
     <Tooltip.Root>
@@ -168,13 +130,6 @@ function SharedTooltip({ hovered }: { hovered: HoveredCell | null }) {
   );
 }
 
-/** One day. The detail the old repo put in a `title` attribute is the cell's
- * `aria-label`, which is what reaches a screen reader; the shared tooltip shows
- * the same string to everyone else.
- *
- * Memoised because hovering sets parent state: without it a single pointer move
- * re-renders all 371 cells at the 12-month setting. `onHover` is the `setState`
- * setter, so the memo holds for every cell but the one entered. */
 const HeatCell = memo(function HeatCell({
   day,
   entry,
@@ -222,8 +177,6 @@ const HeatCell = memo(function HeatCell({
   );
 });
 
-/** Dim-to-bright key. Always present: the ramp encodes magnitude and a reader
- * cannot infer the direction from the cells alone. */
 function Legend() {
   return (
     <Stack direction="row" gap="xs" align="center">

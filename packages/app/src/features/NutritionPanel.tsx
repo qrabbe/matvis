@@ -57,14 +57,6 @@ import {
 import { relativeChange } from '../lib/stats';
 import type { PurchaseLine } from '../lib/purchases';
 
-/**
- * Nutrition over time, under the spreading model.
- *
- * The headline caveat is stated in the UI rather than buried here: these are
- * macros **bought**, smoothed over a fixed window, not macros eaten. The app
- * cannot know what was eaten — recording that is a write, and it has none. See
- * ticket 17.
- */
 const MACRO_KEYS: MacroKey[] = ['kcal', 'protein', 'fat', 'carbs', 'sugars'];
 
 const MACRO_OPTIONS = MACRO_KEYS.map((key) => ({
@@ -72,18 +64,12 @@ const MACRO_OPTIONS = MACRO_KEYS.map((key) => ({
   value: key as string,
 }));
 
-/** One day's bucket of spread-out macros, plus the lines that fed it. */
 interface DayBucket {
   day: string;
   macros: Macros;
   contributors: PurchaseLine[];
 }
 
-/**
- * Spread every scalable line across its consumption window and bucket by day.
- * Lines whose macros are `null` are skipped, never zero-filled — a zero would
- * silently drag every average down and make missing data look like a diet.
- */
 function bucketByDay(lines: readonly PurchaseLine[]): Map<string, DayBucket> {
   const buckets = new Map<string, DayBucket>();
   for (const line of lines) {
@@ -102,7 +88,6 @@ function bucketByDay(lines: readonly PurchaseLine[]): Map<string, DayBucket> {
   return buckets;
 }
 
-/** Total macros across a set of buckets. */
 function totalMacros(buckets: Iterable<DayBucket>): Macros {
   let total = ZERO_MACROS;
   for (const bucket of buckets) total = addMacros(total, bucket.macros);
@@ -125,8 +110,6 @@ export function NutritionPanel({ data }: { data: PurchaseData }) {
     return oldest ?? undefined;
   }, [buckets]);
 
-  // Every day in the range, including the empty ones — a chart drawn only over
-  // days with data silently rescales its axis and turns a gap into a dense week.
   const series = useMemo(
     () => daySeries(range, (day) => buckets.get(day)?.macros[macro] ?? 0),
     [buckets, macro, range],
@@ -146,8 +129,6 @@ export function NutritionPanel({ data }: { data: PurchaseData }) {
     );
   }, [buckets, range]);
 
-  // Plain objects rather than memos: both feed non-memoized StatCards, so
-  // memoizing an object literal costs more than it saves.
   const perDay = scaleMacros(current, 1 / rangeLengthDays(range));
   const previousPerDay = scaleMacros(
     previous,
@@ -249,15 +230,10 @@ export function NutritionPanel({ data }: { data: PurchaseData }) {
         <Stack direction="column" gap="md">
           <div style={{ width: '100%', height: 280 }}>
             <ResponsiveContainer>
-              {/* Single series: the card title and axis name it, so no legend
-                    and no per-nutrient hue. */}
               <BarChart
                 data={series}
                 margin={{ top: 8, right: 8, bottom: 0, left: 0 }}
                 onClick={(state) => {
-                  // Resolve the clicked datum by index, not by axis label.
-                  // The label omits the year, so two years of receipts put
-                  // two different days under one label.
                   setSelectedDay(dayAtIndex(series, state?.activeIndex));
                 }}
               >
@@ -311,8 +287,6 @@ export function NutritionPanel({ data }: { data: PurchaseData }) {
   );
 }
 
-/** The model caveat, stated as a `Notice` on the tab itself. Users must not read
- * "what I ate" into what is really "what I bought, smoothed". */
 function ModelNotice() {
   return (
     <Notice.Root intent="info">
@@ -324,7 +298,6 @@ function ModelNotice() {
   );
 }
 
-/** Which products drove a clicked day, biggest contribution first. */
 function DayDrilldown({
   bucket,
   macro,

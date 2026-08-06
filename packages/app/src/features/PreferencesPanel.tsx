@@ -4,15 +4,6 @@ import { SectionCard } from '../components/SectionCard';
 import { CONSUMPTION_WINDOW_DAYS, PROTEIN_GOAL_G } from '../lib/nutrition';
 import { clearCachedItems } from '../lib/itemCache';
 
-/**
- * A placeholder for settings, and the real home of the token control.
- *
- * The token half is not a placeholder: the app keeps a bearer credential in
- * `localStorage` that survives a tab close, so a visible way to drop it is a
- * requirement rather than a nicety. Forgetting the token also clears the cached
- * line items — that cache holds one account's purchase history and must not
- * outlive the credential that fetched it.
- */
 export function PreferencesPanel({
   onForgetToken,
 }: {
@@ -23,8 +14,6 @@ export function PreferencesPanel({
   const forget = async () => {
     setClearing(true);
     try {
-      // Cache first: if this throws, the token stays and the user can retry,
-      // which is better than a forgotten token leaving orphaned receipts on disk.
       await clearCachedItems();
       onForgetToken();
     } finally {

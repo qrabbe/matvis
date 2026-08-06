@@ -2,19 +2,6 @@ import { Stack, Text } from '@wordpress/ui';
 import { energySplit, type Macros } from '../lib/nutrition';
 import { SERIES } from './chartTheme';
 
-/**
- * Where the energy came from: protein / fat / carbohydrate as a share of
- * kcal, on the standard Atwater factors (4 / 9 / 4).
- *
- * This is the app's only chart with more than one series on it, which makes it
- * the only place the categorical palette is load-bearing — see
- * `chartTheme.ts` for the validated three slots.
- *
- * Every segment carries a direct label, so identity never rests on colour
- * alone. That is also the secondary encoding the blue/rose pair wants: it clears
- * the protan and deutan thresholds comfortably but sits closer under tritanopia,
- * and a label costs nothing here.
- */
 export function MacroSplitBar({ macros }: { macros: Macros }) {
   const split = energySplit(macros);
   if (!split) {
@@ -53,8 +40,6 @@ export function MacroSplitBar({ macros }: { macros: Macros }) {
             style={{
               width: `${segment.share * 100}%`,
               background: segment.color,
-              // A 2px surface gap between fills, so two adjacent segments read
-              // as two marks rather than as one blended band.
               marginLeft: index === 0 ? 0 : 2,
             }}
           />
@@ -78,7 +63,6 @@ export function MacroSplitBar({ macros }: { macros: Macros }) {
                 flexShrink: 0,
               }}
             />
-            {/* Text keeps its own ink; the swatch beside it carries identity. */}
             <Text variant="body-sm">
               {segment.label} {Math.round(segment.share * 100)}%
             </Text>

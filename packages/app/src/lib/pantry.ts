@@ -8,65 +8,28 @@ import {
 } from './nutrition';
 import type { PurchaseLine } from './purchases';
 
-/**
- * Pantry grouping: what was bought and, under the spreading model, has not yet
- * been notionally consumed. Pure.
- *
- * "Notionally" is doing real work in that sentence. Nothing here knows what was
- * eaten — the app has no write access, so there is no way to record it (see
- * lib/nutrition.ts and ticket 17). A purchase is treated as consumed evenly over
- * {@link CONSUMPTION_WINDOW_DAYS} days, so "in the pantry" means "bought inside
- * the window, prorated by how much of the window is left". Every surface that
- * shows these numbers has to say so.
- */
-
-/** One product, aggregated across every line that bought it. */
 export interface PantryGroup {
-  /** The EAN — the group key. */
   ean: string;
-  /** Display name, from the catalog row. */
   name: string;
   product: CatalogRow;
-  /** How many units were bought across the whole history. */
   unitsBought: number;
-  /** Total spend on this product. */
   spend: number;
-  /** Number of receipt lines that bought it. */
   lines: number;
   firstPurchase: Date;
   lastPurchase: Date;
-  /** Macros of everything ever bought. `null` for none of it being scalable. */
   totalMacros: Macros | null;
-  /** The share of {@link totalMacros} still inside the consumption window. */
   remainingMacros: Macros;
-  /** Fraction of the purchased amount still notionally unconsumed, 0..1.
-   * Weighted by energy, or by units when the product has no scalable
-   * nutrition. Never depends on the order the lines arrived in. */
   remainingFraction: number;
 }
 
-/** The strip above the pantry list: what is notionally still on the shelf. */
 export interface PantryStock {
-  /** Distinct products with anything remaining. */
   products: number;
   macros: Macros;
-  /**
-   * How many days the remaining protein covers at the account's own average
-   * daily intake, or `null` when there is no average to divide by. The one
-   * number in the old app that answered a real question.
-   */
   proteinDays: number | null;
 }
 
-/** Below this many protein days the strip warns. Three days is roughly "top up
- * on the next normal shop" rather than "you are out". */
 export const LOW_PROTEIN_DAYS = 3;
 
-/**
- * How much of a purchase is still notionally unconsumed at `now`, as a fraction
- * of the whole. 1 on the day of purchase, linearly down to 0 at the end of the
- * window, clamped at both ends so a future-dated receipt cannot exceed 1.
- */
 export function remainingFraction(
   purchasedAt: Date,
   now: Date,
@@ -78,23 +41,12 @@ export function remainingFraction(
   return 1 - elapsedDays / windowDays;
 }
 
-/**
- * Group matched lines by product. Only lines that resolved to a catalog row can
- * appear — an unmatched line has no product to group under, which is exactly
- * what the Unmapped tab is for, and why the empty state here points there.
- *
- * Sorted by total energy, so the products that dominate the account's calories
- * sort to the top. Products with no scalable nutrition fall to the bottom rather
- * than being dropped: they were still bought.
- */
 export function groupPantry(
   lines: readonly PurchaseLine[],
   now: Date = new Date(),
   windowDays: number = CONSUMPTION_WINDOW_DAYS,
 ): PantryGroup[] {
   const groups = new Map<string, PantryGroup>();
-  // Units still inside the window, per EAN. The fallback weighting for a
-  // product with no scalable nutrition, which has no energy to weight by.
   const remainingUnits = new Map<string, number>();
 
   for (const line of lines) {
@@ -122,8 +74,6 @@ export function groupPantry(
         lastPurchase: line.purchasedAt,
         totalMacros: line.macros,
         remainingMacros: remaining,
-        // Provisional: always recomputed below once every line is in, so it
-        // is a share of the whole rather than this one line's.
         remainingFraction: fraction,
       });
       continue;
@@ -146,10 +96,6 @@ export function groupPantry(
     existing.remainingMacros = addMacros(existing.remainingMacros, remaining);
   }
 
-  // Energy-weighted where there is energy, unit-weighted where there is not.
-  // Keeping the seed line's fraction instead would make the answer depend on
-  // which line `buildLines` happened to emit first: the same two purchases fed
-  // newest-first render "100% left" and oldest-first "0% left".
   const out = [...groups.values()];
   for (const group of out) {
     const total = group.totalMacros?.kcal ?? 0;
@@ -166,20 +112,11 @@ export function groupPantry(
   );
 }
 
-/** `scaleMacros` with a guard, so a zero fraction yields real zeroes rather
- * than `-0`s that print as "-0 g". */
 function scaleOrZero(macros: Macros, factor: number): Macros {
   if (factor <= 0) return ZERO_MACROS;
   return scaleMacros(macros, factor);
 }
 
-/**
- * The stock strip. `averageDailyProtein` comes from the Nutrition derivation
- * (the account's own spread-out average), not from a recommendation — so
- * "protein days" answers "how long does this last at the rate I actually buy",
- * which is a question the data can answer, rather than "how long should it
- * last", which it cannot.
- */
 export function pantryStock(
   groups: readonly PantryGroup[],
   averageDailyProtein: number,

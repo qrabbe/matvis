@@ -17,19 +17,6 @@ import {
   type UnmappedGroup,
 } from '../lib/unmapped';
 
-/**
- * What the account keeps buying that nothing can identify.
- *
- * **Read-only.** The old repo's equivalent was 624 lines of search box, live
- * Coop lookup, admin rule creation and mutations; none of that comes across,
- * because creating a mapping is a write and the app has none. What survives is
- * the rollup that made it useful — and today that rollup is the most valuable
- * thing in the app, since `itemGtinMap` starts empty and nothing fills it, so
- * essentially every line lands here.
- *
- * That is also why the global coverage meter lives on this tab: this is the
- * honest measure of how much of the app is real.
- */
 const CATALOG_PORTAL_URL = '../catalog';
 
 const FIELDS: Field<UnmappedGroup>[] = [
@@ -89,10 +76,6 @@ const FIELDS: Field<UnmappedGroup>[] = [
     enableHiding: false,
     getValue: ({ item }) => item.key,
     render: ({ item }) => (
-      // A link and a copy button, not a mapping control. The catalog portal's
-      // search box is local state and reads no term off the URL, so a "search
-      // for this" deep link would land on an empty box — the copy button is what
-      // actually makes the round trip work today.
       <Stack direction="row" gap="xs" align="center">
         <CopyButton text={item.text} label="Copy" icon />
         <LinkButton
@@ -109,7 +92,6 @@ const FIELDS: Field<UnmappedGroup>[] = [
   },
 ];
 
-/** Stable empty input for the paginate memo while hydration is still running. */
 const EMPTY_GROUPS: UnmappedGroup[] = [];
 
 const DEFAULT_VIEW: View = {
@@ -131,9 +113,6 @@ export function UnmappedPanel({ data }: { data: PurchaseData }) {
   const [view, setView] = useState<View>(DEFAULT_VIEW);
   const hydrating = data.hydration.total > data.hydration.done;
 
-  // Nothing below the placeholder renders while hydrating, and the grouping
-  // runs two regexes and a `toLowerCase` per line — so a cold load's worth of it
-  // would be computed and thrown away once per batch of receipts.
   const groups = useMemo(
     () => (hydrating ? EMPTY_GROUPS : groupUnmapped(data.lines)),
     [data.lines, hydrating],

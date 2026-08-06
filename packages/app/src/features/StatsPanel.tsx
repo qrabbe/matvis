@@ -39,14 +39,6 @@ import {
   relativeChange,
 } from '../lib/stats';
 
-/**
- * Headline tiles plus spend by month.
- *
- * Almost entirely header-derived, so **most of this works today**.
- * `discountsTotal` in particular is already on the receipt header, which means
- * the discount tile needs no line items at all — the one thing here that waits
- * on matching is the coverage meter, and that is honest about itself.
- */
 export function StatsPanel({ data }: { data: PurchaseData }) {
   const [preset, setPreset] = useState<RangePresetId | null>('90d');
   const [range, setRange] = useState<DateRange>(() => presetRange('90d'));
@@ -162,7 +154,6 @@ export function StatsPanel({ data }: { data: PurchaseData }) {
         ) : (
           <div style={{ width: '100%', height: 260 }}>
             <ResponsiveContainer>
-              {/* Single series, so no legend — the card title names it. */}
               <BarChart
                 data={months}
                 margin={{ top: 8, right: 8, bottom: 0, left: 0 }}

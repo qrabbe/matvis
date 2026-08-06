@@ -20,22 +20,9 @@ import {
   type PantryGroup,
 } from '../lib/pantry';
 
-/**
- * What is bought and, under the spreading model, not yet notionally consumed.
- *
- * There is no "Mark used" button — that was the write. Ticket 17 covers bringing
- * real consumption tracking back; until then the pantry is an inference from
- * purchase dates, and the tab says so.
- *
- * Rows are cards rather than a data grid: each is image-led with mixed content,
- * and forcing that into a table loses more than the sorting gains.
- */
 export function PantryPanel({ data }: { data: PurchaseData }) {
   const groups = useMemo(() => groupPantry(data.lines), [data.lines]);
 
-  // The account's own average daily protein over the window, which is what
-  // makes "protein days" answer a real question — how long the shelf lasts at
-  // the rate this household actually buys, not at a recommended rate.
   const averageDailyProtein = useMemo(() => {
     let total = ZERO_MACROS;
     for (const line of data.lines) {
@@ -97,7 +84,6 @@ export function PantryPanel({ data }: { data: PurchaseData }) {
     <Stack direction="column" gap="xl">
       <ModelNotice />
 
-      {/* Six short numbers, so they pack tighter than the other stat rows. */}
       <StatGrid min={160}>
         <StatCard
           label="Products on the shelf"
@@ -153,7 +139,6 @@ export function PantryPanel({ data }: { data: PurchaseData }) {
   );
 }
 
-/** One product: image, name, purchase span, unit count, macros. */
 function PantryRow({ group }: { group: PantryGroup }) {
   const first = group.firstPurchase.toLocaleDateString('sv-SE');
   const last = group.lastPurchase.toLocaleDateString('sv-SE');
@@ -192,8 +177,6 @@ function PantryRow({ group }: { group: PantryGroup }) {
   );
 }
 
-/** States the model on the tab itself — "in the pantry" is an inference from
- * purchase dates, never an observation. */
 function ModelNotice() {
   return (
     <Notice.Root intent="info">

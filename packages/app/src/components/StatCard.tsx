@@ -2,17 +2,6 @@ import type { ReactNode } from 'react';
 import { Card, Stack, Text } from '@wordpress/ui';
 import { Meter } from './Meter';
 
-/**
- * A headline number with its label and optional supporting detail.
- *
- * Deliberately not a chart: a single value's job is to be read, not compared, so
- * it gets typographic hierarchy rather than a plot. Charts start where a second
- * value does.
- *
- * `goal` draws a progress meter beneath the value. It renders as a meter, not as
- * a judgement — see the Nutrition tab, where the protein goal is labelled "goal"
- * and never as advice.
- */
 export function StatCard({
   label,
   value,
@@ -23,13 +12,9 @@ export function StatCard({
 }: {
   label: string;
   value: string;
-  /** Small supporting line under the value, e.g. a date range. */
   sub?: string;
-  /** Optional progress meter: `value / target`, both in the same unit. */
   goal?: { current: number; target: number; label?: string };
-  /** A `TrendBadge`, or anything else that belongs beside the label. */
   trend?: ReactNode;
-  /** `caution` tints the value, for a number the user should notice. */
   tone?: 'neutral' | 'caution';
 }) {
   return (
@@ -66,7 +51,6 @@ export function StatCard({
   );
 }
 
-/** A bounded progress meter with its caption underneath. */
 function GoalMeter({
   current,
   target,

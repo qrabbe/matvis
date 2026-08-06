@@ -1,6 +1,5 @@
 import { LinkButton, Stack, Text } from '@wordpress/ui';
 
-/** Page opener: what Matvis is, plus the three entry points into the product. */
 export function Hero() {
   return (
     <Stack direction="column" gap="lg" render={<header />}>

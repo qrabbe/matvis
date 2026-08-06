@@ -7,15 +7,6 @@ import {
   type RangePresetId,
 } from '../lib/dateRange';
 
-/**
- * Preset buttons plus two date inputs. The range math lives in `lib/dateRange.ts`
- * and is tested there; this is chrome only.
- *
- * Presets are clamped to the account's earliest purchase, so "1 year" over three
- * months of receipts draws three months rather than nine empty ones — the range
- * the user asked for is a request, and honouring it literally would just produce
- * an unreadable chart.
- */
 export function DateRangePicker({
   range,
   onChange,
@@ -25,7 +16,6 @@ export function DateRangePicker({
 }: {
   range: DateRange;
   onChange: (range: DateRange) => void;
-  /** The oldest day the account has, used to clamp presets. */
   earliest?: string;
   activePreset: RangePresetId | null;
   onPresetChange: (preset: RangePresetId) => void;

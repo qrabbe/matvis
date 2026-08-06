@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react';
 import { Stack, Text } from '@wordpress/ui';
 
-/** One titled block of the page: heading, optional lead paragraph, content. */
 export function Section({
   title,
   lead,

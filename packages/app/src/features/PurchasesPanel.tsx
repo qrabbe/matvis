@@ -1,9 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useConvex } from 'convex/react';
 import { Badge, Button, EmptyState, Stack, Tabs, Text } from '@wordpress/ui';
-// The receipts list is a `@wordpress/dataviews` table — `@wordpress/ui` has no
-// data-grid equivalent, so this is a justified fallback (like `Spinner`). Its
-// stylesheet is loaded once in `main.tsx`.
 import {
   DataViews,
   filterSortAndPaginate,
@@ -26,19 +23,6 @@ import {
   type ReceiptItemDoc,
 } from '@matvis/shared';
 
-/**
- * The receipts table.
- *
- * Deliberately a separate implementation from `connector-portal`'s
- * `ReceiptsPanel` rather than one shared panel. The two read the same API with
- * the same token argument, but the data access differs down the middle: the
- * portal drives a live paginated query with a "load more" button, this reads a
- * store that has already drained every header page. Only the parts that are
- * genuinely identical are shared, and they live in `@matvis/ui` as `JsonView`.
- *
- * What is added over the portal's version: a line item shows its matched
- * product when the EAN resolves, and each receipt carries an "N unmapped" badge.
- */
 const FIELDS: Field<ReceiptHeader>[] = [
   {
     id: 'store',
@@ -94,19 +78,11 @@ export function PurchasesPanel({
 }) {
   const [view, setView] = useState<View>(DEFAULT_VIEW);
 
-  // DataViews does not fetch — it sorts and paginates whatever it is handed.
-  // The purchase store has already drained every header page, so the pool here
-  // is the account's whole history and "load more" is not a thing the user has
-  // to click.
   const { data: rows, paginationInfo } = useMemo(
     () => filterSortAndPaginate(data.headers, view, FIELDS),
     [data.headers, view],
   );
 
-  // Keyed on the two slices the modal actually reads, never on `data` — the
-  // store returns a fresh object every render, so a memo on it never hits,
-  // `RenderModal` gets a new identity, and React remounts the modal (losing its
-  // fetch state and re-issuing `getReceipt`) on every parent render.
   const { itemsByReceipt, linesByReceipt } = data;
   const actions = useMemo<Action<ReceiptHeader>[]>(
     () => [
@@ -150,11 +126,6 @@ export function PurchasesPanel({
   );
 }
 
-/**
- * One purchase. Items come from the purchase store's cache when they are
- * already there (the common case after first load) and are fetched on demand
- * otherwise, so opening a receipt is instant on a warm cache.
- */
 function ReceiptModal({
   header,
   token,
@@ -164,7 +135,6 @@ function ReceiptModal({
   header: ReceiptHeader;
   token: string;
   itemsByReceipt: PurchaseData['itemsByReceipt'];
-  /** This receipt's joined lines only. */
   lines: PurchaseData['lines'];
 }) {
   const convex = useConvex();
@@ -174,12 +144,8 @@ function ReceiptModal({
   const [pdfBusy, setPdfBusy] = useState(false);
 
   const items = cached ?? fetched;
-  // Memoized so the JSON tab does not re-serialize the receipt every time the
-  // PDF button flips `pdfBusy`.
   const payload = useMemo(() => ({ receipt: header, items }), [header, items]);
 
-  // Only runs when hydration has not reached this receipt yet; on a warm cache
-  // `cached` is already there and this never fires.
   useEffect(() => {
     if (cached) return;
     let active = true;
@@ -255,9 +221,6 @@ function ReceiptModal({
   );
 }
 
-/** The line list, each row showing its matched product where one exists. The
- * "N unmapped" count at the top is the per-receipt slice of what the Unmapped
- * tab totals up. */
 function ReceiptItems({
   items,
   header,
@@ -265,11 +228,8 @@ function ReceiptItems({
 }: {
   items: ReceiptItemDoc[];
   header: ReceiptHeader;
-  /** This receipt's joined lines only. */
   lines: PurchaseData['lines'];
 }) {
-  // Reuse the purchase store's join rather than re-picking a row here, so the
-  // product shown on a line is the same one every other tab counted.
   const productByItemId = useMemo(() => {
     const out = new Map<string, CatalogRow>();
     for (const line of lines) {
