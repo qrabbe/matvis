@@ -16,17 +16,6 @@ import { href, productPath } from '../../lib/route';
 import { formatAge } from './format';
 import { TaskResult, useAdminTask } from './task';
 
-/**
- * The queue, one status at a time, defaulting to `failed`.
- *
- * This is the screen the console is worth building for. `lastError` is the only
- * place the reason a row did not ingest is written down, and reading it used to
- * take a hand-written `runOneoffQuery` against the deployment. The
- * `onlinePromotions[].price` type drift was found exactly this way.
- */
-
-/** One `SelectControl` option. The package does not re-export the type, so it is
- * read back off the component's own props. */
 type SelectItem = NonNullable<
   ComponentProps<typeof SelectControl>['items']
 >[number];
@@ -41,8 +30,6 @@ const STATUS_ITEMS: SelectItem[] = [
 
 export function QueuePanel({ token }: { token: string }) {
   const [status, setStatus] = useState<QueueStatus>('failed');
-  // One cursor, not a stack: this is a look at the head of a status, and "next
-  // page" resets whenever the status changes.
   const [cursor, setCursor] = useState<string | null>(null);
   const [removeText, setRemoveText] = useState('');
 
@@ -159,7 +146,6 @@ export function QueuePanel({ token }: { token: string }) {
               onClick={() =>
                 run(async () => {
                   const text = removeText.trim();
-                  // Digits are an EAN, anything else is a name row's query text.
                   const result = await removeQueueRows(
                     /^\d+$/.test(text)
                       ? { token, ean: text }

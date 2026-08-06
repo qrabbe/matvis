@@ -5,27 +5,14 @@ import { query } from './_generated/server';
 import { catalogDocValidator, storeValidator } from './model/fields';
 import { readCounter, CATALOG_COUNT_KEY } from './model/counters';
 
-/** A clean catalog row as the read API returns it: the @matvis/shared
- * `CatalogItem` contract plus Convex system fields. */
 const catalogItem = catalogDocValidator;
 
-/**
- * A digit-only term this long is treated as an EAN rather than as words. Real
- * GTINs are 8, 12, 13 or 14 digits; shorter digit strings are far more likely to
- * be part of a name ("3" in "Mjölk 3%"), so they stay on the name index.
- */
 const MIN_EAN_QUERY_DIGITS = 6;
 
 function looksLikeEan(term: string): boolean {
   return new RegExp(`^\\d{${MIN_EAN_QUERY_DIGITS},}$`).test(term);
 }
 
-/**
- * Paginated clean-catalog search, the portal's list. `q` picks the index: empty
- * returns newest-first, a digit-only term runs the exact-ish `search_ean` index,
- * anything else runs the full-text `search_name` index (relevance-ordered).
- * `store` narrows any of the three to one chain.
- */
 export const search = query({
   args: {
     q: v.optional(v.string()),
@@ -36,8 +23,6 @@ export const search = query({
     page: v.array(catalogItem),
     isDone: v.boolean(),
     continueCursor: v.string(),
-    // `paginate()` also returns these split hints; declare them so the returns
-    // validator accepts the raw result we pass through.
     splitCursor: v.optional(v.union(v.string(), v.null())),
     pageStatus: v.optional(
       v.union(
@@ -49,8 +34,6 @@ export const search = query({
   }),
   handler: async (ctx, { q, store, paginationOpts }) => {
     const term = q?.trim();
-    // A search index cannot be combined with `.order()`; results come back
-    // relevance-ordered, which is what we want for a query.
     if (term && looksLikeEan(term)) {
       return await ctx.db
         .query('catalog')
@@ -80,17 +63,6 @@ export const search = query({
   },
 });
 
-/**
- * Every clean row for one EAN — the core lookup. Returns an ARRAY because the
- * catalog is keyed by (store, EAN): each chain keeps its own row for a shared
- * product, and which one a caller wants is the caller's decision. Empty when
- * nothing is catalogued under that EAN.
- *
- * Bounded at the number of known chains rather than collected: the table is
- * keyed by (store, EAN), so more rows than that for one EAN is a duplicate-write
- * bug, and the bound means it degrades into a wrong-ish answer instead of an
- * unbounded read.
- */
 export const getByEan = query({
   args: { ean: v.string() },
   returns: v.array(catalogItem),
@@ -101,13 +73,6 @@ export const getByEan = query({
       .take(STORES.length),
 });
 
-/**
- * The same lookup for many EANs at once — what a receipt's ~20 lines need
- * without 20 round trips. Returns one flat array; a caller with several stores
- * or several EANs groups by `ean` and `store` itself. Duplicate EANs in the
- * argument are looked up once. Throws above {@link MAX_EANS_PER_LOOKUP} rather
- * than silently truncating, so a caller can't believe it got a full answer.
- */
 export const getManyByEan = query({
   args: { eans: v.array(v.string()) },
   returns: v.array(catalogItem),
@@ -130,12 +95,6 @@ export const getManyByEan = query({
   },
 });
 
-/**
- * Cheap totals for the portal header, plus which chains are actually in the
- * table. The count is O(1) via the maintained counter; `stores` is one index
- * point-lookup per known slug, which keeps a store filter honest — it can offer
- * only the chains that have products rather than every reserved slug.
- */
 export const stats = query({
   args: {},
   returns: v.object({ total: v.number(), stores: v.array(storeValidator) }),

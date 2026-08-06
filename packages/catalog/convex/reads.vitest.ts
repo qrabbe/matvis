@@ -11,16 +11,10 @@ import * as catalog from './catalog';
 import { CATALOG_COUNT_KEY, readCounter } from './model/counters';
 import schema from './schema';
 
-// The read-count gate. An N+1 pattern does not fail a test, does not slow CI and
-// does not surface until the table is large enough to notice it on the bill, so
-// the counts are asserted as exact equalities here. A number that moves is
-// either a regression or a deliberate improvement, and both belong in the diff.
-
 const modules = import.meta.glob('./**/*.ts');
 
 type Test = ReturnType<typeof convexTest>;
 
-/** Run `read` in a real query transaction and report what it read. */
 async function countQuery(
   t: Test,
   read: (ctx: QueryCtx) => Promise<unknown>,
@@ -33,7 +27,6 @@ async function countQuery(
   return await t.query(measured);
 }
 
-/** The same, for a handler that needs a mutation ctx. */
 async function countMutation(
   t: Test,
   write: (ctx: MutationCtx) => Promise<unknown>,
@@ -46,7 +39,6 @@ async function countMutation(
   return await t.mutation(measured);
 }
 
-/** Write clean rows for `eans` in every known store, through the real upsert. */
 async function seed(t: Test, eans: string[]) {
   await t.mutation(internal.raw.upsertCleanBatch, {
     items: eans.flatMap((ean) =>
@@ -77,9 +69,6 @@ describe('getManyByEan', () => {
       handlerOf(catalog.getManyByEan)(ctx, { eans }),
     );
 
-    // The catalog is keyed by (store, EAN) and `by_ean` is prefixed on the EAN,
-    // so one range returns every store's row for that EAN. 50 EANs is 50 ranges
-    // whatever the number of chains, and never a point read.
     expect(counts.ranges).toHaveLength(MAX_EANS_PER_LOOKUP);
     expect(new Set(counts.ranges.map((range) => range.index))).toEqual(
       new Set(['by_ean']),
@@ -101,9 +90,6 @@ describe('getManyByEan', () => {
 });
 
 describe('search', () => {
-  // One search-index read serves a whole page, so the read count is the same for
-  // a page of 5 and a page of 25. Two invocations rather than one, because
-  // convex-test allows a single `.paginate()` per execution as a deployment does.
   const searchPage = (t: Test, numItems: number) =>
     countQuery(t, (ctx) =>
       handlerOf(catalog.search)(ctx, {
@@ -128,7 +114,6 @@ describe('the maintained counters', () => {
   test('read a single row on by_key and never scan app_counters', async () => {
     const t = convexTest(schema, modules);
     await seed(t, eansUpTo(3));
-    // Neighbours on the same table, so a scan would show up as extra rows.
     await t.mutation(internal.backfill.writeCounters, {
       counts: { 'queue:pending': 1, 'queue:done': 2, 'raw_coop:x': 3 },
     });
@@ -157,8 +142,6 @@ describe('rebuildCounters', () => {
       }
     });
 
-    // One page mutation is one range over `raw_coop` and exactly a page of rows.
-    // This is the 38 MB scan, so a second range here is several times that.
     const counts = await countMutation(t, (ctx) =>
       handlerOf(backfill.recountRawPage)(ctx, { cursor: null }),
     );
@@ -168,8 +151,6 @@ describe('rebuildCounters', () => {
     expect(counts.docs).toBe(RECOUNT_RAW_PAGE);
     expect(counts.gets).toBe(0);
 
-    // And the action walks the table in one page per pageful, so the per-page
-    // count above is the whole cost of a run.
     const result = await t.action(internal.backfill.rebuildCounters, {
       scope: 'raw',
     });

@@ -15,23 +15,17 @@ const modules = import.meta.glob('./**/*.ts');
 const PASSWORD = 'correct horse battery staple';
 process.env.CATALOG_ADMIN_PASSWORD = PASSWORD;
 
-/** Sign in for real and hand back the token the console would store. */
 async function signIn(t: ReturnType<typeof convexTest>) {
   const { token } = await t.action(api.admin.signIn, { password: PASSWORD });
   return token;
 }
 
-/** Every live session row. The table holds single digits of rows by design. */
 async function sessions(t: ReturnType<typeof convexTest>) {
   return await t.run(
     async (ctx) => await ctx.db.query('admin_sessions').take(20),
   );
 }
 
-/**
- * Count `n` failed sign-ins without paying the deliberate one second delay per
- * guess. This is the mutation `signIn` itself calls on a wrong password.
- */
 async function recordFailures(t: ReturnType<typeof convexTest>, n: number) {
   for (let i = 0; i < n; i += 1) {
     await t.mutation(internal.admin.recordSignInFailure, {});
@@ -50,7 +44,6 @@ describe('sign-in', () => {
     const rows = await sessions(t);
     expect(rows).toHaveLength(1);
     expect(rows[0].tokenHash).toBe(await sha256Hex(result.token));
-    // The token itself is never written down anywhere.
     expect(rows[0].tokenHash).not.toBe(result.token);
   });
 
@@ -74,16 +67,12 @@ describe('the session gate', () => {
     const t = convexTest(schema, modules);
     const token = await signIn(t);
 
-    // A read returns null rather than throwing, which is how the console tells
-    // signed out from broken.
     expect(await t.query(api.admin.overview, { token })).not.toBeNull();
     expect(await t.query(api.admin.overview, { token: 'bogus' })).toBeNull();
 
-    // A write throws, where a silent no-op would be the wrong failure mode.
     await expect(
       t.mutation(api.admin.setPaused, { token: 'bogus', paused: true }),
     ).rejects.toThrow(/Not signed in/);
-    // And so does an action, which checks by hash through its own query.
     await expect(
       t.action(api.admin.clearDoneRows, { token: 'bogus' }),
     ).rejects.toThrow(/Not signed in/);
@@ -148,22 +137,18 @@ describe('the sign-in lockout', () => {
   test('locks the door on the guess after the limit, and clears after the window', async () => {
     const t = convexTest(schema, modules);
     await recordFailures(t, SIGNIN_FAILURE_LIMIT - 1);
-    // Nine wrong guesses is not a lockout.
     expect(await t.query(internal.admin.signInGate, {})).toEqual({
       lockedUntil: null,
     });
-    // The tenth fills the window, so the eleventh guess is refused unheard.
     await recordFailures(t, 1);
     const gate = await t.query(internal.admin.signInGate, {});
     expect(gate.lockedUntil).toBeGreaterThan(Date.now());
 
-    // Locked, and told apart from a wrong password by the message only.
     await expect(
       t.action(api.admin.signIn, { password: PASSWORD }),
     ).rejects.toThrow(/locked for up to an hour/);
     expect(await sessions(t)).toEqual([]);
 
-    // Age the lock out of the way, as an hour of waiting would.
     await t.run(async (ctx) => {
       const guard = await ctx.db.query('admin_signin_guard').first();
       await ctx.db.patch(guard!._id, { lockedUntil: Date.now() - 1 });
@@ -173,7 +158,6 @@ describe('the sign-in lockout', () => {
     });
     expect(await signIn(t)).toMatch(/^[0-9a-f]{64}$/);
 
-    // A successful sign-in clears the counter, so the next bad guess starts over.
     const guard = await t.run(
       async (ctx) => await ctx.db.query('admin_signin_guard').first(),
     );
@@ -184,7 +168,6 @@ describe('the sign-in lockout', () => {
   test('failures spread wider than the window never add up to a lockout', async () => {
     const t = convexTest(schema, modules);
     await recordFailures(t, SIGNIN_FAILURE_LIMIT - 1);
-    // Push the window start into the past, as a day between guesses would.
     await t.run(async (ctx) => {
       const guard = await ctx.db.query('admin_signin_guard').first();
       await ctx.db.patch(guard!._id, {
@@ -196,7 +179,6 @@ describe('the sign-in lockout', () => {
     const guard = await t.run(
       async (ctx) => await ctx.db.query('admin_signin_guard').first(),
     );
-    // The stale window restarts at one rather than tipping over the limit.
     expect(guard?.failures).toBe(1);
     expect(await t.query(internal.admin.signInGate, {})).toEqual({
       lockedUntil: null,

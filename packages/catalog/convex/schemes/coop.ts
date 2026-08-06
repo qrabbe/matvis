@@ -1,6 +1,5 @@
 import { v } from 'convex/values';
 
-// Define the fields for coop_product_information
 export const coopProductInformationFields = {
   externalId: v.optional(v.string()),
   accreditedTags: v.optional(
@@ -431,10 +430,6 @@ export const coopProductInformationFields = {
             b2cPrice: v.number(),
           }),
         ),
-        // Optional since 2026-07: Coop dropped the flat `price` from live
-        // promotion payloads and now sends only `priceData`. The top-level
-        // `salesPrice`/`promotionPrice` pairs went the same way, which is why
-        // those were already optional.
         price: v.optional(v.number()),
         priceData: v.object({
           b2bPrice: v.number(),
@@ -551,7 +546,6 @@ export const coopProductInformationFields = {
       v.object({
         code: v.string(),
         name: v.string(),
-        // Optional for the same reason as `onlinePromotions[].price` above.
         price: v.optional(v.number()),
         priceData: v.object({
           b2bPrice: v.number(),

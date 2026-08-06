@@ -1,48 +1,24 @@
-// NOTE: keep this file ACTION-ONLY, with no `ctx.db` helpers in it. Everything
-// here is a call to Coop over HTTP; if Coop ever starts rejecting requests from
-// the V8 isolate, the fallback is a `'use node';` directive at the top of this
-// file, and that flip is only legal while the module exports nothing but
-// actions. The queue's own reads and writes live in `../ingest.ts` for that
-// reason, and reach these through `ctx.runAction`.
+// Keep this file action-only, with no `ctx.db` helpers in it. The fallback if
+// Coop starts rejecting the V8 isolate is a `use node` directive at the top,
+// and that flip is only legal while the module exports nothing but actions.
 import { v } from 'convex/values';
 import { internalAction } from '../_generated/server';
 import { COOP_BATCH_SIZE, SEARCH_HITS_PER_NAME } from '../model/ingest';
 
-/**
- * Coop's by-id endpoint. Despite the name it is a POST whose body is an ARRAY of
- * ids, which is what makes batched discovery affordable: one request resolves
- * ~500 EANs. `store=231400` is the store the whole catalog is priced against.
- */
 const BY_ID_URL =
   'https://external.api.coop.se/personalization/search/entities/by-id?api-version=v1&store=231400&groups=CUSTOMER_PRIVATE,CUSTOMER_MEDMERA&direct=false';
 
-/** Free-text search. Returns near-complete product payloads — the same shape as
- * by-id — so a hit can be ingested without a second round trip. */
 const SEARCH_URL =
   'https://external.api.coop.se/personalization/search/global?api-version=v1&store=231400';
 
-/**
- * Coop external API subscription key. This is the same key coop.se ships to
- * every browser and it gates the public product API only, but it is Coop's key
- * rather than ours, so it comes from the deployment env var.
- *
- * Read it lazily inside the handler, NOT at module top level: Convex imports
- * every module at push time in an environment where deployment env vars are not
- * injected, so a top-level throw would fail the push even with the var set.
- */
+/** Read lazily inside a handler. Convex imports every module at push time with
+ * no deployment env vars, so a top-level throw fails the push. */
 function coopApiKey(): string {
   const key = process.env.COOP_EXTERNAL_API_KEY;
   if (!key) throw new Error('COOP_EXTERNAL_API_KEY env var is not set');
   return key;
 }
 
-/**
- * The headers Coop actually requires: the subscription key and a JSON content
- * type. The old repo sent a full browser header set (`User-Agent`, `Sec-Fetch-*`,
- * `Referer`); both endpoints were re-verified against the live API with just
- * these two, so nothing here depends on the V8 runtime forwarding a custom
- * `User-Agent`. `Accept` is along for the ride because it costs nothing.
- */
 function requestHeaders(): Record<string, string> {
   return {
     Accept: 'application/json',
@@ -51,8 +27,6 @@ function requestHeaders(): Record<string, string> {
   };
 }
 
-/** Coop wraps every product response in `results.items`. Anything else is a
- * shape change, and an empty list is a legitimate "found nothing". */
 async function readItems(
   response: Response,
   label: string,
@@ -70,8 +44,6 @@ async function readItems(
   if (!Array.isArray(items)) {
     throw new Error(`${label} returned a non-array results.items`);
   }
-  // Only EAN-bearing items are useful: the EAN is how a result is matched back
-  // to the queue row that asked for it, and it is the key `raw_coop` is on.
   return items.filter(
     (item): item is Record<string, unknown> =>
       typeof item === 'object' &&
@@ -80,15 +52,6 @@ async function readItems(
   );
 }
 
-/**
- * Fetch a batch of products by EAN. Coop returns only the ones it knows, in no
- * particular order and with no placeholder for the rest, so the caller matches
- * results back by `ean` and treats the remainder as not stocked.
- *
- * Payloads come back RAW. Sanitizing here would risk one type-drifted product
- * failing the whole batch's return validator; the caller sanitizes per product
- * instead, so a bad row fails alone.
- */
 export const fetchByEan = internalAction({
   args: { eans: v.array(v.string()) },
   returns: v.array(v.any()),
@@ -108,11 +71,6 @@ export const fetchByEan = internalAction({
   },
 });
 
-/**
- * Resolve free text to products through Coop's own search, in its relevance
- * order. Used by the queue's name rows; the top hit is what the row records as
- * its resolved EAN, and the rest are ingested as catalog breadth.
- */
 export const searchByName = internalAction({
   args: { query: v.string(), take: v.optional(v.number()) },
   returns: v.array(v.any()),

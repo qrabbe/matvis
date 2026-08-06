@@ -2,22 +2,6 @@ import type { FunctionReference } from 'convex/server';
 import { anyApi } from 'convex/server';
 import type { GenericId } from 'convex/values';
 
-// ── Typed facade over the catalog's admin Convex API ─────────────────────────
-// Same arrangement as `convexApi.ts` and for the same reason: the portal is a
-// separate package from @matvis/catalog, so it reaches the deployment through
-// Convex's runtime `anyApi` proxy and layers static types on top rather than
-// importing the generated `api` and dragging the whole convex/ program into this
-// package's typecheck.
-//
-// Every function here except `signIn` takes a `token`, because the backend
-// defines them through a wrapper that adds it (see convex/admin.ts). Reads
-// return null when the token is bad, which is exactly how the console knows it
-// is signed out. Writes throw.
-//
-// Nothing in this bundle is a secret. The gate is entirely server side, so
-// shipping the admin console inside the public portal bundle gives away only the
-// names of functions that refuse to answer without a session.
-
 export type QueueStatus =
   'pending' | 'processing' | 'done' | 'skipped' | 'failed';
 
@@ -46,7 +30,6 @@ export type RunRow = {
   error?: string;
 };
 
-/** Exact row counts per status, read from maintained counters on the backend. */
 export type QueueStats = {
   pending: number;
   processing: number;
@@ -148,5 +131,4 @@ type AdminApi = {
   };
 };
 
-/** The catalog's admin API, statically typed, backed by the runtime proxy. */
 export const adminApi = anyApi as unknown as AdminApi;

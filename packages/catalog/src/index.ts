@@ -1,2 +1,1 @@
-// @matvis/catalog
 export {};

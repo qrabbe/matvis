@@ -1,43 +1,23 @@
 import type { Operation, ValidatorNode } from './contract';
 
-// ── Turning a generated operation into a form ────────────────────────────────
-// The catalog is public and unauthenticated and the portal already holds a
-// Convex client, so "Try it" runs the real query against the real deployment.
-// There is no key to handle, and the response on the page cannot go stale
-// because it is not a sample.
-
-/** First page a try-it call asks for. Small on purpose: this demonstrates the
- * shape, and the whole response is printed underneath. */
 const TRY_IT_PAGE_SIZE = 3;
 
-/**
- * Arguments the form supplies rather than asks for. `paginationOpts` is the
- * only one: every try-it call wants the first small page, and a cursor is not
- * something a reader can type.
- */
 const SUPPLIED: Record<string, unknown> = {
   paginationOpts: { numItems: TRY_IT_PAGE_SIZE, cursor: null },
 };
 
-/**
- * Starting values, so the first click returns a product rather than an empty
- * array. Real EANs from the catalog; if one is ever dropped the call still
- * works and returns `[]`, which is a documented outcome rather than an error.
- */
 const EXAMPLES: Record<string, string> = {
   ean: '11210000155',
   eans: '11210000155, 7300156585608',
   q: 'kaffe',
 };
 
-/** How the text a reader types becomes an argument value. */
 export type InputKind = 'text' | 'list' | 'number' | 'choice';
 
 export type ArgInput = {
   name: string;
   optional: boolean;
   kind: InputKind;
-  /** Allowed values, when the validator is a union of string literals. */
   options: string[];
   example: string;
 };
@@ -60,7 +40,6 @@ function choices(node: ValidatorNode): string[] {
   );
 }
 
-/** The fields the form asks for, in declaration order. */
 export function argInputs(op: Operation): ArgInput[] {
   return Object.entries(op.args.value)
     .filter(([name]) => !(name in SUPPLIED))
@@ -73,8 +52,6 @@ export function argInputs(op: Operation): ArgInput[] {
     }));
 }
 
-/** The typed argument object for a call, built from what the reader entered. An
- * empty optional field is left out entirely rather than sent as `""`. */
 export function buildArgs(
   op: Operation,
   values: Record<string, string>,
@@ -88,8 +65,6 @@ export function buildArgs(
     const kind = inputKind(field.fieldType);
     const text = (values[name] ?? '').trim();
     if (text === '') {
-      // A required field still has to be sent, so send the empty value of its
-      // type and let the server say what it thinks of it.
       if (!field.optional) {
         args[name] = kind === 'list' ? [] : kind === 'number' ? 0 : '';
       }

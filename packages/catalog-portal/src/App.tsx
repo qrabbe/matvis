@@ -13,14 +13,6 @@ import {
 } from './lib/route';
 import { api } from './lib/convexApi';
 
-// No sign-in gate — the catalog is a public, read-only database. Header shows
-// the live product total; the body is either the two tabs (search table + docs)
-// or, on a `#/p/<ean>` route, one product's detail page.
-//
-// `#/admin` is the ingest console. It stays out of the TAB BAR, which is the
-// product's own navigation, and sits in the header instead as a quiet link out.
-// Showing it to everyone costs nothing: the gate is entirely server side, so an
-// anonymous visitor who follows it gets a password prompt and nothing else.
 export function App() {
   const stats = useQuery(api.catalog.stats, {});
   const route = useRoute();
@@ -44,8 +36,6 @@ export function App() {
             {stats ? `${stats.total} products` : 'Product database'}
           </Text>
         </Stack>
-        {/* A real anchor, so it can be middle-clicked and its link copied.
-            Hidden on the console itself, which carries its own way back. */}
         {!admin && (
           <LinkButton
             href={href(ADMIN_PATH)}

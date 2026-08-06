@@ -4,18 +4,6 @@ import { Button, Card, InputControl, Stack, Text } from '@wordpress/ui';
 import { adminApi } from '../../lib/adminApi';
 import { TaskResult, useAdminTask } from './task';
 
-/**
- * Start a run, or stop everything.
- *
- * Each button SCHEDULES its action and returns at once. Nothing here waits for a
- * drain to finish: that would hold the request open for minutes and time out
- * long before the work did. What the run actually did shows up in the run log a
- * moment later, and the overview counts move while it goes.
- */
-
-/** Batch defaults, mirroring `model/ingest.ts`. Pre-filled rather than free so
- * the console cannot ask for a hundred-batch run by accident. The backend
- * clamps whatever arrives regardless. */
 const DEFAULT_DRAIN_BATCHES = 4;
 const DEFAULT_REFRESH_BATCHES = 8;
 

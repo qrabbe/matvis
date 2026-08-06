@@ -2,16 +2,6 @@ import { Badge, Card, Stack, Text } from '@wordpress/ui';
 import type { Overview } from '../../lib/adminApi';
 import { formatAge, formatCount } from './format';
 
-/**
- * The numbers the console exists to show, from one live query. A drain running
- * in the background moves them on their own, which is most of what this has over
- * reading JSON back from `bunx convex run`.
- *
- * Every count is exact. They used to be capped scans rendered as "1000+", which
- * cost a re-read of thousands of documents each time a drain moved one row; the
- * backend maintains counters instead, so the live subscription is now cheap
- * enough that showing the real number costs nothing.
- */
 export function OverviewPanel({ overview }: { overview: Overview }) {
   const { queue, freshness } = overview;
   return (

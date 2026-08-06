@@ -13,14 +13,6 @@ import { RunLogPanel } from './RunLogPanel';
 import { SignInPanel } from './SignInPanel';
 import { useAdminTask, TaskResult } from './task';
 
-/**
- * The ingest control panel, on `#/admin` and deliberately not in the tab bar.
- * The public portal is a product page and this is not part of it.
- *
- * The whole gate is server side. Every query below sends the stored token and
- * comes back null when it is not a live session, which is how this component
- * tells "signed out" from "loading" without an error boundary.
- */
 export function AdminConsole() {
   const token = useAdminToken();
   if (!token) return <ConsoleFrame>{<SignInPanel />}</ConsoleFrame>;
@@ -90,8 +82,6 @@ function SignedIn({ token }: { token: string }) {
   );
 }
 
-/** Heading and a way back to the public portal, around whatever state the
- * console is in. */
 function ConsoleFrame({ children }: { children: ReactNode }) {
   return (
     <Stack direction="column" gap="lg">

@@ -8,7 +8,6 @@ import { COOP_BATCH_SIZE, STALE_CLAIM_MS } from './model/ingest';
 
 const modules = import.meta.glob('./**/*.ts');
 
-/** Every queue row, oldest first. The suite never seeds more than a handful. */
 async function queueRows(
   t: ReturnType<typeof convexTest>,
 ): Promise<Doc<'coop_ingest_queue'>[]> {
@@ -17,7 +16,6 @@ async function queueRows(
   );
 }
 
-/** Enqueue `count` EAN rows through the real mutation, so the counters move. */
 async function enqueueEans(t: ReturnType<typeof convexTest>, count: number) {
   return await t.mutation(internal.ingest.enqueueEans, {
     eans: Array.from({ length: count }, (_, n) => `730000000000${n}`),
@@ -33,12 +31,10 @@ describe('enqueue', () => {
       known: 0,
       duplicate: 0,
     });
-    // Every row is pending and counted, which is what the console reads.
     expect(await t.query(internal.ingest.queueStats, {})).toMatchObject({
       pending: 3,
     });
 
-    // A second discovery run finds the same EANs and adds nothing.
     expect(await enqueueEans(t, 3)).toEqual({
       queued: 0,
       known: 0,
@@ -56,7 +52,6 @@ describe('enqueue', () => {
       eans: ['7300000000000', '7300000000001', '7300000000001'],
       source: 'sitemap',
     });
-    // The known one belongs to the refresh sweep, not to the queue.
     expect(result).toEqual({ queued: 1, known: 1, duplicate: 1 });
   });
 
@@ -163,13 +158,10 @@ describe('claimBatch', () => {
       limit: 10,
     });
 
-    // Still in flight: the next claimer must not steal it.
     expect(await t.mutation(internal.ingest.claimBatch, { limit: 10 })).toEqual(
       [],
     );
 
-    // Age the claim past the timeout, as a worker killed by the wall clock
-    // would leave it.
     await t.run(async (ctx) => {
       await ctx.db.patch(claimed.id, {
         claimedAt: Date.now() - STALE_CLAIM_MS - 1,
@@ -189,8 +181,6 @@ describe('claimBatch', () => {
 
   test('EAN rows are served before name rows', async () => {
     const t = convexTest(schema, modules);
-    // Names first, so a claim that ignored `by_status_kind` would return them
-    // first too.
     await t.mutation(internal.ingest.enqueueName, { query: 'mjölk' });
     await t.mutation(internal.ingest.enqueueName, { query: 'smör' });
     await enqueueEans(t, 2);
@@ -273,7 +263,6 @@ describe('queue maintenance', () => {
     expect(page.rows).toHaveLength(2);
     expect(page.isDone).toBe(false);
     expect(page.rows[0].lastError).toMatch(/^no luck for /);
-    // Newest first, so the last row enqueued leads the page.
     expect(page.rows[0].ean).toBe('7300000000002');
 
     const rest = await t.query(internal.ingest.listQueueRows, {
@@ -282,7 +271,6 @@ describe('queue maintenance', () => {
       numItems: 2,
     });
     expect(rest.rows.map((row) => row.ean)).toEqual(['7300000000000']);
-    // A pending page is empty rather than a mixed bag.
     const pending = await t.query(internal.ingest.listQueueRows, {
       status: 'pending',
     });
@@ -294,9 +282,6 @@ describe('claimOldestForRefresh', () => {
   test('takes the stalest rows first and stamps them on claim', async () => {
     const t = convexTest(schema, modules);
     await t.run(async (ctx) => {
-      // One never fetched (the snapshot import), one fetched long ago, one
-      // fetched a minute ago. `by_lastFetchedAt` sorts a missing field before
-      // any number, so the snapshot rows are swept first.
       await ctx.db.insert('raw_coop', { ean: 'never', name: 'A' });
       await ctx.db.insert('raw_coop', {
         ean: 'old',
@@ -316,14 +301,11 @@ describe('claimOldestForRefresh', () => {
     });
     expect(claim).toEqual({ eans: ['never', 'old'], claimed: 2 });
 
-    // Stamped on claim, not on result, so the two just claimed sort to the back
-    // and the sweep moves on rather than re-picking them.
     const next = await t.mutation(internal.ingest.claimOldestForRefresh, {
       limit: 2,
     });
     expect(next.eans[0]).toBe('recent');
 
-    // The never-fetched counter dropped with the row that stopped being one.
     expect(await t.query(internal.ingest.freshnessStats, {})).toMatchObject({
       neverFetched: 0,
     });

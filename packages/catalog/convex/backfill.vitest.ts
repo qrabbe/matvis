@@ -8,11 +8,6 @@ import type { QueueStatus } from './model/ingest';
 
 const modules = import.meta.glob('./**/*.ts');
 
-/**
- * Insert queue rows straight through `ctx.db`, bypassing the counting helpers.
- * That is exactly what an un-backfilled deployment looks like: rows exist and no
- * counter does.
- */
 async function seedQueue(
   t: ReturnType<typeof convexTest>,
   rows: { status: QueueStatus; kind?: 'ean' | 'name' }[],
@@ -33,7 +28,6 @@ async function seedQueue(
   });
 }
 
-/** Insert `raw_coop` rows, `fetched` of them already carrying a fetch stamp. */
 async function seedRaw(
   t: ReturnType<typeof convexTest>,
   total: number,
@@ -50,8 +44,6 @@ async function seedRaw(
   });
 }
 
-/** Every maintained counter as a plain object. A key with no row is simply
- * absent, which is what these tests are checking for. */
 async function counters(t: ReturnType<typeof convexTest>) {
   return await t.run(async (ctx) => {
     const rows = await ctx.db.query('app_counters').take(20);
@@ -81,10 +73,8 @@ describe('rebuildCounters', () => {
       failed: 0,
     });
     expect(result.neverFetched).toBe(2);
-    // One page of queue rows plus one page of raw rows, both well inside a page.
     expect(result.pages).toBe(2);
 
-    // The counters the console actually reads now agree with the rows.
     expect(await t.query(internal.ingest.queueStats, {})).toEqual({
       pending: 3,
       processing: 1,
@@ -105,8 +95,6 @@ describe('rebuildCounters', () => {
       { status: 'pending' },
     ]);
 
-    // The write helpers bump by deltas from an absent base, so the first claim
-    // takes pending below zero. This is the failure `rebuildCounters` documents.
     await t.mutation(internal.ingest.claimBatch, { limit: 1 });
     expect(await t.query(internal.ingest.queueStats, {})).toMatchObject({
       pending: -1,
@@ -123,7 +111,6 @@ describe('rebuildCounters', () => {
   test('a status with no rows recounts to an explicit zero', async () => {
     const t = convexTest(schema, modules);
     await seedQueue(t, [{ status: 'pending' }]);
-    // A count left over from before the rows were cleared.
     await t.mutation(internal.backfill.writeCounters, {
       counts: { [queueCountKey('failed')]: 7 },
     });
@@ -140,15 +127,12 @@ describe('rebuildCounters', () => {
     await seedQueue(t, [{ status: 'pending' }, { status: 'pending' }]);
     await seedRaw(t, 1);
 
-    // Raw first: it must not seed the queue keys to zero, or a later queue run
-    // would be the only thing that ever made them right.
     const raw = await t.action(internal.backfill.rebuildCounters, {
       scope: 'raw',
     });
     expect(raw).toEqual({ queue: null, neverFetched: 1, pages: 1 });
     expect(await counters(t)).toEqual({ [NEVER_FETCHED_KEY]: 1 });
 
-    // Queue second: it must not wipe the raw count the first run got right.
     const queue = await t.action(internal.backfill.rebuildCounters, {
       scope: 'queue',
     });
@@ -159,7 +143,6 @@ describe('rebuildCounters', () => {
       [queueCountKey('pending')]: 2,
     });
 
-    // And the other direction, now that both halves are populated.
     await t.action(internal.backfill.rebuildCounters, { scope: 'raw' });
     expect(await counters(t)).toMatchObject({
       [NEVER_FETCHED_KEY]: 1,

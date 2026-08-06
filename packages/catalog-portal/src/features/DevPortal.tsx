@@ -23,21 +23,8 @@ import {
 } from '../lib/contract';
 import { argInputs, buildArgs, type ArgInput } from '../lib/tryIt';
 
-// Nothing here restates a field name, a type or a signature: the model
-// tables come from the zod contract via `z.toJSONSchema`, and the operations
-// come from the generated function spec (see src/lib/contract.ts). Only the
-// prose is written by hand, and prose that names a field is prose about that
-// field's meaning rather than about its shape.
-//
-// Depth is opt-in, so the page runs shallow to deep: how to call it, then the
-// four operations collapsed, then the models, then the reasoning.
-//
-// This is the clean, store-agnostic contract only; the raw per-chain product
-// tables behind it are NOT exposed here.
-
-/** Why a caller reaches for each operation. The spec carries shape, not intent,
- * so this is the one hand-written half — keyed by function name, and an
- * operation without an entry simply renders without prose. */
+// Documents the clean, store-agnostic contract only. The raw per-chain product
+// tables behind it are not exposed here.
 const OPERATION_NOTES: Record<string, string> = {
   getByEan:
     'Every clean row for one EAN. Returns an ARRAY: the catalog is keyed by (store, EAN), so each chain keeps its own row for a shared product and the caller picks. Empty when the EAN is not catalogued.',
@@ -182,7 +169,6 @@ export function DevPortal() {
   );
 }
 
-/** The two lines that get a consumer from nothing to a product. */
 function installSnippet(deploymentUrl: string): string {
   return [
     'npm install convex',
@@ -196,9 +182,6 @@ function installSnippet(deploymentUrl: string): string {
   ].join('\n');
 }
 
-/** One operation: its signature, what it is for, its params, its response, and
- * a button that runs it. Everything but the prose is read off the generated
- * spec, and the response below the button is the real one. */
 function OperationEntry({ operation }: { operation: Operation }) {
   const params = Object.entries(operation.args.value);
   const note = OPERATION_NOTES[operationName(operation)];
@@ -244,9 +227,6 @@ type CallState =
   | { status: 'done'; value: unknown }
   | { status: 'failed'; message: string };
 
-/** Runs the operation against the live deployment and prints what came back.
- * The catalog is public, so there is no key to handle, and what is printed
- * cannot go stale because it is not a sample. */
 function TryIt({ operation }: { operation: Operation }) {
   const convex = useConvex();
   const name = operationName(operation);
@@ -299,16 +279,12 @@ function TryIt({ operation }: { operation: Operation }) {
   );
 }
 
-/** One `SelectControl` option. The package does not re-export the type, so it
- * is read back off the component's own props rather than restated here. */
 type SelectItem = NonNullable<
   ComponentProps<typeof SelectControl>['items']
 >[number];
 
 const UNSET: SelectItem = { label: 'Any', value: null };
 
-/** One argument's input, picked from the validator rather than hand-placed: a
- * union of literals gets a select, everything else a text field. */
 function ArgField({
   input,
   value,
@@ -348,7 +324,6 @@ function ArgField({
   );
 }
 
-/** One model's `name — type — note` table. */
 function ModelSection({ model }: { model: Model }) {
   return (
     <Stack direction="column" gap="xs">
@@ -383,7 +358,6 @@ function Row({
   );
 }
 
-/** A copyable multi-line snippet. */
 function CodeBlock({ text }: { text: string }) {
   return (
     <Stack direction="column" gap="xs">

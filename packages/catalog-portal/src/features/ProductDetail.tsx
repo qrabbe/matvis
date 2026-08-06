@@ -11,14 +11,10 @@ import { SkeletonList, sizedImageUrl } from '@matvis/ui';
 import { href } from '../lib/route';
 import { api } from '../lib/convexApi';
 
-// The `store` value is a slug (`'coop'`); show its brand casing when we know it.
 function storeLabel(store: string): string {
   return STORE_LABELS[store as StoreSlug] ?? store;
 }
 
-/** Product detail for one EAN, the target of the `#/p/<ean>` deep link. The
- * catalog is keyed by (store, EAN), so the lookup returns one row per chain and
- * this picks between them. */
 export function ProductDetail({ ean }: { ean: string }) {
   const rows = useQuery(api.catalog.getByEan, { ean });
   const [storeIndex, setStoreIndex] = useState(0);
@@ -79,7 +75,6 @@ function BackLink() {
   );
 }
 
-/** Image, name, brand, package, breadcrumb, description, origin and labels. */
 function ProductCard({ item }: { item: CatalogRow }) {
   const image = sizedImageUrl(item.imageUrl, 600);
   return (
@@ -153,9 +148,6 @@ function ProductCard({ item }: { item: CatalogRow }) {
   );
 }
 
-/** Ingredients and the nutrition table, shown only for consumable products.
- * Never labelled as allergen information: allergens exist in the catalog only as
- * prose inside the ingredient list, so promising more would be a lie. */
 function FoodCard({ food }: { food: NonNullable<CatalogRow['food']> }) {
   return (
     <Card.Root>
@@ -179,7 +171,6 @@ function FoodCard({ food }: { food: NonNullable<CatalogRow['food']> }) {
   );
 }
 
-/** The fixed nutrition slots, in the order a Swedish package prints them. */
 const NUTRITION_ROWS: {
   key: Exclude<keyof CatalogNutrition, 'basisQuantity' | 'basisUnit'>;
   label: string;
@@ -232,7 +223,6 @@ function NutritionTable({ nutrition }: { nutrition: CatalogNutrition }) {
   );
 }
 
-/** Where the row came from — the same provenance the contract exposes. */
 function ProvenanceCard({ item }: { item: CatalogRow }) {
   return (
     <Card.Root>
@@ -271,7 +261,6 @@ function DefinitionRow({ label, value }: { label: string; value: ReactNode }) {
   );
 }
 
-/** Placeholder for the ~0.05% of rows with no image, so the layout holds. */
 function NoImage({ size }: { size: number }) {
   return (
     <div

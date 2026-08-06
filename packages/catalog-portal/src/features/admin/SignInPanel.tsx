@@ -5,15 +5,6 @@ import { ErrorNotice, InlineSpinner } from '@matvis/ui';
 import { adminApi } from '../../lib/adminApi';
 import { storeAdminToken } from '../../lib/adminSession';
 
-/**
- * The console's door: one shared password exchanged for a session token.
- *
- * The password is sent once and never stored. What comes back and goes into
- * localStorage is a token whose SHA-256 is what the deployment actually holds.
- * A wrong password costs a second of wall clock on the server, and eleven wrong
- * passwords inside an hour lock the door for an hour, so the error text stays
- * vague on purpose.
- */
 export function SignInPanel({ expired = false }: { expired?: boolean }) {
   const signIn = useAction(adminApi.admin.signIn);
   const [password, setPassword] = useState('');

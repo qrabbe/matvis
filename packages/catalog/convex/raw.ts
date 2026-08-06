@@ -5,23 +5,8 @@ import { catalogFields } from './model/fields';
 import { project, upsertClean } from './model/project';
 import { bumpCounter, NEVER_FETCHED_KEY } from './model/counters';
 
-/** One clean row as it travels between the paging query and the batch upsert. */
 const cleanFields = v.object(catalogFields);
 
-/**
- * Ingest one Coop product: upsert `raw_coop` by EAN, then project into the clean
- * `catalog` table. The single write path every Coop scraper calls. Returns the
- * raw row id.
- *
- * `lastFetchedAt` is stamped here rather than passed in, so that every caller —
- * queue worker, refresh sweep, a one-off `convex run` — records freshness the
- * same way and none of them can forget to.
- *
- * `replace` rather than `patch`, for the reason `upsertClean` gives: a patch
- * keeps keys the incoming payload does not have, so a promotion that ended or a
- * field Coop dropped would linger on the raw row forever. That only started
- * mattering once rows are re-fetched — a fetch IS the row.
- */
 export const upsertCoopByEan = internalMutation({
   args: { data: v.object(coopProductInformationFields) },
   returns: v.id('raw_coop'),
@@ -33,10 +18,6 @@ export const upsertCoopByEan = internalMutation({
           .withIndex('by_ean', (q) => q.eq('ean', data.ean!))
           .first()
       : null;
-    // A replace always writes `lastFetchedAt`, so a row that did not have one
-    // stops being never-fetched here. Inserts carry the stamp from birth and so
-    // never enter that count at all. `claimOldestForRefresh` is the only other
-    // writer of the field, and it keeps the counter through `stampFetched`.
     if (existing && existing.lastFetchedAt === undefined) {
       await bumpCounter(ctx, NEVER_FETCHED_KEY, -1);
     }
@@ -51,7 +32,6 @@ export const upsertCoopByEan = internalMutation({
   },
 });
 
-/** One page of clean fields projected from `raw_coop`, for the backfill action. */
 export const pageRawCoop = internalQuery({
   args: { cursor: v.union(v.string(), v.null()), numItems: v.number() },
   returns: v.object({
@@ -73,7 +53,6 @@ export const pageRawCoop = internalQuery({
   },
 });
 
-/** Upsert a batch of clean rows (used by the backfill). Returns rows inserted. */
 export const upsertCleanBatch = internalMutation({
   args: { items: v.array(cleanFields) },
   returns: v.number(),

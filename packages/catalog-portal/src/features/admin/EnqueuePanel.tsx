@@ -12,14 +12,6 @@ import {
 import { adminApi } from '../../lib/adminApi';
 import { TaskResult, useAdminTask } from './task';
 
-/**
- * Put work into the queue by hand: a pasted list of EANs, or one search phrase.
- *
- * The `queued` / `known` / `duplicate` breakdown that comes back explains
- * itself. `known` is already in the catalog and belongs to the refresh sweep,
- * `duplicate` already has a queue row that has not settled, and only `queued` is
- * new work.
- */
 export function EnqueuePanel({ token }: { token: string }) {
   const enqueueEans = useAction(adminApi.admin.enqueueEans);
   const enqueueName = useAction(adminApi.admin.enqueueName);
@@ -100,9 +92,6 @@ export function EnqueuePanel({ token }: { token: string }) {
   );
 }
 
-/** Every digit run in the pasted text, deduped and in order. Deliberately
- * permissive about separators, since the list is usually pasted from somewhere
- * that formatted it its own way. */
 function parseEans(text: string): string[] {
   return [...new Set(text.match(/\d{8,14}/g) ?? [])];
 }

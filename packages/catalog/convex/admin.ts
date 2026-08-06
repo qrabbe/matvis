@@ -52,40 +52,8 @@ import {
 } from './model/ops';
 import { readCounter, CATALOG_COUNT_KEY } from './model/counters';
 
-/**
- * The admin console's entire public surface.
- *
- * `ingest.ts`, `raw.ts` and `coop/*` stay fully internal, because a public
- * ingest function on an auth-less deployment lets anyone burn Coop's API key and
- * write to the raw tables. A browser needs something public to call, so this
- * file is that something, and it is the only file a security review has to read.
- *
- * The guard is STRUCTURAL, not remembered. Every function below is defined
- * through `adminQuery` / `adminMutation` / `adminAction`, which add the `token`
- * argument and check the session BEFORE the handler runs, so there is no first
- * line anyone can forget to write. Grep this file for `= query(`, `= mutation(`
- * and `= action(`: the only bare registration is `signIn`, which is the door
- * itself and cannot check a session it is in the business of creating.
- *
- * One shared password, no user accounts. What that gives up is knowing WHO ran a
- * sweep: `ingest_runs` records what happened, not who asked for it. If a second
- * operator ever appears, the upgrade is a password provider plus an allowlist
- * table behind `sessionIsLive`, and no console component changes.
- *
- * Accepted tradeoff: the console keeps its bearer token in `localStorage`, which
- * any XSS in the portal bundle could steal. The portal renders no user-supplied
- * HTML, and expiry plus "sign out everywhere" are the only mitigations there are.
- */
-
-// ── The gate ─────────────────────────────────────────────────────────────────
-
-/** Thrown to a caller whose token is missing, expired or unknown. */
 const NOT_SIGNED_IN = 'Not signed in';
 
-/** Whether a raw token names a live session. The wall clock read here is
- * deliberate: expiry is checked on every call, and a live subscription that has
- * already been served keeps its answer until something writes to the table,
- * which is what "sign out everywhere" is for. */
 async function sessionIsValid(
   ctx: QueryCtx | MutationCtx,
   token: string,
@@ -98,20 +66,13 @@ async function sessionIsValid(
   return row !== null && row.expiresAt > Date.now();
 }
 
-/** Every wrapped function takes this on top of its own arguments. */
 const tokenArg = { token: v.string() };
 
 type AnyReturns = Validator<any, 'required', any>;
 
-/**
- * A public read behind the session gate.
- *
- * Returns null rather than throwing when the token is bad, because the console
- * gates its whole signed-in view on exactly that: a `useQuery` that throws would
- * need an error boundary to tell "signed out" apart from "backend is broken",
- * and null says it in the type. Writes below throw instead, where a silent
- * no-op would be the wrong failure mode.
- */
+/** Every function in this file except `signIn` is registered through one of
+ * these, so the session check cannot be forgotten. Grep for `= query(`,
+ * `= mutation(` and `= action(` to confirm nothing bypasses them. */
 function adminQuery<
   Args extends PropertyValidators,
   Returns extends AnyReturns,
@@ -131,7 +92,6 @@ function adminQuery<
   });
 }
 
-/** A public write behind the session gate. */
 function adminMutation<
   Args extends PropertyValidators,
   Returns extends AnyReturns,
@@ -154,12 +114,6 @@ function adminMutation<
   });
 }
 
-/**
- * A public action behind the session gate. Most of the console's writes are
- * actions rather than mutations for a plain mechanical reason: the work they
- * delegate to lives in `internal` MUTATIONS, and a mutation cannot call another
- * mutation while an action can.
- */
 function adminAction<
   Args extends PropertyValidators,
   Returns extends AnyReturns,
@@ -182,10 +136,6 @@ function adminAction<
   });
 }
 
-// ── Sign-in ──────────────────────────────────────────────────────────────────
-
-/** The session check as an action can reach it, by hash: an action has no `db`,
- * and hashing in the action means the raw token never travels further in. */
 export const sessionIsLive = internalQuery({
   args: { tokenHash: v.string() },
   returns: v.boolean(),
@@ -198,7 +148,6 @@ export const sessionIsLive = internalQuery({
   },
 });
 
-/** Whether the door is currently locked by failed sign-ins, and until when. */
 export const signInGate = internalQuery({
   args: {},
   returns: v.object({ lockedUntil: v.union(v.number(), v.null()) }),
@@ -212,11 +161,6 @@ export const signInGate = internalQuery({
   },
 });
 
-/**
- * Count one failed sign-in, locking the door once a window fills. Failures are
- * counted inside a rolling {@link SIGNIN_WINDOW_MS} window, so nine bad guesses
- * spread over a day never add up to a lockout.
- */
 export const recordSignInFailure = internalMutation({
   args: {},
   returns: v.null(),
@@ -242,10 +186,6 @@ export const recordSignInFailure = internalMutation({
   },
 });
 
-/**
- * Record a successful sign-in: clear the failure counter and store the token's
- * hash, sweeping a bounded slice of expired sessions on the way past.
- */
 export const openSession = internalMutation({
   args: { tokenHash: v.string(), expiresAt: v.number() },
   returns: v.null(),
@@ -274,16 +214,6 @@ export const openSession = internalMutation({
   },
 });
 
-/**
- * Exchange the shared password for a session token. THE ONE public function in
- * this file that is not wrapped, because it is the wrapper's own precondition.
- *
- * An action because it needs three things a mutation cannot do: read a
- * deployment env var, generate real randomness (`crypto.getRandomValues` is
- * seeded inside a mutation, which would make tokens guessable), and spend wall
- * clock on a rejection. The token is returned once and never stored, only its
- * SHA-256 is.
- */
 export const signIn = action({
   args: { password: v.string() },
   returns: v.object({ token: v.string(), expiresAt: v.number() }),
@@ -293,16 +223,11 @@ export const signIn = action({
       {},
     );
     if (gate.lockedUntil !== null) {
-      // Same delay as a wrong password, so "locked" and "wrong" cannot be told
-      // apart by how long they take to answer.
       await delay(SIGNIN_FAILURE_DELAY_MS);
       throw new Error(
         'Too many failed sign-ins. The console is locked for up to an hour.',
       );
     }
-    // Read lazily, not at module top level: Convex imports every module at push
-    // time without deployment env vars injected, so a top-level throw would fail
-    // the push even with the var set.
     const expected = process.env.CATALOG_ADMIN_PASSWORD;
     if (!expected) {
       throw new Error('CATALOG_ADMIN_PASSWORD env var is not set');
@@ -323,15 +248,6 @@ export const signIn = action({
   },
 });
 
-/**
- * Delete every session, which signs out every browser including this one. The
- * whole revocation story, and enough for a console with one operator.
- *
- * Bounded at {@link SESSION_REVOKE_LIMIT} rather than collected, and `isDone`
- * says whether that was all of them. With one password, 12 hour expiry and a
- * sweep on every sign-in, the table holds single digits of rows, so the bound is
- * a guard rather than a page a caller is expected to walk.
- */
 export const signOutEverywhere = adminMutation({
   args: {},
   returns: v.object({ revoked: v.number(), isDone: v.boolean() }),
@@ -348,23 +264,6 @@ export const signOutEverywhere = adminMutation({
   },
 });
 
-// ── See ──────────────────────────────────────────────────────────────────────
-
-/**
- * Everything the console's header and dashboard show, in one live query: the
- * catalog total, the queue's counts, how stale the catalog is and whether ingest
- * is paused. Reactive, so a drain running in the background moves these numbers
- * on their own, which is most of what the console has over a terminal.
- *
- * Every field is a point read: the catalog total, the queue's five status counts
- * and the never-fetched total all come from maintained counters, and the stalest
- * timestamp is one row. That matters more here than anywhere else in the file,
- * because this is a LIVE query held for the length of a session — it used to
- * count by scanning, giving it a read set of most of the queue table plus the
- * head of `raw_coop`, so every row a drain touched re-ran it over ~6,000
- * documents. It was the single largest consumer of database reads on the
- * deployment. Keep it point reads.
- */
 export const overview = adminQuery({
   args: {},
   returns: v.object({
@@ -381,12 +280,6 @@ export const overview = adminQuery({
   }),
 });
 
-/**
- * The last runs, newest first. One row per action INVOCATION, so a drain that
- * schedules eight continuations reads as nine rows rather than one. A row still
- * reading `running` long after `startedAt` is an invocation that died without
- * settling.
- */
 export const runs = adminQuery({
   args: {},
   returns: v.array(
@@ -404,8 +297,6 @@ export const runs = adminQuery({
   handler: async (ctx) => await readRecentRuns(ctx),
 });
 
-/** One page of queue rows in a status, newest first. The failed page with
- * `lastError` visible is the console's highest-value screen. */
 export const queueRows = adminQuery({
   args: {
     status: queueStatusValidator,
@@ -442,14 +333,6 @@ export const queueRows = adminQuery({
   },
 });
 
-// ── Run ──────────────────────────────────────────────────────────────────────
-
-/**
- * Every run starter SCHEDULES its action and returns at once. Awaiting a drain
- * from the call a button is blocked on would hold the request open for minutes
- * and time out long before the work finished. What the run did shows up in
- * `runs` a moment later, which is what the run log is for.
- */
 export const startDiscovery = adminMutation({
   args: { drain: v.optional(v.boolean()) },
   returns: v.null(),
@@ -463,9 +346,6 @@ export const startDiscovery = adminMutation({
   },
 });
 
-/** Drain `batches` batches of the queue. Bounded by the same ceiling discovery
- * uses for its own drain, so the console cannot ask for a 100-batch run by
- * accident. */
 export const startDrain = adminMutation({
   args: { batches: v.optional(v.number()) },
   returns: v.object({ batches: v.number() }),
@@ -478,7 +358,6 @@ export const startDrain = adminMutation({
   },
 });
 
-/** Sweep `batches` batches of the stalest catalog rows. */
 export const startRefresh = adminMutation({
   args: { batches: v.optional(v.number()) },
   returns: v.object({ batches: v.number() }),
@@ -491,8 +370,6 @@ export const startRefresh = adminMutation({
   },
 });
 
-/** A batch count a console is allowed to ask for: at least one, never more than
- * discovery's own drain ceiling, never a fraction. */
 function boundedBatches(batches: number): number {
   if (!Number.isFinite(batches)) return 1;
   return Math.min(
@@ -501,16 +378,6 @@ function boundedBatches(batches: number): number {
   );
 }
 
-// ── Stop ─────────────────────────────────────────────────────────────────────
-
-/**
- * The pause switch. Checked at the top of every worker batch, which is the only
- * thing that can stop a self-scheduling chain: cancelling the schedule kills the
- * next link, and the link after it does not exist yet.
- *
- * A running drain stops within one batch. Discovery is not stopped, but the
- * drain it would have scheduled is.
- */
 export const setPaused = adminMutation({
   args: { paused: v.boolean() },
   returns: v.null(),
@@ -520,14 +387,6 @@ export const setPaused = adminMutation({
   },
 });
 
-// ── Fix ──────────────────────────────────────────────────────────────────────
-
-// The delegating handlers below carry an explicit return type. Each is an action
-// in a module whose own exports are part of the `internal` type it imports, and
-// TypeScript cannot infer through that cycle without help.
-
-/** Put failed rows back in line. Nothing retries them on its own, so this is the
- * decision that a failure was transient. */
 export const requeueFailed = adminAction({
   args: { limit: v.optional(v.number()) },
   returns: v.object({ requeued: v.number() }),
@@ -535,9 +394,6 @@ export const requeueFailed = adminAction({
     await ctx.runMutation(internal.ingest.requeueFailed, { limit }),
 });
 
-/** Delete settled `done` rows. Only `done`: a `skipped` row is the memo that
- * Coop has no such product, and deleting it invites the next discovery run to
- * re-learn the same thing. */
 export const clearDoneRows = adminAction({
   args: { limit: v.optional(v.number()) },
   returns: v.object({ deleted: v.number() }),
@@ -545,9 +401,6 @@ export const clearDoneRows = adminAction({
     await ctx.runMutation(internal.ingest.clearDoneRows, { limit }),
 });
 
-/** Drop queue rows outright, by EAN or by search text. The way out of a row
- * nothing else can clear, such as a `skipped` EAN Coop has since started
- * stocking. */
 export const removeQueueRows = adminAction({
   args: { ean: v.optional(v.string()), query: v.optional(v.string()) },
   returns: v.object({ deleted: v.number() }),
@@ -555,17 +408,6 @@ export const removeQueueRows = adminAction({
     await ctx.runMutation(internal.ingest.removeQueueRows, { ean, query }),
 });
 
-// ── Add ──────────────────────────────────────────────────────────────────────
-
-/**
- * Queue a pasted list of EANs. Chunked to {@link ENQUEUE_CHUNK} per mutation
- * because enqueueing reads one full `raw_coop` document per already-known EAN,
- * and a few hundred of those is already about a megabyte of transaction reads.
- *
- * The `queued` / `known` / `duplicate` breakdown explains itself: `known` is
- * already in the catalog and belongs to the refresh sweep, `duplicate` already
- * has a queue row that has not settled.
- */
 export const enqueueEans = adminAction({
   args: { eans: v.array(v.string()) },
   returns: v.object({
@@ -593,8 +435,6 @@ export const enqueueEans = adminAction({
   },
 });
 
-/** Queue one search phrase for the worker to resolve through Coop search. The
- * path for a receipt line with no GTIN. */
 export const enqueueName = adminAction({
   args: { query: v.string() },
   returns: v.object({

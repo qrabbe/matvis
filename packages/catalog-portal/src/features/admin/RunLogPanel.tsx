@@ -4,17 +4,6 @@ import { SkeletonList } from '@matvis/ui';
 import { adminApi, type RunRow } from '../../lib/adminApi';
 import { formatAge, formatDuration, formatSummary } from './format';
 
-/**
- * The last runs, newest first.
- *
- * One row per action INVOCATION, not per thing a human started: `processQueue`
- * and `refreshOldest` schedule their own continuations, so a drain of 4,000 rows
- * reads as nine rows here. That is the log being honest about what ran rather
- * than a tree nobody asked for.
- *
- * A row still reading `running` long after it started is an invocation that died
- * without settling, which a wall-clock timeout or a deploy will do.
- */
 export function RunLogPanel({ token }: { token: string }) {
   const runs = useQuery(adminApi.admin.runs, { token });
 
@@ -45,8 +34,6 @@ export function RunLogPanel({ token }: { token: string }) {
   );
 }
 
-/** Badge colour by outcome. `paused` is informational rather than a warning:
- * the run did exactly what it was told. */
 function statusIntent(status: RunRow['status']) {
   if (status === 'error') return 'high' as const;
   if (status === 'ok') return 'stable' as const;

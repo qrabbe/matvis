@@ -7,15 +7,10 @@ import schema from './schema';
 
 const modules = import.meta.glob('./**/*.ts');
 
-/** All of it, one page. Every fixture here fits well inside a page. */
 const page = { numItems: 20, cursor: null };
 
 type Seed = { ean: string; name: string; store?: 'coop' | 'ica' };
 
-/**
- * Write clean rows through the real upsert, so the catalog counter that `stats`
- * reads moves with them rather than being seeded by hand.
- */
 async function seed(t: ReturnType<typeof convexTest>, rows: Seed[]) {
   await t.mutation(internal.raw.upsertCleanBatch, {
     items: rows.map((row) => ({
@@ -63,8 +58,6 @@ describe('search', () => {
     });
     expect(names(byEan)).toEqual(['Smör normalsaltat']);
 
-    // A term too short to be a GTIN stays on the name index, so "3" in
-    // "Mjölk 3%" is read as part of a name.
     const short = await t.query(api.catalog.search, {
       q: '731',
       paginationOpts: page,
@@ -130,8 +123,6 @@ describe('getManyByEan', () => {
     const rows = await t.query(api.catalog.getManyByEan, {
       eans: ['7310865085733', '7310865085734', '7310865085733', 'unknown'],
     });
-    // Three stored rows, not four: the repeat is looked up once and the
-    // unknown EAN contributes nothing.
     expect(rows).toHaveLength(3);
     expect(rows.map((row) => row.name).sort()).toEqual([
       'Mellanmjölk',
@@ -147,13 +138,10 @@ describe('getManyByEan', () => {
       (_, n) => `73108650857${String(n).padStart(2, '0')}`,
     );
 
-    // Both sides import MAX_EANS_PER_LOOKUP, so a client batching by a stale
-    // copy has to fail loudly rather than believe it got a full answer.
     await expect(t.query(api.catalog.getManyByEan, { eans })).rejects.toThrow(
       new RegExp(`at most ${MAX_EANS_PER_LOOKUP} EANs, got ${eans.length}`),
     );
 
-    // The ceiling is on distinct EANs, so a long list of repeats is fine.
     const repeats = Array.from(
       { length: MAX_EANS_PER_LOOKUP + 1 },
       () => '7310865085733',
@@ -182,7 +170,6 @@ describe('stats', () => {
       stores: ['ica', 'coop'],
     });
 
-    // An upsert of a row that already exists replaces it, so the count holds.
     await seed(t, [
       { ean: '7310865085733', name: 'Mellanmjölk 3%', store: 'coop' },
     ]);
