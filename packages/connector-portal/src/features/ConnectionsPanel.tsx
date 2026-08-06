@@ -9,19 +9,12 @@ import { formatDateTime } from '../lib/format';
 
 type SyncResult = FunctionReturnType<typeof api.sync.sync>;
 
-/** How to render one connection's health, derived from its status and expiry.
- * `intent` maps to a `@wordpress/ui` Badge color and `note` explains the state. */
 type Health = {
   label: string;
   intent: 'stable' | 'medium' | 'high';
   note: string;
 };
 
-/** Decide whether a connection is still valid, right now. `status` is the
- * server's truth. A refresh token past its expiry is effectively dead too
- * (nothing left to refresh with), so we surface that as "Expired". The access
- * token expiring is routine (it refreshes on the next sync), so it never counts
- * as invalid here. */
 function health(c: ConnectionPublic, now: number): Health {
   if (c.status === 'revoked') {
     return {
@@ -47,15 +40,6 @@ function health(c: ConnectionPublic, now: number): Health {
   return { label: 'Active', intent: 'stable', note: 'Syncing normally.' };
 }
 
-/** The store connections reachable through a token (or, with none, the login
- * session): which stores are linked and whether each is still valid. Same
- * token-vs-session scoping as {@link ReceiptsPanel}, so a third-party service
- * holding the token sees exactly this.
- *
- * The per-connection "Sync now" control is session-only. `sync.sync` checks
- * ownership against the login identity and takes no token, so a token holder
- * cannot call it — and the token demo is meant to show what a third party can
- * reach, not to borrow the session behind it. */
 export function ConnectionsPanel({ token }: { token?: string } = {}) {
   const connections = useQuery(api.connections.list, token ? { token } : {}); // undefined = loading
   const now = Date.now();
@@ -129,9 +113,6 @@ function ConnectionRow({
   );
 }
 
-/** Force a sync of one connection, without going back through the link flow.
- * Disabled on an unhealthy connection because every such state needs a re-link
- * first, and the note above already says so. */
 function SyncNow({
   connectionId,
   healthy,

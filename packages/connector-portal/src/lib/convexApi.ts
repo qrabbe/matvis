@@ -12,22 +12,6 @@ import type {
   StoreSlug,
 } from '@matvis/shared';
 
-// ── Typed facade over the connector's public Convex API ──────────────────────
-// The portal is a separate package from @matvis/connector, where the Convex
-// backend and its `convex dev`-generated `_generated/api` live. Importing that
-// generated `api` directly drags the connector's whole convex/ + src/ TS program into
-// THIS package's typecheck — it chains through `import type * as links from
-// "../links.js"` — which breaks composite `rootDir` and applies the portal's
-// stricter tsconfig to code it doesn't own.
-//
-// Instead we call the deployment through Convex's runtime `anyApi` proxy (it
-// builds valid path-based function references — `anyApi.receipts.list` →
-// "receipts:list") and layer static types on top via the cast below. The data
-// shapes come from @matvis/shared (the SAME single source of truth the server's
-// validators mirror), so the UI can't drift on the receipt contract. Only the
-// thin function-signature layer is hand-written; keep it in step with
-// packages/connector/convex/{links,sync,receipts}.ts.
-
 type LinkStart = FunctionReference<
   'action',
   'public',
@@ -55,9 +39,6 @@ type SyncSync = FunctionReference<
   { synced: number; skipped: number; status: 'active' | 'needs_reauth' }
 >;
 
-// Every read takes an optional `token`: pass it and the read is scoped by that
-// token alone (the decoupled third-party path, no login). Omit it and the read
-// falls back to the caller's login session (the portal's own reads).
 type ReceiptsList = FunctionReference<
   'query',
   'public',
@@ -86,8 +67,6 @@ type ReceiptsChanges = FunctionReference<
   { receipts: ReceiptHeader[]; cursor: number; hasMore: boolean }
 >;
 
-// The store connections behind a token (or the login session): no secrets,
-// just enough to show which stores are linked and whether each is still valid.
 type ConnectionsList = FunctionReference<
   'query',
   'public',
@@ -95,8 +74,6 @@ type ConnectionsList = FunctionReference<
   ConnectionPublic[]
 >;
 
-// The account-wide API token: `get` reveals the caller's (or null), `create`
-// mints it. Both are session-scoped, so only the owner sees or mints their own.
 type AccessTokenGet = FunctionReference<'query', 'public', {}, string | null>;
 type AccessTokenCreate = FunctionReference<'mutation', 'public', {}, string>;
 
@@ -113,8 +90,6 @@ type ConnectorApi = {
   };
 };
 
-/** The connector's public API, statically typed, backed by the runtime proxy. */
 export const api = anyApi as unknown as ConnectorApi;
 
-/** Convex document id, e.g. `Id<'connections'>`. */
 export type Id<TableName extends string> = GenericId<TableName>;

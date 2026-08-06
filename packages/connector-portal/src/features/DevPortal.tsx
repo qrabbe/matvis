@@ -2,9 +2,6 @@ import type { ReactNode } from 'react';
 import { Badge, Card, Stack, Text } from '@wordpress/ui';
 import { CopyButton } from '@matvis/ui';
 
-// Hand-written docs. The field table below mirrors `Receipt` in
-// packages/shared/src/receipt.ts — keep the two in sync when the contract moves.
-
 type Field = { name: string; type: string; note: string };
 
 const RECEIPT_FIELDS: Field[] = [

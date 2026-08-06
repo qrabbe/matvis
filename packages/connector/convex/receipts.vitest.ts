@@ -6,20 +6,13 @@ import schema from './schema';
 
 const modules = import.meta.glob('./**/*.ts');
 
-// Bind a test client to an account. `subject` is what the auth seam reads (via
-// getAuthUserId in model/auth.ts), and it matches the seeded `accounts.subject`.
 const as = (t: ReturnType<typeof convexTest>, subject: string) =>
   t.withIdentity({ subject });
 
-// Seed two accounts (A, B). Account A gets three receipts (a-1, a-2, a-3 in
-// creation order — a-3 newest), a-3 carrying two line items and a stored PDF.
-// Account B gets one receipt (b-1) to exercise cross-account scoping/ownership.
 async function seed(t: ReturnType<typeof convexTest>) {
   return await t.run(async (ctx) => {
     const accountA = await ctx.db.insert('accounts', { subject: 'sub-a' });
     const accountB = await ctx.db.insert('accounts', { subject: 'sub-b' });
-    // Token columns hold ciphertext. These tests never decrypt, so a stand-in
-    // blob of the right shape is enough.
     const sealed = { keyVersion: 1, iv: 'aXY=', ciphertext: 'Y3Q=' };
     const conn = (accountId: typeof accountA) =>
       ctx.db.insert('connections', {
@@ -83,9 +76,7 @@ describe('receipts read API', () => {
       paginationOpts: { numItems: 10, cursor: null },
     });
     expect(page.page.map((r) => r.externalId)).toEqual(['a-3', 'a-2', 'a-1']);
-    // scoped to A — B's receipt never appears
     expect(page.page.some((r) => r.externalId === 'b-1')).toBe(false);
-    // header is trimmed (no rawText)
     expect(page.page.every((r) => !('rawText' in r))).toBe(true);
   });
 

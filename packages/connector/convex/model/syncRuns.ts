@@ -7,16 +7,6 @@ import {
   syncRunOutcomeValidator,
 } from '../validators';
 
-// The sync run log and the pause switch. They live here in the default Convex
-// runtime for the same reason `model/receipts.ts` does: the sync action is
-// `"use node"` and may export only actions, so every query and mutation it
-// reaches goes through `internal.model.*`.
-//
-// Everything is internal. No portal screen reads a run row today; the log is
-// for the dashboard and for whoever has to answer why a sync produced nothing.
-
-/** Whether syncing is paused. Defaults to running, so a deployment with no
- * settings row behaves exactly as it did before the switch existed. */
 export const isPaused = internalQuery({
   args: {},
   returns: v.boolean(),
@@ -26,7 +16,6 @@ export const isPaused = internalQuery({
   },
 });
 
-/** Stop or resume syncing, creating the singleton row on first use. */
 export const setPaused = internalMutation({
   args: { paused: v.boolean() },
   returns: v.null(),
@@ -42,12 +31,6 @@ export const setPaused = internalMutation({
   },
 });
 
-/**
- * Open a run row for a sync that is starting, sweeping a bounded slice of
- * expired rows on the way through. Ascending order means the sweep only ever
- * looks at the oldest {@link SYNC_RUN_TRIM} rows, so logging a run costs the
- * same whether the log is empty or months deep.
- */
 export const startRun = internalMutation({
   args: { connectionId: v.id('connections') },
   returns: v.id('syncRuns'),
@@ -65,7 +48,6 @@ export const startRun = internalMutation({
   },
 });
 
-/** Settle an open run row with what the sync returned or threw. */
 export const finishRun = internalMutation({
   args: {
     runId: v.id('syncRuns'),

@@ -15,14 +15,8 @@ import { pendingHint } from '../lib/bankid-copy';
 import { useBankIdLink } from '../hooks/useBankIdLink';
 import { QrCode } from '../components/QrCode';
 
-/** Only `coop` has a built connector today; the rest are reserved slugs. */
 const LIVE_STORES: readonly StoreSlug[] = ['coop'];
 
-/**
- * Picker order: working stores first (only `coop` today), then the rest in
- * canonical market-share order. `STORES` itself stays market-share ordered —
- * this is display-only. `Array.sort` is stable, so each group keeps its order.
- */
 const PICKER_STORES: readonly StoreSlug[] = [...STORES].sort(
   (a, b) => Number(!LIVE_STORES.includes(a)) - Number(!LIVE_STORES.includes(b)),
 );
@@ -147,9 +141,6 @@ function LinkInProgressView({
   sameDevice: boolean;
   onCancel: () => void;
 }) {
-  // Two flows, one poll loop. Same-device shows a deep-link button to launch the
-  // BankID app on this phone (`appLink` from the start's autoStartToken);
-  // different-device shows the animated QR to scan from another phone.
   return (
     <Stack direction="column" gap="md" align="center">
       {sameDevice ? (

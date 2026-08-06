@@ -1,10 +1,6 @@
 import type { FetchLike } from '../../http';
 import { apiHeaders, DEFAULT_COOP_CONFIG, type CoopConfig } from '../config';
 
-/**
- * Download a single receipt's formal PDF as raw bytes. The caller can hand the
- * bytes to the parser or offer them as a file download.
- */
 export async function fetchReceiptPdf(
   fetchImpl: FetchLike,
   accessToken: string,

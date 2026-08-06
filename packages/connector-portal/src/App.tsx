@@ -49,8 +49,6 @@ export function App() {
           <Tabs.Panel value="connect">
             <Stack direction="column" gap="xl" style={{ paddingTop: 20 }}>
               <ConnectPanel />
-              {/* Session-scoped, so this is where the per-connection re-sync
-                  lives. The token demo renders the same panel read-only. */}
               <ConnectionsPanel />
               <TokenPanel />
             </Stack>
@@ -73,10 +71,6 @@ export function App() {
   );
 }
 
-/** Sign-in gate: the connector is its own identity authority, so a login
- * establishes the connector account that scopes every store link and read.
- * Either provider (a guest login or GitHub OAuth) lands on the same connector
- * account, keyed off the authenticated identity. */
 function SignIn() {
   const { signIn } = useAuthActions();
   const [pending, setPending] = useState<'anonymous' | 'github' | null>(null);
@@ -87,8 +81,6 @@ function SignIn() {
     setError(null);
     try {
       await signIn(provider);
-      // On success the component unmounts (guest) or the page redirects to the
-      // provider (GitHub OAuth), so there's no state to reset here.
     } catch (e) {
       setError(errMsg(e));
       setPending(null);
@@ -140,9 +132,6 @@ function SignIn() {
 function SignOutButton() {
   const { signOut } = useAuthActions();
   const handleSignOut = async () => {
-    // Drop the cached connectionId before the identity changes — otherwise the
-    // next account to sign in on this browser inherits a connection it doesn't
-    // own (ConnectPanel shows it "connected"; Sync then throws not-found).
     clearConnectionId();
     await signOut();
   };

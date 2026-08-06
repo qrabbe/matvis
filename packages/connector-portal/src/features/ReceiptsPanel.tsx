@@ -10,10 +10,6 @@ import {
   Tabs,
   Text,
 } from '@wordpress/ui';
-// The receipts list is a `@wordpress/dataviews` table — `@wordpress/ui` has no
-// data-grid equivalent, so this is a justified fallback (like `Spinner`). It
-// renders in the classic `@wordpress/components` style; its stylesheet is loaded
-// once in `main.tsx`.
 import {
   DataViews,
   filterSortAndPaginate,
@@ -25,8 +21,6 @@ import { ErrorNotice, InlineSpinner, JsonView, SkeletonList } from '@matvis/ui';
 import { api } from '../lib/convexApi';
 import { errMsg, formatAmount, formatPurchasedAt } from '@matvis/shared';
 
-// Header + item row shapes derived straight from the connector's read API, so
-// the UI can't drift from what the server actually returns.
 type ReceiptHeader = FunctionReturnType<
   typeof api.receipts.list
 >['page'][number];
@@ -35,8 +29,6 @@ type ReceiptDetail = NonNullable<
 >;
 type ReceiptItem = ReceiptDetail['items'][number];
 
-/** Table columns. `getValue` powers DataViews' client-side sort/search over the
- * already-loaded rows; `render` draws the cell. */
 const FIELDS: Field<ReceiptHeader>[] = [
   {
     id: 'store',
@@ -75,12 +67,7 @@ const DEFAULT_VIEW: View = {
   layout: { styles: { total: { align: 'end' } } },
 };
 
-/** Receipts for one account. With no `token` the reads are scoped to the login
- * session (the portal's own view). Pass a `token` and the exact same component
- * reads purely through it, the decoupled path a third-party service uses. */
 export function ReceiptsPanel({ token }: { token?: string } = {}) {
-  // Small first page: a live subscription re-reads its range on any write in it,
-  // and every panel mount pays for the page it asks for up front.
   const page = usePaginatedQuery(api.receipts.list, token ? { token } : {}, {
     initialNumItems: 10,
   });
@@ -88,15 +75,11 @@ export function ReceiptsPanel({ token }: { token?: string } = {}) {
 
   const loading = page.status === 'LoadingFirstPage';
 
-  // DataViews doesn't fetch — it paginates/sorts whatever we hand it. We feed it
-  // the rows loaded so far; "Load more" extends that pool from the server.
   const { data, paginationInfo } = useMemo(
     () => filterSortAndPaginate(page.results, view, FIELDS),
     [page.results, view],
   );
 
-  // A single per-row action opens a modal that switches between the readable
-  // item list and the raw JSON (with copy/download).
   const actions = useMemo<Action<ReceiptHeader>[]>(
     () => [
       {
@@ -158,9 +141,6 @@ export function ReceiptsPanel({ token }: { token?: string } = {}) {
   );
 }
 
-/** Modal body for one purchase: a Download-PDF control plus a tab switcher
- * between the readable item list and the raw JSON. The line-item detail is
- * fetched lazily when the modal opens. */
 function ReceiptModal({
   header,
   token,
@@ -236,8 +216,6 @@ function ReceiptModal({
   );
 }
 
-/** Expanded receipt: a tab switcher between the human-readable item list and
- * the raw JSON payload. Both tabs render the same already-fetched `detail`. */
 function ReceiptDetailView({
   detail,
   header,

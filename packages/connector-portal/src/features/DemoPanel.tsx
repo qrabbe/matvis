@@ -3,17 +3,10 @@ import { Button, Card, Input, Notice, Stack, Text } from '@wordpress/ui';
 import { ConnectionsPanel } from './ConnectionsPanel';
 import { ReceiptsPanel } from './ReceiptsPanel';
 
-/**
- * Demonstrates the decoupling: paste a token minted in the Connect tab and the
- * receipts below load through that token ALONE. This tab never uses your login
- * session. It's exactly what a third-party service does with the token you hand
- * it (install `convex`, point at the public URL, call `receipts.list({ token })`).
- * An unknown or empty token simply resolves to no account, so an empty list.
- */
+/** Must never read through the login session. The whole point of this tab is
+ * that the receipts below load through the pasted token alone. */
 export function DemoPanel() {
   const [draft, setDraft] = useState('');
-  // The token the receipts below are actually reading through. Separate from the
-  // input `draft` so reads only re-run when you hit "Fetch", not on every key.
   const [active, setActive] = useState<string | null>(null);
 
   const submit = () => {

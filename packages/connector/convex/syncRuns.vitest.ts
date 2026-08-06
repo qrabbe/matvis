@@ -7,8 +7,6 @@ import { MAX_SYNC_ERROR_LENGTH, SYNC_RUN_TTL_MS } from './validators';
 
 const modules = import.meta.glob('./**/*.ts');
 
-// Seed one account with one linked connection. The run log only ever needs a
-// connection id, so nothing here decrypts or syncs.
 async function seedConnection(t: ReturnType<typeof convexTest>) {
   return await t.run(async (ctx) => {
     const accountId = await ctx.db.insert('accounts', { subject: 'sub-a' });
@@ -98,7 +96,6 @@ describe('sync pause switch', () => {
     expect(await t.query(internal.model.syncRuns.isPaused, {})).toBe(true);
     await t.mutation(internal.model.syncRuns.setPaused, { paused: false });
     expect(await t.query(internal.model.syncRuns.isPaused, {})).toBe(false);
-    // one singleton row, not one per flip
     const count = await t.run(
       async (ctx) => (await ctx.db.query('syncSettings').take(5)).length,
     );

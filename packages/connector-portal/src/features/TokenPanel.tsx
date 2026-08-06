@@ -14,11 +14,6 @@ import { CopyButton, ErrorNotice, InlineSpinner } from '@matvis/ui';
 import { api } from '../lib/convexApi';
 import { errMsg } from '@matvis/shared';
 
-/** Reveals (and, on first use, mints) the account-wide API token. This is the
- * one credential a third-party service takes away: paired with the deployment's
- * public URL and the `convex` SDK it's enough to read this account's receipts,
- * with no login and no secret from us. Copy it, then try it in the "Try a token"
- * tab, or paste it into the Matvis app, whose only onboarding step it is. */
 export function TokenPanel() {
   const token = useQuery(api.accessToken.get); // undefined = loading, null = none yet
   const createToken = useMutation(api.accessToken.create);
@@ -30,7 +25,6 @@ export function TokenPanel() {
     setError(null);
     try {
       await createToken({});
-      // The reactive `get` query refreshes on its own once the row is patched.
     } catch (e) {
       setError(errMsg(e));
     } finally {
@@ -82,8 +76,6 @@ export function TokenPanel() {
   );
 }
 
-/** The minted token in a read-only field: masked by default, with reveal and
- * copy controls in the input's suffix slot. */
 function TokenField({ token }: { token: string }) {
   const [revealed, setRevealed] = useState(false);
   return (

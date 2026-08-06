@@ -14,13 +14,8 @@ import { bytesResponse, jsonResponse } from '../test/helpers';
 
 const modules = import.meta.glob('./**/*.ts');
 
-// Unlike the read tests, this suite runs the real sync action, which decrypts
-// the stored tokens. So it needs a real key rather than a stand-in ciphertext.
 process.env.TOKEN_ENC_KEY = generateTokenKey();
 
-// The action resolves its connector with `defaultFetch`, so that export is the
-// one seam a test has on the store API. `vi.hoisted` because the mock factory
-// is lifted above this file's body.
 const transport = vi.hoisted(() => ({
   fetch: undefined as FetchLike | undefined,
 }));
@@ -30,11 +25,6 @@ vi.mock('../src/http', async (importOriginal) => ({
   defaultFetch: ((url, init) => transport.fetch!(url, init)) as FetchLike,
 }));
 
-/**
- * A one-page PDF carrying `lines`, one per line of extracted text. Built here
- * because the sync parses what it fetches, and the real receipt PDFs in
- * `test/documents` are gitignored, so a fixture-driven test would skip in CI.
- */
 function makeReceiptPdf(lines: string[]): Uint8Array {
   const content = `BT /F1 10 Tf 14 TL 40 800 Td ${lines
     .map((line) => `(${line.replace(/([()\\])/g, '\\$1')}) Tj T*`)
@@ -62,9 +52,6 @@ function makeReceiptPdf(lines: string[]): Uint8Array {
   return new TextEncoder().encode(pdf);
 }
 
-// ASCII on purpose: the synthetic PDF above has no font encoding, so the
-// Swedish letters of a real receipt would not survive extraction. The parser
-// itself is covered against real text in `test/coop/parse`.
 const receiptPdf = makeReceiptPdf([
   'Stora Coop Testby',
   '12345 Staden',
@@ -78,7 +65,6 @@ const receiptPdf = makeReceiptPdf([
   '12% 0,80 6,70 7,50',
 ]);
 
-/** Route the Coop connector's three calls to canned responses. */
 function routes(opts: { list?: string[]; refresh?: 'ok' | 'fail' }): FetchLike {
   const list = opts.list ?? [];
   return async (url) => {
@@ -107,11 +93,6 @@ function routes(opts: { list?: string[]; refresh?: 'ok' | 'fail' }): FetchLike {
 const as = (t: ReturnType<typeof convexTest>, subject: string) =>
   t.withIdentity({ subject });
 
-/**
- * Two accounts (A, B) with one coop connection each. A's tokens are genuine
- * ciphertext because the sync action decrypts them for real; B exists to try
- * the ownership gate on A's connection.
- */
 async function seed(
   t: ReturnType<typeof convexTest>,
   options: {
@@ -146,7 +127,6 @@ const connectionRow = (
   connectionId: Id<'connections'>,
 ) => t.run(async (ctx) => await ctx.db.get(connectionId));
 
-/** Every receipt stored for one connection, with its items, oldest first. */
 async function storedReceipts(
   t: ReturnType<typeof convexTest>,
   connectionId: Id<'connections'>,
@@ -170,7 +150,6 @@ async function storedReceipts(
   });
 }
 
-/** The run log for one connection, oldest first. */
 const runsFor = (
   t: ReturnType<typeof convexTest>,
   connectionId: Id<'connections'>,
@@ -254,7 +233,6 @@ describe('receiptExists', () => {
       });
     expect(await exists(a.connectionId, 'r1')).toBe(true);
     expect(await exists(a.connectionId, 'r2')).toBe(false);
-    // Same external id, other connection: still new to that connection.
     expect(await exists(b.connectionId, 'r1')).toBe(false);
   });
 });
@@ -293,7 +271,6 @@ describe('insertReceipt', () => {
     ]);
     expect(items[0].quantity).toBe(1);
     expect(items[2].unit).toBe('KG');
-    // `gtin` is the later matching pass's to fill, never the insert's.
     expect(items.every((item) => item.gtin === undefined)).toBe(true);
   });
 });
@@ -361,7 +338,6 @@ describe('sync action', () => {
       'r1',
       'r2',
     ]);
-    // The PDF was stored and parsed, not just counted.
     expect(stored[0].receipt.pdfStorageId).toBeDefined();
     expect(stored[0].receipt.rawText).toContain('MJOLK');
     expect(stored[0].receipt.store.name).toBe('Stora Coop Testby');
@@ -413,7 +389,6 @@ describe('sync action', () => {
     const row = await connectionRow(t, a.connectionId);
     expect(row?.status).toBe('active');
     expect(row?.refreshTokenExpiresAt).toBeGreaterThan(Date.now());
-    // Written back as ciphertext, and it is the refreshed pair.
     expect(row?.accessToken.ciphertext).not.toBe('new-access');
     expect(await decryptTokenPair(row!)).toEqual({
       accessToken: 'new-access',

@@ -7,8 +7,6 @@ import schema from './schema';
 
 const modules = import.meta.glob('./**/*.ts');
 
-// Seed one receipt with three lines: a plain item, a discount, and an item whose
-// text carries price + quantity noise.
 async function seed(t: ReturnType<typeof convexTest>) {
   return await t.run(async (ctx) => {
     const accountId = await ctx.db.insert('accounts', { subject: 'sub-a' });
@@ -57,8 +55,6 @@ async function seed(t: ReturnType<typeof convexTest>) {
   });
 }
 
-// `null` for an unmatched line: an absent field crosses the `t.run` boundary as
-// null, not undefined.
 const gtinOf = (t: ReturnType<typeof convexTest>, id: Id<'receiptItems'>) =>
   t.run(async (ctx) => (await ctx.db.get(id))?.gtin ?? null);
 
@@ -116,7 +112,6 @@ describe('matchReceipt', () => {
   });
 
   test('insertReceipt schedules the matcher', async () => {
-    // The matcher runs via `scheduler.runAfter`, so drive it off fake timers.
     vi.useFakeTimers();
     const t = convexTest(schema, modules);
     const { receiptId } = await seed(t);

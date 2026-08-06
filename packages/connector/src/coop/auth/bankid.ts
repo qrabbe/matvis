@@ -7,7 +7,6 @@ import {
   type CoopConfig,
 } from '../config';
 
-/** A Keycloak token response (snake_case, as returned by Coop). */
 interface KeycloakTokenResponse {
   access_token: string;
   refresh_token: string;
@@ -19,8 +18,6 @@ interface KeycloakTokenResponse {
   session_state?: string;
 }
 
-// Shared BankID grant params. `startBankId` adds `other_device`; the poll adds
-// its own two fields (below).
 const BASE_BODY: Record<string, string> = {
   grant_type: 'password',
   scope: 'openid offline_access',
@@ -35,10 +32,6 @@ const POLL_BODY: Record<string, string> = {
   user_visible_data: '',
 };
 
-// Coop returns the same-device token as all-lowercase `autostarttoken`
-// (confirmed from a live start response). Read via `firstString` so an empty
-// value is treated as absent; the `console.error` diagnostics below surface the
-// response keys if the endpoint ever renames it.
 const AUTOSTART_TOKEN_KEYS = ['autostarttoken'] as const;
 
 function tokenUrl(config: CoopConfig, query?: Record<string, string>): string {
@@ -46,7 +39,6 @@ function tokenUrl(config: CoopConfig, query?: Record<string, string>): string {
   return `${config.ssoBaseUrl}/auth/realms/coop/protocol/openid-connect/token?${params}`;
 }
 
-/** Normalize a raw Keycloak response to a {@link TokenSet} with absolute expiry. */
 export function toTokenSet(
   raw: KeycloakTokenResponse,
   now = Date.now(),
@@ -68,14 +60,6 @@ export function toTokenSet(
   };
 }
 
-/**
- * Begin a BankID login. Returns an `orderRef` to poll with {@link pollBankId}.
- *
- * `sameDevice` picks the flow: the default (`false`) is Coop's cross-device flow
- * (`other_device: 'true'`) — poll yields an animated QR to scan with a phone.
- * `true` requests the same-device flow (`other_device: 'false'`), where the
- * start response carries an `autoStartToken` for a `bankid://` deep link.
- */
 export async function startBankId(
   fetchImpl: FetchLike,
   opts: { sameDevice?: boolean } = {},
@@ -94,8 +78,6 @@ export async function startBankId(
   const autoStartToken = firstString(json, AUTOSTART_TOKEN_KEYS);
   const orderRef = firstString(json, ['orderRef', 'order_ref']);
   if (!orderRef) {
-    // Log the shape (keys only — no token values) so a same-device flow that
-    // returns an unexpected field name is diagnosable from the Convex logs.
     console.error(
       'startBankId: no orderRef; response keys =',
       Object.keys(json),
@@ -111,7 +93,6 @@ export async function startBankId(
   return { orderRef, autoStartToken };
 }
 
-/** First value at any of `keys` in `obj` that is a non-empty string. */
 function firstString(
   obj: Record<string, unknown>,
   keys: readonly string[],
@@ -123,13 +104,6 @@ function firstString(
   return undefined;
 }
 
-/**
- * Perform a single BankID poll
- * `pending` (current QR + hint)
- * `complete` (tokens), or
- * `failed`
- * The caller paces polls
- */
 export async function pollBankId(
   fetchImpl: FetchLike,
   orderRef: string,
@@ -163,8 +137,6 @@ export async function pollBankId(
       hintCode: json.hintCode as string | undefined,
     };
   }
-  // Some flows surface the same-device autostart token here (not at start), so
-  // pick it up from the poll too.
   const autoStartToken = firstString(json, AUTOSTART_TOKEN_KEYS);
   return {
     status: 'pending',
@@ -174,7 +146,6 @@ export async function pollBankId(
   };
 }
 
-/** Exchange a refresh token for a fresh {@link TokenSet}. */
 export async function refreshBankId(
   fetchImpl: FetchLike,
   refreshToken: string,

@@ -17,9 +17,6 @@ type Seed = {
   syncedAgo?: number;
 };
 
-// Seed one account with a connection per row, returning their ids in order. The
-// dispatcher only reads `status` and `lastSyncedAt`, so the token columns get a
-// stand-in of the right shape and nothing here decrypts.
 async function seedConnections(t: ReturnType<typeof convexTest>, rows: Seed[]) {
   return await t.run(async (ctx) => {
     const accountId = await ctx.db.insert('accounts', { subject: 'sub-a' });
@@ -45,7 +42,6 @@ async function seedConnections(t: ReturnType<typeof convexTest>, rows: Seed[]) {
   });
 }
 
-/** The syncs a dispatch queued, oldest scheduled time first. */
 async function queuedSyncs(t: ReturnType<typeof convexTest>) {
   return await t.run(async (ctx) => {
     const jobs = await ctx.db.system.query('_scheduled_functions').collect();
@@ -62,8 +58,6 @@ async function queuedSyncs(t: ReturnType<typeof convexTest>) {
 const HOUR = 60 * 60 * 1000;
 
 describe('scheduled sync dispatch', () => {
-  // Fake timers throughout: a dispatch schedules real work, and nothing here
-  // wants the first sync firing against a stand-in ciphertext.
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
 
@@ -79,7 +73,6 @@ describe('scheduled sync dispatch', () => {
     const result = await t.mutation(internal.crons.dispatchSync, {});
     expect(result).toEqual({ scheduled: 2, skipped: 0, paused: false });
 
-    // Never-synced first, then the stalest, one stagger apart.
     const queued = await queuedSyncs(t);
     expect(queued.map((job) => job.connectionId)).toEqual([never, stale]);
     expect(queued[1]!.scheduledTime - queued[0]!.scheduledTime).toBe(

@@ -11,12 +11,6 @@ import {
 } from '../validators';
 import { readAccountId } from './auth';
 
-// Registered DB helpers for the sync engine. They live here in the default
-// Convex runtime because the `"use node"` `convex/sync.ts` may export only
-// actions. The orchestration itself is in `../src/sync.ts`.
-
-/** The connection fields the sync needs, or `null` when there is nothing to
- * sync. The tokens stay encrypted here. Only the action decrypts them. */
 const connectionForSyncValidator = v.union(
   v.null(),
   v.object({
@@ -29,8 +23,6 @@ const connectionForSyncValidator = v.union(
   }),
 );
 
-/** Narrow a connection row to those fields, dropping everything the engine has
- * no business reading. */
 function connectionForSync(c: Doc<'connections'>) {
   return {
     accountId: c.accountId,
@@ -42,29 +34,18 @@ function connectionForSync(c: Doc<'connections'>) {
   };
 }
 
-/** Load the connection the caller asked to sync, for the public sync action. */
 export const getConnectionForSync = internalQuery({
   args: { connectionId: v.id('connections') },
   returns: connectionForSyncValidator,
   handler: async (ctx, { connectionId }) => {
     const c = await ctx.db.get(connectionId);
     if (!c) return null;
-    // Ownership: return null for a foreign connection so it's indistinguishable
-    // from a missing one.
     const accountId = await readAccountId(ctx);
     if (accountId === null || c.accountId !== accountId) return null;
     return connectionForSync(c);
   },
 });
 
-/**
- * The same read WITHOUT the ownership check, for the scheduled sync.
- *
- * A cron runs with no identity, so `readAccountId` would reject every connection
- * and the nightly sync would report every one of them missing. The check that
- * replaces it is reachability: this is internal, and the only caller is
- * `internal.sync.syncScheduled`, which no client can invoke either.
- */
 export const getConnectionForScheduledSync = internalQuery({
   args: { connectionId: v.id('connections') },
   returns: connectionForSyncValidator,
@@ -74,7 +55,6 @@ export const getConnectionForScheduledSync = internalQuery({
   },
 });
 
-/** True when a receipt with `externalId` already exists for the connection. */
 export const receiptExists = internalQuery({
   args: { connectionId: v.id('connections'), externalId: v.string() },
   returns: v.boolean(),
@@ -89,7 +69,6 @@ export const receiptExists = internalQuery({
   },
 });
 
-/** Insert a receipt header plus its line items in one transaction. */
 export const insertReceipt = internalMutation({
   args: {
     connectionId: v.id('connections'),
@@ -102,7 +81,6 @@ export const insertReceipt = internalMutation({
   handler: async (ctx, args) => {
     const { items, ...header } = args;
     const receiptId = await ctx.db.insert('receipts', header);
-    // `gtin` is omitted — filled by the later matching pass.
     await Promise.all(
       items.map((it, lineNo) =>
         ctx.db.insert('receiptItems', {
@@ -116,9 +94,6 @@ export const insertReceipt = internalMutation({
         }),
       ),
     );
-    // Matching runs as its own step, right after the insert commits. Wiring it
-    // here (rather than in the sync action) keeps every insert path covered and
-    // means the future engine needs no change to sync.
     await ctx.scheduler.runAfter(0, internal.matching.matchReceipt, {
       receiptId,
     });
@@ -126,8 +101,6 @@ export const insertReceipt = internalMutation({
   },
 });
 
-/** Persist a refreshed token set and reactivate the connection. The tokens
- * arrive already encrypted from the sync action. */
 export const applyRefreshedTokens = internalMutation({
   args: {
     connectionId: v.id('connections'),
@@ -143,7 +116,6 @@ export const applyRefreshedTokens = internalMutation({
   },
 });
 
-/** Flag a connection as needing re-authentication (refresh failed). */
 export const markNeedsReauth = internalMutation({
   args: { connectionId: v.id('connections') },
   returns: v.null(),
@@ -153,7 +125,6 @@ export const markNeedsReauth = internalMutation({
   },
 });
 
-/** Stamp the connection's `lastSyncedAt` with the current time. */
 export const touchLastSynced = internalMutation({
   args: { connectionId: v.id('connections') },
   returns: v.null(),

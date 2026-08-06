@@ -1,6 +1,4 @@
 // @matvis/connector
-// store connectors that turn accounts into normalized results.
-// Inject a `FetchLike` (see ./http) to run it anywhere.
 
 export type { FetchLike, HttpResponse } from './http';
 export { defaultFetch } from './http';
@@ -11,14 +9,11 @@ export type {
   StartAuthOptions,
 } from './connector';
 
-// Store selection: slug → connector.
 export { getConnector, hasConnector, supportedStores } from './registry';
 export type { ConnectorFactory, ConnectorOptions } from './registry';
 
-// Matching: the aggressive cleanup on top of @matvis/shared's lookup key.
 export { stripQuantitySuffix } from './matching';
 
-// Token encryption at rest
 export {
   decryptSecret,
   decryptTokenPair,
@@ -32,7 +27,6 @@ export {
 } from './crypto';
 export type { EncryptedSecret } from './crypto';
 
-// Coop connector
 export { CoopConnector } from './coop/connector';
 export type { CoopConnectorOptions } from './coop/connector';
 export {

@@ -3,23 +3,16 @@ import { z } from 'zod';
 import type { FetchLike } from '../../http';
 import { apiHeaders, DEFAULT_COOP_CONFIG, type CoopConfig } from '../config';
 
-/** One raw row of Coop's list endpoint (snake_case, Coop's private wire format).
- * `.nullish()` (not `.optional()`) because the API sends JSON `null` for absent
- * fields; `.optional()` would reject that and drop the whole page. */
 export const CoopReceiptListRow = z.object({
   receipt_id: z.string(),
   purchase_place: z.string().nullish(),
   purchase_amount: z.number().nullish(),
   purchased_at: z.string().nullish(),
-  /** Coop member/loyalty key associated with the receipt. Not part of the contract. */
   mmkid: z.string().nullish(),
 });
 export type CoopReceiptListRow = z.infer<typeof CoopReceiptListRow>;
 
-/** Coop's raw list envelope: `{ data, current_page, total }`. */
 export const CoopReceiptListResponse = z.object({
-  // The error envelope sends `data: null`; coerce both null and a missing key
-  // to `[]` so the list step doesn't throw on the very case it's meant to model.
   data: z
     .array(CoopReceiptListRow)
     .nullish()
@@ -30,7 +23,6 @@ export const CoopReceiptListResponse = z.object({
 });
 export type CoopReceiptListResponse = z.infer<typeof CoopReceiptListResponse>;
 
-/** Map one raw Coop row onto the store-agnostic {@link ReceiptSummary}. */
 function toSummary(row: CoopReceiptListRow): ReceiptSummary {
   return {
     id: row.receipt_id,
@@ -40,10 +32,6 @@ function toSummary(row: CoopReceiptListRow): ReceiptSummary {
   };
 }
 
-/**
- * List the caller's receipts (metadata only), authenticating with the BankID
- * access token. Coop returns snake_case (`receipt_id`, `purchase_place`, …)
- */
 export async function listReceipts(
   fetchImpl: FetchLike,
   accessToken: string,

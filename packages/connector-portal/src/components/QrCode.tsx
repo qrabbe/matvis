@@ -1,10 +1,6 @@
 import { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
 
-/**
- * Renders a BankID animated-QR payload string as a scannable QR image
- * re-rendering the fresh `qrCode` from the poll
- */
 export function QrCode({
   value,
   size = 240,

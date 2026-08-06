@@ -12,16 +12,9 @@ import {
   storeValidator,
 } from './validators';
 
-// Every entry point resolves the caller's account through the `model/auth` seam,
-// and the store's connector through the `src/registry` seam — so a new chain is
-// a registry entry, not an edit here.
-
-/** Begin a BankID link for a store under the caller's connector account. */
 export const start = action({
   args: {
     store: storeValidator,
-    // `true` = same-device flow (autoStartToken for a bankid:// deep link);
-    // default/`false` = cross-device flow (poll yields a QR to scan).
     sameDevice: v.optional(v.boolean()),
   },
   returns: v.object({
@@ -44,7 +37,6 @@ export const start = action({
   },
 });
 
-/** Poll a pending link once. Render the QR while `pending`. */
 export const poll = action({
   args: {
     pendingLinkId: v.id('pendingLinks'),
@@ -69,7 +61,6 @@ export const poll = action({
     if (!link)
       return { status: 'failed' as const, error: 'unknown pending link' };
 
-    // The pending link records the store it was started for; poll the same one.
     const connector = getConnector(link.store, { fetch: defaultFetch });
     const result = await connector.pollAuth(link.orderRef);
     if (result.status === 'pending') {
@@ -83,7 +74,7 @@ export const poll = action({
       await ctx.runMutation(internal.links.failLink, { pendingLinkId });
       return { status: 'failed' as const, error: result.error };
     }
-    // Encrypt here, in the action, so the mutation only ever sees ciphertext.
+    // Encrypt in the action, so the mutation only ever sees ciphertext.
     const sealed = await encryptTokenPair(result.tokens);
     const connectionId: Id<'connections'> = await ctx.runMutation(
       internal.links.finishLink,
@@ -100,8 +91,6 @@ export const poll = action({
     return { status: 'complete' as const, connectionId };
   },
 });
-
-// ── Internal DB effects ─────────────────────────────────────────────────────
 
 export const createPendingLink = internalMutation({
   args: {
@@ -138,8 +127,6 @@ export const getPendingLink = internalQuery({
   handler: async (ctx, { pendingLinkId }) => {
     const link = await ctx.db.get(pendingLinkId);
     if (!link) return null;
-    // Ownership: return null (not the row) for a foreign link so it can't be
-    // distinguished from a missing one.
     const accountId = await readAccountId(ctx);
     if (accountId === null || link.accountId !== accountId) return null;
     return link;
@@ -149,7 +136,6 @@ export const getPendingLink = internalQuery({
 export const finishLink = internalMutation({
   args: {
     pendingLinkId: v.id('pendingLinks'),
-    // Already encrypted by the caller (the `poll` action).
     tokens: v.object({
       accessToken: encryptedSecretValidator,
       refreshToken: encryptedSecretValidator,
@@ -162,8 +148,6 @@ export const finishLink = internalMutation({
     const link = await ctx.db.get(pendingLinkId);
     if (!link) throw new Error('pending link not found');
 
-    // Upsert the (account, store) connection: refresh tokens if one exists,
-    // otherwise create it. Kept in the mutation so it's transactional.
     const existing = await ctx.db
       .query('connections')
       .withIndex('by_account_store', (q) =>

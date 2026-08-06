@@ -1,8 +1,5 @@
 import type { Store, VatLine } from '@matvis/shared';
 
-/**
- * Coop receipt header/footer metadata parser
- */
 export interface CoopReceiptMetadata {
   store: Store;
   receiptNumber?: string;
@@ -14,24 +11,21 @@ export interface CoopReceiptMetadata {
   discountsTotal?: number;
   pointsAmount?: number;
   vat: VatLine[];
-  loyaltyCardId?: string; // Potentially personal data
+  loyaltyCardId?: string; // personal data
 }
 
-/** Parse a Swedish-formatted amount ("1 234,56" / "32,95") into a number. */
 function parseAmount(raw: string): number | undefined {
   const cleaned = raw.replace(/\s/g, '').replace(',', '.');
   const n = Number.parseFloat(cleaned);
   return Number.isNaN(n) ? undefined : n;
 }
 
-/** "2025-01-01 12:00" → "2025-01-01T12:00:00"; leaves other formats intact. */
 function toIso(raw: string): string {
   const m = raw.match(/^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2})(?::(\d{2}))?/);
   if (!m) return raw;
   return `${m[1]}T${m[2]}:${m[3] ?? '00'}`;
 }
 
-/** Value after a labelled prefix, e.g. valueAfter(line, "Kvitto "). */
 function valueAfter(line: string, label: string): string | undefined {
   return line.startsWith(label) ? line.slice(label.length).trim() : undefined;
 }
@@ -47,7 +41,7 @@ export function parseCoopReceiptMetadata(text: string): CoopReceiptMetadata {
   const meta: CoopReceiptMetadata = { store, vat };
 
   for (const line of lines) {
-    const place = line.match(/^(\d{5})\s+(.+)$/); // postal code + city
+    const place = line.match(/^(\d{5})\s+(.+)$/);
     if (place && place[1] && place[2] && !store.postalCode) {
       store.postalCode = place[1];
       store.city = place[2];
@@ -113,7 +107,6 @@ export function parseCoopReceiptMetadata(text: string): CoopReceiptMetadata {
       continue;
     }
 
-    // VAT row: "12% 3,53 29,42 32,95".
     const vatRow = line.match(
       /^(\d+)%\s+([\d\s,]+?)\s+([\d\s,]+?)\s+([\d\s,]+?)$/,
     );

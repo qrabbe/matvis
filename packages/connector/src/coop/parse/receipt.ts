@@ -3,17 +3,11 @@ import { extractPdfText } from './extract-pdf';
 import { parseCoopReceiptMetadata } from './metadata';
 import { parseCoopReceiptItems } from './items';
 
-/** Options controlling how a Coop receipt is assembled. */
 export interface ParseCoopReceiptOptions {
-  /** Include the parsed loyalty/membership number ("Medlemskort") */
   includeLoyaltyCardId?: boolean;
-  /** Attach the raw extracted text to `Receipt.rawText` for debugging. */
   includeRawText?: boolean;
 }
 
-/**
- * Assemble a validated {@link Receipt} from already-extracted receipt text
- */
 export function parseCoopReceipt(
   text: string,
   options: ParseCoopReceiptOptions = {},
@@ -42,7 +36,6 @@ export function parseCoopReceipt(
   });
 }
 
-/** Full pipeline: extract text from PDF bytes, then parse into a {@link Receipt}. */
 export async function parseCoopReceiptPdf(
   bytes: Uint8Array,
   options: ParseCoopReceiptOptions = {},

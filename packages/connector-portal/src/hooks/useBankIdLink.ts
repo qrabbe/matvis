@@ -15,18 +15,6 @@ export type LinkPhase = 'idle' | 'starting' | 'polling' | 'error';
 const POLL_INTERVAL_MS = 2000;
 const delay = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
-/**
- * Drives a BankID store-link: `links.start` → poll loop on `links.poll`
- * (rendering the animated QR), resolving to a server-side `connectionId`.
- *
- * Rewired from @matvis/app's `useBankIdLogin`: the loop calls Convex actions via
- * `useConvex()` instead of a client-side connector, and "complete" yields a
- * `connectionId` (tokens live server-side now) rather than a `TokenSet`. The
- * `activeRef` guard stops an in-flight loop on cancel/unmount.
- *
- * The caller's account is resolved server-side from the authenticated identity
- * (Convex Auth), so no `subject` is passed — the seam ignores it in prod.
- */
 export function useBankIdLink(onComplete: (connectionId: string) => void) {
   const convex = useConvex();
   const [phase, setPhase] = useState<LinkPhase>('idle');
@@ -36,13 +24,11 @@ export function useBankIdLink(onComplete: (connectionId: string) => void) {
   const [sameDevice, setSameDevice] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const activeRef = useRef(false);
-  // Same-device launch bookkeeping, read inside the poll loop's stable closure.
   const sameDeviceRef = useRef(false);
   const launchedRef = useRef(false);
 
   useEffect(() => () => void (activeRef.current = false), []);
 
-  /** Launch the BankID app once for a same-device flow (idempotent). */
   const launchOnce = useCallback((token: string) => {
     if (launchedRef.current) return;
     launchedRef.current = true;
@@ -69,8 +55,6 @@ export function useBankIdLink(onComplete: (connectionId: string) => void) {
         if (!activeRef.current) return;
 
         if (res.status === 'pending') {
-          // Same-device: the autostart token may arrive on the poll rather than
-          // the start — launch the app the moment it does.
           if (sameDeviceRef.current && res.autoStartToken) {
             launchOnce(res.autoStartToken);
           }
@@ -110,15 +94,11 @@ export function useBankIdLink(onComplete: (connectionId: string) => void) {
           api.links.start,
           { store, sameDevice: onThisDevice },
         );
-        if (!activeRef.current) return; // cancelled while starting
-        // Same-device: best-effort launch once the start carries the token. This
-        // runs after an await, so it's outside the tap's gesture — iOS Safari may
-        // block it; the "Tap to open BankID" fallback link is what reliably
-        // launches there. If the token arrives on a poll instead, see `runPoll`.
+        if (!activeRef.current) return;
         if (onThisDevice && autoStartToken) launchOnce(autoStartToken);
         await runPoll(pendingLinkId);
       } catch (e) {
-        if (!activeRef.current) return; // cancelled — the abort isn't an error
+        if (!activeRef.current) return;
         setError(errMsg(e));
         setPhase('error');
       }
@@ -126,7 +106,6 @@ export function useBankIdLink(onComplete: (connectionId: string) => void) {
     [convex, runPoll, launchOnce],
   );
 
-  /** Stop the loop but keep any error visible (Cancel button). */
   const cancel = useCallback(() => {
     activeRef.current = false;
     setPhase('idle');
@@ -135,7 +114,6 @@ export function useBankIdLink(onComplete: (connectionId: string) => void) {
     setAppLink(null);
   }, []);
 
-  /** Stop the loop and wipe all state, including errors. */
   const reset = useCallback(() => {
     cancel();
     setError(null);
