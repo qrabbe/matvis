@@ -1,5 +1,7 @@
 import { v, type Infer } from 'convex/values';
 
+export { ENQUEUE_PASTE_MAX, QUEUE_MAINTENANCE_LIMIT } from '../../src/limits';
+
 export const queueStatusValidator = v.union(
   v.literal('pending'),
   v.literal('processing'),
@@ -40,8 +42,6 @@ export const ENQUEUE_CHUNK = 200;
 export const MAX_RUN_BATCHES = 30;
 
 export const QUEUE_DEDUP_SCAN = 8;
-
-export const QUEUE_MAINTENANCE_LIMIT = 1000;
 
 export const MAX_ERROR_LENGTH = 500;
 
@@ -100,5 +100,3 @@ export const RUN_LOG_TTL_MS = 14 * 24 * 60 * 60 * 1000;
 export const RUN_LOG_TRIM = 10;
 
 export const QUEUE_PAGE_SIZE = 12;
-
-export const ENQUEUE_PASTE_MAX = 20000;

@@ -10,6 +10,7 @@ import {
   Text,
 } from '@wordpress/ui';
 import { SkeletonList } from '@matvis/ui';
+import { QUEUE_MAINTENANCE_LIMIT } from '@matvis/catalog';
 import { adminApi, type QueueRow, type QueueStatus } from '../../lib/adminApi';
 import { href, productPath } from '../../lib/route';
 import { formatAge } from './format';
@@ -89,6 +90,12 @@ export function QueuePanel({ token }: { token: string }) {
               Clear done
             </Button>
           </Stack>
+
+          <Text variant="body-sm">
+            Requeue and clear act on at most{' '}
+            {QUEUE_MAINTENANCE_LIMIT.toLocaleString()} rows per press and report
+            what they did, so a deeper queue takes more than one.
+          </Text>
 
           {page === undefined ? (
             <SkeletonList label="Loading queue…" rows={5} />

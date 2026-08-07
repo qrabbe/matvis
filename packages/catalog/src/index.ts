@@ -1,1 +1,1 @@
-export {};
+export { ENQUEUE_PASTE_MAX, QUEUE_MAINTENANCE_LIMIT } from './limits';

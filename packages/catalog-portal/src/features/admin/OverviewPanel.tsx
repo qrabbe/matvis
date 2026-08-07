@@ -1,9 +1,20 @@
-import { Badge, Card, Stack, Text } from '@wordpress/ui';
-import type { Overview } from '../../lib/adminApi';
+import { useAction } from 'convex/react';
+import { Badge, Button, Card, Stack, Text } from '@wordpress/ui';
+import { adminApi, type Overview } from '../../lib/adminApi';
 import { formatCount } from './format';
+import { TaskResult, useAdminTask } from './task';
 
-export function OverviewPanel({ overview }: { overview: Overview }) {
+export function OverviewPanel({
+  overview,
+  token,
+}: {
+  overview: Overview;
+  token: string;
+}) {
   const { queue, fill } = overview;
+  const rebuildCounters = useAction(adminApi.admin.rebuildCounters);
+  const { state, run } = useAdminTask();
+
   return (
     <Card.Root>
       <Card.Header>
@@ -36,9 +47,34 @@ export function OverviewPanel({ overview }: { overview: Overview }) {
             />
             <Stat
               label="Fill sweep"
-              value={fill.cursorAtEnd ? 'at end of pass' : 'mid pass'}
-              note="where the persisted cursor sits"
+              value={
+                fill.cursorAtEnd ? 'at the start of a fresh pass' : 'mid pass'
+              }
+              note="where the persisted cursor sits. A deployment that has never run a fill reads the same way, because both are a null cursor"
             />
+          </Stack>
+
+          <Stack direction="column" gap="sm">
+            <Text variant="body-sm">
+              Every number above is maintained on write, not counted on read, so
+              it can drift. Rebuilding recounts both tables and overwrites them.
+              Pause ingest first, or it is refused.
+            </Text>
+            <Stack direction="row" gap="md" align="center" wrap="wrap">
+              <Button
+                variant="outline"
+                tone="neutral"
+                onClick={() =>
+                  run(async () => {
+                    const result = await rebuildCounters({ token });
+                    return `Recounted ${result.pages} page(s): ${result.catalog?.total ?? 0} catalog row(s), ${result.catalog?.eans ?? 0} EAN(s).`;
+                  })
+                }
+              >
+                Rebuild counters
+              </Button>
+            </Stack>
+            <TaskResult state={state} busyLabel="Recounting…" />
           </Stack>
         </Stack>
       </Card.Content>

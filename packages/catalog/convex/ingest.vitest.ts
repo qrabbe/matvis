@@ -5,8 +5,12 @@ import { internal } from './_generated/api';
 import type { Doc } from './_generated/dataModel';
 import schema from './schema';
 import { rememberEan, upsertClean } from './model/project';
-import { readQueueStats } from './model/ops';
-import { COOP_BATCH_SIZE, STALE_CLAIM_MS } from './model/ingest';
+import { insertQueueRow, readQueueStats, writePaused } from './model/ops';
+import {
+  COOP_BATCH_SIZE,
+  QUEUE_DEDUP_SCAN,
+  STALE_CLAIM_MS,
+} from './model/ingest';
 
 const modules = import.meta.glob('./**/*.ts');
 
@@ -221,6 +225,32 @@ describe('queue maintenance', () => {
       pending: 1,
     });
   });
+
+  test('removeQueueRows is not bounded by the dedup lookahead', async () => {
+    const t = convexTest(schema, modules);
+    const many = QUEUE_DEDUP_SCAN + 4;
+    // Straight inserts: `queueEanIfMissing` would dedup these down to one, and
+    // the rows this has to cope with are exactly the ones that got past it.
+    await t.run(async (ctx) => {
+      for (let i = 0; i < many; i += 1) {
+        await insertQueueRow(ctx, {
+          ean: '7300000000000',
+          status: 'failed',
+          attempts: 1,
+          source: 'census',
+          enqueuedAt: Date.now(),
+        });
+      }
+    });
+
+    expect(
+      await t.mutation(internal.ingest.removeQueueRows, {
+        ean: '7300000000000',
+      }),
+    ).toEqual({ deleted: many });
+    expect(await queueRows(t)).toEqual([]);
+    expect(await queueStats(t)).toMatchObject({ failed: 0 });
+  });
 });
 
 describe('fillMissing', () => {
@@ -246,5 +276,45 @@ describe('fillMissing', () => {
     // A second pass finds the same gaps already queued and adds nothing.
     const second = await t.mutation(internal.ingest.fillMissingPage, {});
     expect(second).toMatchObject({ queued: 0, wrapped: true });
+  });
+
+  test('a fill started while paused scans nothing and logs itself paused', async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      for (const ean of ['gap-one', 'gap-two']) {
+        await rememberEan(ctx, 'coop', ean);
+      }
+      await writePaused(ctx, true);
+    });
+
+    expect(
+      await t.action(internal.ingest.fillMissing, { batches: 4, pageSize: 1 }),
+    ).toEqual({ scanned: 0, queued: 0, passes: 0 });
+    expect(await queueRows(t)).toEqual([]);
+
+    const runs = await t.run(
+      async (ctx) => await ctx.db.query('ingest_runs').order('desc').take(5),
+    );
+    expect(runs.map((run) => run.status)).toEqual(['paused']);
+  });
+
+  test('an unpaused fill runs every round it was given', async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      for (const ean of ['a', 'b', 'c', 'd']) {
+        await rememberEan(ctx, 'coop', ean);
+      }
+    });
+
+    // One EAN per page, three rounds: the loop is what decides how far this
+    // gets, which is why pause has to be readable from inside it.
+    expect(
+      await t.action(internal.ingest.fillMissing, { batches: 3, pageSize: 1 }),
+    ).toMatchObject({ scanned: 3, queued: 3 });
+
+    const runs = await t.run(
+      async (ctx) => await ctx.db.query('ingest_runs').order('desc').take(5),
+    );
+    expect(runs[0]!.status).toBe('ok');
   });
 });

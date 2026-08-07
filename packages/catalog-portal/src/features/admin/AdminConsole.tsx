@@ -42,7 +42,7 @@ function SignedIn({ token }: { token: string }) {
   return (
     <ConsoleFrame>
       <Stack direction="column" gap="xl">
-        <OverviewPanel overview={overview} />
+        <OverviewPanel overview={overview} token={token} />
         <RunControls token={token} paused={overview.paused} />
         <QueuePanel token={token} />
         <EnqueuePanel token={token} />

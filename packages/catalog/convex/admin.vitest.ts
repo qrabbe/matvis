@@ -2,6 +2,7 @@
 import { convexTest } from 'convex-test';
 import { describe, expect, test } from 'vitest';
 import { api, internal } from './_generated/api';
+import * as admin from './admin';
 import schema from './schema';
 import {
   SESSION_TTL_MS,
@@ -31,6 +32,37 @@ async function recordFailures(t: ReturnType<typeof convexTest>, n: number) {
     await t.mutation(internal.admin.recordSignInFailure, {});
   }
 }
+
+/** Every public name this module registers. The point of pinning it is that a
+ * new one cannot appear by accident: adding a line here is the moment someone
+ * has to ask whether the function is gated. `signIn` is the only bare
+ * registration, because it is what issues the token the rest check. */
+const PUBLIC_ADMIN_FUNCTIONS = [
+  'clearDoneRows',
+  'enqueueEans',
+  'overview',
+  'queueRows',
+  'rebuildCounters',
+  'removeQueueRows',
+  'requeueFailed',
+  'runs',
+  'setPaused',
+  'signIn',
+  'signOutEverywhere',
+  'startDrain',
+  'startFill',
+];
+
+describe('the public surface', () => {
+  test('admin.ts registers exactly the expected public functions', () => {
+    const registered = Object.entries(admin)
+      .filter(([, value]) => (value as { isPublic?: boolean })?.isPublic)
+      .map(([name]) => name)
+      .sort();
+
+    expect(registered).toEqual(PUBLIC_ADMIN_FUNCTIONS);
+  });
+});
 
 describe('sign-in', () => {
   test('the right password opens a session that stores only the hash', async () => {
@@ -164,6 +196,37 @@ describe('the queue console', () => {
       status: 'pending',
     });
     expect(pending!.rows).toEqual([]);
+  });
+});
+
+describe('the counter repair', () => {
+  test('refuses while ingest is running and recounts once paused', async () => {
+    const t = convexTest(schema, modules);
+    const token = await signIn(t);
+    await t.mutation(internal.ingest.enqueueEans, {
+      eans: ['7300000000000', '7300000000001'],
+      source: 'census',
+    });
+
+    await expect(
+      t.action(api.admin.rebuildCounters, { token }),
+    ).rejects.toThrow(/Pause ingest/);
+
+    await t.mutation(api.admin.setPaused, { token, paused: true });
+    // Drift the maintained counter, then prove the repair overwrites it.
+    await t.run(async (ctx) => {
+      const row = await ctx.db
+        .query('app_counters')
+        .withIndex('by_key', (q) => q.eq('key', 'queue:pending'))
+        .unique();
+      await ctx.db.patch(row!._id, { value: 999 });
+    });
+
+    const result = await t.action(api.admin.rebuildCounters, { token });
+    expect(result.queue).toMatchObject({ pending: 2 });
+    expect(await t.query(api.admin.overview, { token })).toMatchObject({
+      queue: expect.objectContaining({ pending: 2 }),
+    });
   });
 });
 

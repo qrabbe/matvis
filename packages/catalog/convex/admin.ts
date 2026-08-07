@@ -383,6 +383,34 @@ export const removeQueueRows = adminAction({
     await ctx.runMutation(internal.ingest.removeQueueRows, { ean }),
 });
 
+/** The repair for the counters the overview renders. Refuses unless ingest is
+ * paused: it pages across many transactions while the live helpers keep
+ * bumping, so a run against a working drain lands off by whatever moved under
+ * it. A console that shows a number it cannot fix is the drift this guards. */
+export const rebuildCounters = adminAction({
+  args: {},
+  returns: v.object({
+    queue: v.union(v.record(v.string(), v.number()), v.null()),
+    catalog: v.union(v.record(v.string(), v.number()), v.null()),
+    pages: v.number(),
+  }),
+  handler: async (
+    ctx,
+  ): Promise<{
+    queue: Record<string, number> | null;
+    catalog: Record<string, number> | null;
+    pages: number;
+  }> => {
+    const paused: boolean = await ctx.runQuery(internal.ops.isPaused, {});
+    if (!paused) {
+      throw new Error('Pause ingest before rebuilding the counters');
+    }
+    return await ctx.runAction(internal.backfill.rebuildCounters, {
+      scope: 'all',
+    });
+  },
+});
+
 export const enqueueEans = adminAction({
   args: { eans: v.array(v.string()) },
   returns: v.object({

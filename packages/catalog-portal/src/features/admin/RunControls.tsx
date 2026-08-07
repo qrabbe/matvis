@@ -86,10 +86,10 @@ export function RunControls({
 
           <Stack direction="column" gap="sm">
             <Text variant="body-sm">
-              Pause is checked at the top of every worker batch, so a running
-              drain stops within one batch. It is the only thing that can stop a
-              chain that schedules itself, and the reason it is safe to turn
-              crons on later.
+              Pause is re-read between batches, so a running drain stops within
+              one batch and a running fill stops within one page. It is the only
+              thing that can stop a chain that schedules itself. A run stopped
+              this way is logged as paused and keeps what it got through.
             </Text>
             <Stack direction="row" gap="md" align="center" wrap="wrap">
               <Button

@@ -11,7 +11,6 @@ import {
   DEFAULT_FILL_BATCHES,
   DEFAULT_QUEUE_BATCHES,
   FILL_PAGE_SIZE,
-  QUEUE_DEDUP_SCAN,
   QUEUE_MAINTENANCE_LIMIT,
   STALE_CLAIM_MS,
   errorText,
@@ -158,6 +157,9 @@ export const requeueFailed = internalMutation({
   },
 });
 
+/** Bounded by the maintenance limit rather than `QUEUE_DEDUP_SCAN`, which is a
+ * dedup lookahead of 8 and was never a removal bound. The console promises this
+ * clears every row for the EAN, and at 1000 that promise holds. */
 export const removeQueueRows = internalMutation({
   args: { ean: v.string() },
   returns: v.object({ deleted: v.number() }),
@@ -165,7 +167,7 @@ export const removeQueueRows = internalMutation({
     const rows = await ctx.db
       .query('coop_ingest_queue')
       .withIndex('by_ean', (q) => q.eq('ean', ean))
-      .take(QUEUE_DEDUP_SCAN);
+      .take(QUEUE_MAINTENANCE_LIMIT);
     for (const row of rows) await deleteQueueRow(ctx, row);
     return { deleted: rows.length };
   },
@@ -307,10 +309,18 @@ export const fillMissing = internalAction({
     passes: v.number(),
   }),
   handler: async (ctx, { batches, pageSize }): Promise<FillTotals> =>
-    await loggedRun(ctx, 'fill', NO_FILL_WORK, async () => {
+    await loggedRun(ctx, 'fill', NO_FILL_WORK, async (paused) => {
       const rounds = Math.max(batches ?? DEFAULT_FILL_BATCHES, 1);
       const totals: FillTotals = { scanned: 0, queued: 0, passes: 0 };
+      let stopped = false;
       for (let i = 0; i < rounds; i += 1) {
+        // Every round after the first re-reads pause. A drain gets this for
+        // free because each of its batches is a fresh run; this loop is inside
+        // one, so without the probe a long fill could not be stopped at all.
+        if (i > 0 && (await paused())) {
+          stopped = true;
+          break;
+        }
         const page: {
           scanned: number;
           queued: number;
@@ -325,7 +335,7 @@ export const fillMissing = internalAction({
           break;
         }
       }
-      if (totals.queued > 0) {
+      if (!stopped && totals.queued > 0) {
         await ctx.scheduler.runAfter(0, internal.ingest.processQueue, {});
       }
       return totals;

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAction } from 'convex/react';
 import { Button, Card, Field, Stack, Text, Textarea } from '@wordpress/ui';
+import { ENQUEUE_PASTE_MAX } from '@matvis/catalog';
 import { adminApi } from '../../lib/adminApi';
 import { TaskResult, useAdminTask } from './task';
 
@@ -20,7 +21,7 @@ export function EnqueuePanel({ token }: { token: string }) {
             <Field.Root>
               <Field.Label>EANs</Field.Label>
               <Field.Description>
-                One per line, or separated by commas or spaces.
+                {`One per line, or separated by commas or spaces. At most ${ENQUEUE_PASTE_MAX.toLocaleString()} per paste, and a bigger one is refused rather than truncated.`}
               </Field.Description>
               <Textarea
                 rows={5}

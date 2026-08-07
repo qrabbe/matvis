@@ -19,7 +19,7 @@ export function RunLogPanel({ token }: { token: string }) {
           <EmptyState.Root>
             <EmptyState.Title>No runs yet</EmptyState.Title>
             <EmptyState.Description>
-              Start discovery or a drain above and it will show up here.
+              Start a fill or a drain above and it will show up here.
             </EmptyState.Description>
           </EmptyState.Root>
         ) : (
