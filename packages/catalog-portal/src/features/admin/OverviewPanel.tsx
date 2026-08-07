@@ -1,6 +1,9 @@
-import { useAction } from 'convex/react';
+import { useAction, useQuery } from 'convex/react';
 import { Badge, Button, Card, Stack, Text } from '@wordpress/ui';
+import { SkeletonList } from '@matvis/ui';
+import { STORE_LABELS } from '@matvis/shared';
 import { adminApi, type Overview } from '../../lib/adminApi';
+import { api } from '../../lib/convexApi';
 import { formatCount } from './format';
 import { TaskResult, useAdminTask } from './task';
 
@@ -12,6 +15,9 @@ export function OverviewPanel({
   token: string;
 }) {
   const { queue, fill } = overview;
+  // The per-store breakdown is the same public query the site header reads,
+  // rather than a second copy of the same counters behind the session gate.
+  const stats = useQuery(api.catalog.stats, {});
   const rebuildCounters = useAction(adminApi.admin.rebuildCounters);
   const { state, run } = useAdminTask();
 
@@ -32,6 +38,28 @@ export function OverviewPanel({
             value={overview.catalogTotal.toLocaleString()}
             note="clean rows across every store"
           />
+
+          <Stack direction="column" gap="sm">
+            <Text variant="body-sm">
+              Rows per store. A chain at zero is one nothing has been ingested
+              for yet, not one that does not exist.
+            </Text>
+            {stats === undefined ? (
+              <SkeletonList label="Loading store counts…" rows={2} />
+            ) : (
+              <Stack direction="row" gap="xl" wrap="wrap">
+                {[...stats.stores]
+                  .sort((a, b) => b.count - a.count)
+                  .map((row) => (
+                    <Stat
+                      key={row.store}
+                      label={STORE_LABELS[row.store]}
+                      value={formatCount(row.count)}
+                    />
+                  ))}
+              </Stack>
+            )}
+          </Stack>
           <Stack direction="row" gap="xl" wrap="wrap">
             <Stat label="Pending" value={formatCount(queue.pending)} />
             <Stat label="Processing" value={formatCount(queue.processing)} />

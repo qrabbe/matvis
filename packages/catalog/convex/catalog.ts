@@ -92,23 +92,25 @@ export const getManyByEan = query({
 });
 
 /** Store totals come from counters rather than a `by_store` index, which is
- * what keeps `catalog` down to one plain index plus the name search. */
+ * what keeps `catalog` down to one plain index plus the name search.
+ *
+ * Every store is returned, including the ones sitting at zero. Filtering them
+ * out hides that the other chains exist and are empty, which is a different
+ * claim from them not existing at all, and store coverage is the first thing a
+ * consumer wants to know. */
 export const stats = query({
   args: {},
   returns: v.object({
     total: v.number(),
-    stores: v.array(storeValidator),
+    stores: v.array(v.object({ store: storeValidator, count: v.number() })),
   }),
-  handler: async (ctx) => {
-    const counts = await Promise.all(
+  handler: async (ctx) => ({
+    total: await readCounter(ctx, CATALOG_COUNT_KEY),
+    stores: await Promise.all(
       STORES.map(async (store) => ({
         store,
         count: await readCounter(ctx, catalogStoreKey(store)),
       })),
-    );
-    return {
-      total: await readCounter(ctx, CATALOG_COUNT_KEY),
-      stores: counts.filter((row) => row.count > 0).map((row) => row.store),
-    };
-  },
+    ),
+  }),
 });

@@ -899,49 +899,63 @@
             "fieldType": {
               "type": "array",
               "value": {
-                "type": "union",
-                "value": [
-                  {
-                    "type": "literal",
-                    "value": "ica"
+                "type": "object",
+                "value": {
+                  "store": {
+                    "fieldType": {
+                      "type": "union",
+                      "value": [
+                        {
+                          "type": "literal",
+                          "value": "ica"
+                        },
+                        {
+                          "type": "literal",
+                          "value": "coop"
+                        },
+                        {
+                          "type": "literal",
+                          "value": "willys"
+                        },
+                        {
+                          "type": "literal",
+                          "value": "hemkop"
+                        },
+                        {
+                          "type": "literal",
+                          "value": "lidl"
+                        },
+                        {
+                          "type": "literal",
+                          "value": "citygross"
+                        },
+                        {
+                          "type": "literal",
+                          "value": "tempo"
+                        },
+                        {
+                          "type": "literal",
+                          "value": "matoppet"
+                        },
+                        {
+                          "type": "literal",
+                          "value": "handlarn"
+                        },
+                        {
+                          "type": "literal",
+                          "value": "netto"
+                        }
+                      ]
+                    },
+                    "optional": false
                   },
-                  {
-                    "type": "literal",
-                    "value": "coop"
-                  },
-                  {
-                    "type": "literal",
-                    "value": "willys"
-                  },
-                  {
-                    "type": "literal",
-                    "value": "hemkop"
-                  },
-                  {
-                    "type": "literal",
-                    "value": "lidl"
-                  },
-                  {
-                    "type": "literal",
-                    "value": "citygross"
-                  },
-                  {
-                    "type": "literal",
-                    "value": "tempo"
-                  },
-                  {
-                    "type": "literal",
-                    "value": "matoppet"
-                  },
-                  {
-                    "type": "literal",
-                    "value": "handlarn"
-                  },
-                  {
-                    "type": "literal",
-                    "value": "netto"
+                  "count": {
+                    "fieldType": {
+                      "type": "number"
+                    },
+                    "optional": false
                   }
-                ]
+                }
               }
             },
             "optional": false

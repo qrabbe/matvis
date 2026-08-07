@@ -1,5 +1,5 @@
 /// <reference types="vite/client" />
-import { MAX_EANS_PER_LOOKUP } from '@matvis/shared';
+import { MAX_EANS_PER_LOOKUP, STORES } from '@matvis/shared';
 import { convexTest } from 'convex-test';
 import { describe, expect, test } from 'vitest';
 import { api } from './_generated/api';
@@ -126,26 +126,39 @@ describe('getManyByEan', () => {
 });
 
 describe('stats', () => {
-  test('counts through the maintained counter and lists only stores with rows', async () => {
+  function countFor(
+    stats: { stores: { store: string; count: number }[] },
+    store: string,
+  ): number | undefined {
+    return stats.stores.find((row) => row.store === store)?.count;
+  }
+
+  test('counts through the maintained counter and breaks the total down by store', async () => {
     const t = convexTest(schema, modules);
-    expect(await t.query(api.catalog.stats, {})).toEqual({
-      total: 0,
-      stores: [],
-    });
+    const empty = await t.query(api.catalog.stats, {});
+    expect(empty.total).toBe(0);
+    // Every chain is reported, so an empty one is visible as empty rather
+    // than missing.
+    expect(empty.stores).toHaveLength(STORES.length);
+    expect(empty.stores.every((row) => row.count === 0)).toBe(true);
 
     await seed(t, [
       { ean: '7310865085733', name: 'Mellanmjölk', store: 'coop' },
       { ean: '7310865085734', name: 'Smör', store: 'coop' },
       { ean: '7310865085733', name: 'Mellanmjölk 1,5%', store: 'ica' },
     ]);
-    expect(await t.query(api.catalog.stats, {})).toEqual({
-      total: 3,
-      stores: ['ica', 'coop'],
-    });
+    const seeded = await t.query(api.catalog.stats, {});
+    expect(seeded.total).toBe(3);
+    expect(countFor(seeded, 'coop')).toBe(2);
+    expect(countFor(seeded, 'ica')).toBe(1);
+    expect(countFor(seeded, 'lidl')).toBe(0);
 
+    // A replace is not an insert, so neither the total nor the store moves.
     await seed(t, [
       { ean: '7310865085733', name: 'Mellanmjölk 3%', store: 'coop' },
     ]);
-    expect(await t.query(api.catalog.stats, {})).toMatchObject({ total: 3 });
+    const replaced = await t.query(api.catalog.stats, {});
+    expect(replaced.total).toBe(3);
+    expect(countFor(replaced, 'coop')).toBe(2);
   });
 });
