@@ -233,7 +233,6 @@ function ProvenanceCard({ item }: { item: CatalogRow }) {
         <Stack direction="column" gap="xs">
           <DefinitionRow label="EAN" value={item.ean} />
           <DefinitionRow label="Store" value={storeLabel(item.store)} />
-          <DefinitionRow label="Source" value={item.sourceTable} />
           {item.packageSize !== undefined && item.packageSizeUnit && (
             <DefinitionRow
               label="Package size"

@@ -183,16 +183,27 @@ frontend against production's backend.
 
 ### Seeding the catalog's production data
 
-The `catalog` table is derived: Coop products land in `raw_coop`, and
-[`backfill.rebuildCleanFromRaw`](packages/catalog/convex/backfill.ts) projects them into
-the clean `catalog` table the portal reads. A fresh production deployment starts empty.
-The simplest fill is a snapshot copy from the dev deployment — from `packages/catalog`
-(where `--prod` resolves to `matvis-catalogue`'s production deployment):
+Coop payloads are **not** stored. A product is projected into `catalog` at fetch time and
+the API response is discarded, so there is no raw table to replay: changing a projector
+means refetching through Coop's rate limit, not rebuilding locally.
+
+Two tables carry the pipeline. `eans` is a flat worklist of every barcode we have heard
+of per chain, and `catalog` holds the projected products. The difference between them is
+the work left to do, which is what [`ingest.fillMissing`](packages/catalog/convex/ingest.ts)
+walks: it pages `eans`, queues whatever `catalog` has no row for, and persists its cursor
+in `ingest_settings` so successive runs continue the pass rather than rescanning.
+
+A fresh production deployment starts empty. The simplest fill is a snapshot copy from the
+dev deployment — from `packages/catalog` (where `--prod` resolves to `matvis-catalogue`'s
+production deployment):
 
 ```bash
 bunx convex export --path catalog-snapshot.zip   # from dev (giant-yak-747)
 bunx convex import --prod catalog-snapshot.zip    # into production
 ```
+
+Note that dev is deliberately kept to ~100 representative products spanning every category,
+so a copy in that direction seeds a fixture rather than a full catalog.
 
 ---
 

@@ -51,7 +51,7 @@ describe('DevPortal', () => {
     for (const signature of [
       'catalog.getByEan({ ean })',
       'catalog.getManyByEan({ eans })',
-      'catalog.search({ q?, store?, paginationOpts })',
+      'catalog.search({ q?, paginationOpts })',
       'catalog.stats()',
     ]) {
       expect(screen.getByText(signature)).toBeInTheDocument();
@@ -59,11 +59,11 @@ describe('DevPortal', () => {
     expect(screen.getByText(new RegExp(backend.url))).toBeInTheDocument();
   });
 
-  it('says plainly that the provenance fields are not handles', () => {
+  it('says plainly that source payloads are not kept', () => {
     render(<DevPortal />);
 
     expect(
-      screen.getByText(/look\s*dereferenceable and are not/),
+      screen.getByText(/Source payloads are not stored\./),
     ).toBeInTheDocument();
     expect(screen.getByText(/whatever it asks for/)).toBeInTheDocument();
   });

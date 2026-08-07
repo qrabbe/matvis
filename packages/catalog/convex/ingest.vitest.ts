@@ -4,6 +4,7 @@ import { describe, expect, test } from 'vitest';
 import { internal } from './_generated/api';
 import type { Doc } from './_generated/dataModel';
 import schema from './schema';
+import { rememberEan, upsertClean } from './model/project';
 import { COOP_BATCH_SIZE, STALE_CLAIM_MS } from './model/ingest';
 
 const modules = import.meta.glob('./**/*.ts');
@@ -46,7 +47,11 @@ describe('enqueue', () => {
   test('skips an EAN the catalog already has, and duplicates within one call', async () => {
     const t = convexTest(schema, modules);
     await t.run(async (ctx) => {
-      await ctx.db.insert('raw_coop', { ean: '7300000000000', name: 'Mjölk' });
+      await upsertClean(ctx, {
+        ean: '7300000000000',
+        name: 'Mjölk',
+        store: 'coop',
+      });
     });
     const result = await t.mutation(internal.ingest.enqueueEans, {
       eans: ['7300000000000', '7300000000001', '7300000000001'],
@@ -278,36 +283,28 @@ describe('queue maintenance', () => {
   });
 });
 
-describe('claimOldestForRefresh', () => {
-  test('takes the stalest rows first and stamps them on claim', async () => {
+describe('fillMissing', () => {
+  test('queues only the EANs catalog has no row for, and wraps its cursor', async () => {
     const t = convexTest(schema, modules);
     await t.run(async (ctx) => {
-      await ctx.db.insert('raw_coop', { ean: 'never', name: 'A' });
-      await ctx.db.insert('raw_coop', {
-        ean: 'old',
-        name: 'B',
-        lastFetchedAt: 1,
-      });
-      await ctx.db.insert('raw_coop', {
-        ean: 'recent',
-        name: 'C',
-        lastFetchedAt: Date.now() - 60_000,
-      });
+      await upsertClean(ctx, { ean: 'held', name: 'A', store: 'coop' });
+      for (const ean of ['held', 'gap-one', 'gap-two']) {
+        await rememberEan(ctx, 'coop', ean);
+      }
     });
-    await t.action(internal.backfill.rebuildCounters, { scope: 'raw' });
 
-    const claim = await t.mutation(internal.ingest.claimOldestForRefresh, {
-      limit: 2,
-    });
-    expect(claim).toEqual({ eans: ['never', 'old'], claimed: 2 });
+    const first = await t.mutation(internal.ingest.fillMissingPage, {});
+    expect(first).toEqual({ scanned: 3, queued: 2, wrapped: true });
 
-    const next = await t.mutation(internal.ingest.claimOldestForRefresh, {
-      limit: 2,
-    });
-    expect(next.eans[0]).toBe('recent');
+    const queued = await t.run(async (ctx) =>
+      (await ctx.db.query('coop_ingest_queue').collect())
+        .map((row) => row.ean)
+        .sort(),
+    );
+    expect(queued).toEqual(['gap-one', 'gap-two']);
 
-    expect(await t.query(internal.ingest.freshnessStats, {})).toMatchObject({
-      neverFetched: 0,
-    });
+    // A second pass finds the same gaps already queued and adds nothing.
+    const second = await t.mutation(internal.ingest.fillMissingPage, {});
+    expect(second).toMatchObject({ queued: 0, wrapped: true });
   });
 });

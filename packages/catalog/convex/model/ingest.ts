@@ -26,9 +26,12 @@ export const COOP_BATCH_SIZE = 500;
 
 export const DEFAULT_QUEUE_BATCHES = 4;
 
-export const REFRESH_BATCH_SIZE = 250;
+/** The fill sweep walks `eans` a page at a time and enqueues whatever `catalog`
+ * is missing, so a full pass is spread across runs rather than rescanning the
+ * whole table every tick. */
+export const FILL_PAGE_SIZE = 500;
 
-export const DEFAULT_REFRESH_BATCHES = 8;
+export const DEFAULT_FILL_BATCHES = 4;
 
 export const STALE_CLAIM_MS = 30 * 60 * 1000;
 
@@ -66,9 +69,9 @@ export const queueStatsValidator = v.object({
   failed: v.number(),
 });
 
-export const freshnessStatsValidator = v.object({
-  neverFetched: v.number(),
-  oldestFetchedAt: v.union(v.number(), v.null()),
+export const fillStatsValidator = v.object({
+  eansKnown: v.number(),
+  cursorAtEnd: v.boolean(),
 });
 
 export function errorText(error: unknown): string {
@@ -79,7 +82,7 @@ export function errorText(error: unknown): string {
 export const runKindValidator = v.union(
   v.literal('discovery'),
   v.literal('drain'),
-  v.literal('refresh'),
+  v.literal('fill'),
 );
 
 export const runStatusValidator = v.union(
@@ -91,7 +94,7 @@ export const runStatusValidator = v.union(
 
 export const runSummaryValidator = v.record(v.string(), v.number());
 
-export type RunKind = 'discovery' | 'drain' | 'refresh';
+export type RunKind = 'discovery' | 'drain' | 'fill';
 export type RunSummary = Record<string, number>;
 
 export const RUN_LOG_PAGE = 20;

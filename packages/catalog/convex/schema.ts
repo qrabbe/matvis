@@ -1,7 +1,7 @@
 import { defineSchema, defineTable } from 'convex/server';
 import { v } from 'convex/values';
 import { coopProductInformationFields } from './schemes/coop';
-import { catalogFields } from './model/fields';
+import { catalogFields, storeValidator } from './model/fields';
 import {
   queueKindValidator,
   queueStatusValidator,
@@ -11,12 +11,14 @@ import {
 } from './model/ingest';
 
 export default defineSchema({
-  raw_coop: defineTable({
-    ...coopProductInformationFields,
-    lastFetchedAt: v.optional(v.number()),
-  })
-    .index('by_ean', ['ean'])
-    .index('by_lastFetchedAt', ['lastFetchedAt']),
+  /** Every barcode we have ever heard of, per store. Deliberately dumb: it is
+   * the target set, `catalog` is the achieved set, and the difference is the
+   * work the fill sweep has left to do. */
+  eans: defineTable({
+    ean: v.string(),
+    store: storeValidator,
+    addedAt: v.number(),
+  }).index('by_store_ean', ['store', 'ean']),
 
   coop_ingest_queue: defineTable({
     kind: queueKindValidator,
@@ -34,15 +36,14 @@ export default defineSchema({
     .index('by_ean', ['ean'])
     .index('by_kind_query', ['kind', 'query']),
 
+  /** Two indexes on purpose. `by_ean_store` is ean first so it serves both an
+   * ean only lookup and the exact per store upsert, and EAN search is a range
+   * scan over it rather than a second text index. Per store totals come from
+   * `app_counters`, which is what retires `by_store`. Filtering the catalog by
+   * store is gone from the API, so the name search carries no filter field. */
   catalog: defineTable(catalogFields)
-    .index('by_ean', ['ean'])
-    .index('by_store', ['store'])
-    .index('by_store_ean', ['store', 'ean'])
-    .searchIndex('search_name', {
-      searchField: 'name',
-      filterFields: ['store'],
-    })
-    .searchIndex('search_ean', { searchField: 'ean', filterFields: ['store'] }),
+    .index('by_ean_store', ['ean', 'store'])
+    .searchIndex('search_name', { searchField: 'name' }),
 
   app_counters: defineTable({
     key: v.string(),
@@ -61,6 +62,7 @@ export default defineSchema({
   ingest_settings: defineTable({
     paused: v.boolean(),
     updatedAt: v.number(),
+    fillCursor: v.optional(v.string()),
   }),
 
   admin_sessions: defineTable({

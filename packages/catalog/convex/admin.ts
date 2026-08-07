@@ -29,13 +29,13 @@ import {
   sha256Hex,
 } from './model/admin';
 import {
+  DEFAULT_FILL_BATCHES,
   DEFAULT_QUEUE_BATCHES,
-  DEFAULT_REFRESH_BATCHES,
   DISCOVERY_DRAIN_MAX_BATCHES,
   ENQUEUE_CHUNK,
   ENQUEUE_PASTE_MAX,
   QUEUE_PAGE_SIZE,
-  freshnessStatsValidator,
+  fillStatsValidator,
   queueRowValidator,
   queueStatsValidator,
   queueStatusValidator,
@@ -44,7 +44,7 @@ import {
   runSummaryValidator,
 } from './model/ingest';
 import {
-  readFreshnessStats,
+  readFillStats,
   readPaused,
   readQueueStats,
   readRecentRuns,
@@ -270,13 +270,13 @@ export const overview = adminQuery({
     catalogTotal: v.number(),
     paused: v.boolean(),
     queue: queueStatsValidator,
-    freshness: freshnessStatsValidator,
+    fill: fillStatsValidator,
   }),
   handler: async (ctx) => ({
     catalogTotal: await readCounter(ctx, CATALOG_COUNT_KEY),
     paused: await readPaused(ctx),
     queue: await readQueueStats(ctx),
-    freshness: await readFreshnessStats(ctx),
+    fill: await readFillStats(ctx),
   }),
 });
 
@@ -358,12 +358,12 @@ export const startDrain = adminMutation({
   },
 });
 
-export const startRefresh = adminMutation({
+export const startFill = adminMutation({
   args: { batches: v.optional(v.number()) },
   returns: v.object({ batches: v.number() }),
   handler: async (ctx, { batches }) => {
-    const bounded = boundedBatches(batches ?? DEFAULT_REFRESH_BATCHES);
-    await ctx.scheduler.runAfter(0, internal.ingest.refreshOldest, {
+    const bounded = boundedBatches(batches ?? DEFAULT_FILL_BATCHES);
+    await ctx.scheduler.runAfter(0, internal.ingest.fillMissing, {
       batches: bounded,
     });
     return { batches: bounded };

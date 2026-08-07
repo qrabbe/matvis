@@ -5,12 +5,12 @@ import { cronJobs } from 'convex/server';
  * turn scheduled ingest on. Times are UTC and staggered off the hour. */
 const crons = cronJobs();
 
-// Freshness.
+// Fill: queue whatever `eans` knows about that `catalog` has no row for.
 //
 // crons.cron(
-//   'coop refresh sweep',
+//   'coop fill sweep',
 //   '15 3 * * *',
-//   internal.ingest.refreshOldest,
+//   internal.ingest.fillMissing,
 //   {},
 // );
 

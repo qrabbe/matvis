@@ -3,11 +3,19 @@ import { paginationOptsValidator } from 'convex/server';
 import { v } from 'convex/values';
 import { query } from './_generated/server';
 import { catalogDocValidator, storeValidator } from './model/fields';
-import { readCounter, CATALOG_COUNT_KEY } from './model/counters';
+import {
+  readCounter,
+  catalogStoreKey,
+  CATALOG_COUNT_KEY,
+} from './model/counters';
 
 const catalogItem = catalogDocValidator;
 
 const MIN_EAN_QUERY_DIGITS = 6;
+
+/** Sorts above every digit, so it closes a prefix range without cutting off a
+ * longer EAN that starts with the term. */
+const EAN_PREFIX_CEILING = '￿';
 
 function looksLikeEan(term: string): boolean {
   return new RegExp(`^\\d{${MIN_EAN_QUERY_DIGITS},}$`).test(term);
@@ -16,7 +24,6 @@ function looksLikeEan(term: string): boolean {
 export const search = query({
   args: {
     q: v.optional(v.string()),
-    store: v.optional(storeValidator),
     paginationOpts: paginationOptsValidator,
   },
   returns: v.object({
@@ -32,31 +39,23 @@ export const search = query({
       ),
     ),
   }),
-  handler: async (ctx, { q, store, paginationOpts }) => {
+  handler: async (ctx, { q, paginationOpts }) => {
     const term = q?.trim();
+    // A prefix range beats a text index on barcodes. Exact and starts-with are
+    // the only useful matches, and a search index would additionally match a
+    // one digit typo onto a different real product.
     if (term && looksLikeEan(term)) {
       return await ctx.db
         .query('catalog')
-        .withSearchIndex('search_ean', (s) => {
-          const hits = s.search('ean', term);
-          return store ? hits.eq('store', store) : hits;
-        })
+        .withIndex('by_ean_store', (i) =>
+          i.gte('ean', term).lt('ean', `${term}${EAN_PREFIX_CEILING}`),
+        )
         .paginate(paginationOpts);
     }
     if (term) {
       return await ctx.db
         .query('catalog')
-        .withSearchIndex('search_name', (s) => {
-          const hits = s.search('name', term);
-          return store ? hits.eq('store', store) : hits;
-        })
-        .paginate(paginationOpts);
-    }
-    if (store) {
-      return await ctx.db
-        .query('catalog')
-        .withIndex('by_store', (i) => i.eq('store', store))
-        .order('desc')
+        .withSearchIndex('search_name', (s) => s.search('name', term))
         .paginate(paginationOpts);
     }
     return await ctx.db.query('catalog').order('desc').paginate(paginationOpts);
@@ -69,7 +68,7 @@ export const getByEan = query({
   handler: async (ctx, { ean }) =>
     await ctx.db
       .query('catalog')
-      .withIndex('by_ean', (i) => i.eq('ean', ean))
+      .withIndex('by_ean_store', (i) => i.eq('ean', ean))
       .take(STORES.length),
 });
 
@@ -87,7 +86,7 @@ export const getManyByEan = query({
       unique.map((ean) =>
         ctx.db
           .query('catalog')
-          .withIndex('by_ean', (i) => i.eq('ean', ean))
+          .withIndex('by_ean_store', (i) => i.eq('ean', ean))
           .take(STORES.length),
       ),
     );
@@ -95,22 +94,24 @@ export const getManyByEan = query({
   },
 });
 
+/** Store totals come from counters rather than a `by_store` index, which is
+ * what keeps `catalog` down to one plain index plus the name search. */
 export const stats = query({
   args: {},
-  returns: v.object({ total: v.number(), stores: v.array(storeValidator) }),
+  returns: v.object({
+    total: v.number(),
+    stores: v.array(storeValidator),
+  }),
   handler: async (ctx) => {
-    const present = await Promise.all(
-      STORES.map(async (store) => {
-        const row = await ctx.db
-          .query('catalog')
-          .withIndex('by_store', (i) => i.eq('store', store))
-          .first();
-        return row ? store : null;
-      }),
+    const counts = await Promise.all(
+      STORES.map(async (store) => ({
+        store,
+        count: await readCounter(ctx, catalogStoreKey(store)),
+      })),
     );
     return {
       total: await readCounter(ctx, CATALOG_COUNT_KEY),
-      stores: present.filter((store) => store !== null),
+      stores: counts.filter((row) => row.count > 0).map((row) => row.store),
     };
   },
 });

@@ -60,14 +60,6 @@ export const CatalogItem = z.object({
   store: ReceiptSource.meta({
     description: 'Store chain the entry was sourced from, e.g. "coop".',
   }),
-  sourceTable: z.string().meta({
-    description:
-      'Raw table the clean row was projected from, e.g. "raw_coop". A provenance breadcrumb to quote in a bug report, not a handle: no public function accepts it.',
-  }),
-  sourceId: z.string().meta({
-    description:
-      'Id of the backing raw row, as a string. Provenance only, like sourceTable, and not dereferenceable.',
-  }),
 
   brand: z
     .string()

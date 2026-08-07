@@ -29,13 +29,7 @@ describe('models', () => {
     const required = item.fields
       .filter((field) => field.required)
       .map((field) => field.name);
-    expect(required).toEqual([
-      'ean',
-      'name',
-      'store',
-      'sourceTable',
-      'sourceId',
-    ]);
+    expect(required).toEqual(['ean', 'name', 'store']);
     expect(item.fields.map((field) => field.name)).toEqual(
       Object.keys(CatalogItem.shape),
     );
@@ -76,7 +70,7 @@ describe('operations', () => {
     expect(OPERATIONS.map(signature)).toEqual([
       'catalog.getByEan({ ean })',
       'catalog.getManyByEan({ eans })',
-      'catalog.search({ q?, store?, paginationOpts })',
+      'catalog.search({ q?, paginationOpts })',
       'catalog.stats()',
     ]);
   });

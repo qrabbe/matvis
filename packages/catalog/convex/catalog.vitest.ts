@@ -2,8 +2,9 @@
 import { MAX_EANS_PER_LOOKUP } from '@matvis/shared';
 import { convexTest } from 'convex-test';
 import { describe, expect, test } from 'vitest';
-import { api, internal } from './_generated/api';
+import { api } from './_generated/api';
 import schema from './schema';
+import { upsertClean } from './model/project';
 
 const modules = import.meta.glob('./**/*.ts');
 
@@ -12,14 +13,14 @@ const page = { numItems: 20, cursor: null };
 type Seed = { ean: string; name: string; store?: 'coop' | 'ica' };
 
 async function seed(t: ReturnType<typeof convexTest>, rows: Seed[]) {
-  await t.mutation(internal.raw.upsertCleanBatch, {
-    items: rows.map((row) => ({
-      ean: row.ean,
-      name: row.name,
-      store: row.store ?? 'coop',
-      sourceTable: 'raw_coop',
-      sourceId: `raw-${row.store ?? 'coop'}-${row.ean}`,
-    })),
+  await t.run(async (ctx) => {
+    for (const row of rows) {
+      await upsertClean(ctx, {
+        ean: row.ean,
+        name: row.name,
+        store: row.store ?? 'coop',
+      });
+    }
   });
 }
 
@@ -63,34 +64,6 @@ describe('search', () => {
       paginationOpts: page,
     });
     expect(short.page).toEqual([]);
-  });
-
-  test('the store filter composes with every one of the three branches', async () => {
-    const t = convexTest(schema, modules);
-    await seed(t, [
-      { ean: '7310865085733', name: 'Mellanmjölk', store: 'coop' },
-      { ean: '7310865085733', name: 'Mellanmjölk', store: 'ica' },
-    ]);
-
-    const listed = await t.query(api.catalog.search, {
-      store: 'ica',
-      paginationOpts: page,
-    });
-    expect(listed.page.map((row) => row.store)).toEqual(['ica']);
-
-    const byName = await t.query(api.catalog.search, {
-      q: 'Mellanmjölk',
-      store: 'coop',
-      paginationOpts: page,
-    });
-    expect(byName.page.map((row) => row.store)).toEqual(['coop']);
-
-    const byEan = await t.query(api.catalog.search, {
-      q: '7310865085733',
-      store: 'ica',
-      paginationOpts: page,
-    });
-    expect(byEan.page.map((row) => row.store)).toEqual(['ica']);
   });
 });
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import type { Doc } from '../convex/_generated/dataModel';
+import type { CoopProduct } from '../convex/coop/sanitize';
 import {
   categoryPathFromCoop,
   labelsFromCoop,
@@ -9,21 +9,17 @@ import {
   webImageUrl,
 } from '../convex/model/project';
 
-/** Build a `raw_coop` doc from the handful of fields a test cares about. The
- * system fields are filled in so the projector sees a realistic document. */
-function rawCoop(fields: Partial<Doc<'raw_coop'>>): Doc<'raw_coop'> {
-  return {
-    _id: 'raw_coop_test_id' as Doc<'raw_coop'>['_id'],
-    _creationTime: 0,
-    ...fields,
-  };
+/** Build a sanitized Coop payload from the handful of fields a test cares
+ * about. The projector reads the payload directly, never a stored row. */
+function rawCoop(fields: Partial<CoopProduct>): CoopProduct {
+  return { ...fields };
 }
 
 /** The nutrition block as Coop actually ships it: amounts are single-element
  * string arrays, and Energi appears twice under one description. */
 function nutrientLinks(
   entries: [description: string, unit: string | undefined, amount: string][],
-): Doc<'raw_coop'>['nutrientLinks'] {
+): CoopProduct['nutrientLinks'] {
   return entries.map(([description, unit, amount]) => ({
     description,
     unit,
@@ -43,7 +39,7 @@ const FULL_NUTRIENTS = nutrientLinks([
   ['Salt', 'Gram', '1.8'],
 ]);
 
-const GRAM_BASIS: Doc<'raw_coop'>['nutrientInformation'] = [
+const GRAM_BASIS: CoopProduct['nutrientInformation'] = [
   {
     header: {
       nutrientBasisQuantity: 100,

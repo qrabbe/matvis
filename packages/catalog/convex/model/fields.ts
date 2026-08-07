@@ -32,8 +32,6 @@ export const catalogFields = {
   ean: v.string(),
   name: v.string(),
   store: storeValidator,
-  sourceTable: v.string(),
-  sourceId: v.string(),
 
   brand: v.optional(v.string()),
   imageUrl: v.optional(v.string()),

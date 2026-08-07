@@ -3,7 +3,13 @@ import { convexTest } from 'convex-test';
 import { describe, expect, test } from 'vitest';
 import { internal } from './_generated/api';
 import schema from './schema';
-import { NEVER_FETCHED_KEY, queueCountKey } from './model/counters';
+import {
+  catalogStoreKey,
+  queueCountKey,
+  CATALOG_COUNT_KEY,
+  EANS_COUNT_KEY,
+} from './model/counters';
+import { rememberEan, upsertClean } from './model/project';
 import type { QueueStatus } from './model/ingest';
 
 const modules = import.meta.glob('./**/*.ts');
@@ -28,18 +34,12 @@ async function seedQueue(
   });
 }
 
-async function seedRaw(
-  t: ReturnType<typeof convexTest>,
-  total: number,
-  fetched = 0,
-) {
+async function seedCatalog(t: ReturnType<typeof convexTest>, total: number) {
   await t.run(async (ctx) => {
     for (let n = 0; n < total; n += 1) {
-      await ctx.db.insert('raw_coop', {
-        ean: `750000000000${n}`,
-        name: `Product ${n}`,
-        ...(n < fetched ? { lastFetchedAt: Date.now() } : {}),
-      });
+      const ean = `750000000000${n}`;
+      await rememberEan(ctx, 'coop', ean);
+      await upsertClean(ctx, { ean, name: `Product ${n}`, store: 'coop' });
     }
   });
 }
@@ -62,7 +62,7 @@ describe('rebuildCounters', () => {
       { status: 'done' },
       { status: 'done' },
     ]);
-    await seedRaw(t, 5, 3);
+    await seedCatalog(t, 5);
 
     const result = await t.action(internal.backfill.rebuildCounters, {});
     expect(result.queue).toEqual({
@@ -72,8 +72,8 @@ describe('rebuildCounters', () => {
       skipped: 0,
       failed: 0,
     });
-    expect(result.neverFetched).toBe(2);
-    expect(result.pages).toBe(2);
+    expect(result.catalog).toMatchObject({ total: 5, eans: 5, coop: 5 });
+    expect(result.pages).toBe(3);
 
     expect(await t.query(internal.ingest.queueStats, {})).toEqual({
       pending: 3,
@@ -82,8 +82,8 @@ describe('rebuildCounters', () => {
       skipped: 0,
       failed: 0,
     });
-    expect(await t.query(internal.ingest.freshnessStats, {})).toMatchObject({
-      neverFetched: 2,
+    expect(await t.query(internal.ingest.fillStats, {})).toMatchObject({
+      eansKnown: 5,
     });
   });
 
@@ -125,27 +125,26 @@ describe('rebuildCounters', () => {
   test('each scope leaves the other half of the counters alone', async () => {
     const t = convexTest(schema, modules);
     await seedQueue(t, [{ status: 'pending' }, { status: 'pending' }]);
-    await seedRaw(t, 1);
+    await seedCatalog(t, 1);
 
-    const raw = await t.action(internal.backfill.rebuildCounters, {
-      scope: 'raw',
+    const catalog = await t.action(internal.backfill.rebuildCounters, {
+      scope: 'catalog',
     });
-    expect(raw).toEqual({ queue: null, neverFetched: 1, pages: 1 });
-    expect(await counters(t)).toEqual({ [NEVER_FETCHED_KEY]: 1 });
+    expect(catalog.queue).toBeNull();
+    expect(catalog.catalog).toMatchObject({ total: 1, eans: 1, coop: 1 });
+    expect(await counters(t)).toMatchObject({
+      [CATALOG_COUNT_KEY]: 1,
+      [EANS_COUNT_KEY]: 1,
+      [catalogStoreKey('coop')]: 1,
+    });
 
     const queue = await t.action(internal.backfill.rebuildCounters, {
       scope: 'queue',
     });
-    expect(queue.neverFetched).toBeNull();
+    expect(queue.catalog).toBeNull();
     expect(queue.queue).toMatchObject({ pending: 2 });
     expect(await counters(t)).toMatchObject({
-      [NEVER_FETCHED_KEY]: 1,
-      [queueCountKey('pending')]: 2,
-    });
-
-    await t.action(internal.backfill.rebuildCounters, { scope: 'raw' });
-    expect(await counters(t)).toMatchObject({
-      [NEVER_FETCHED_KEY]: 1,
+      [CATALOG_COUNT_KEY]: 1,
       [queueCountKey('pending')]: 2,
     });
   });

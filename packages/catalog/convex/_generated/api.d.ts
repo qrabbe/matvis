@@ -24,7 +24,7 @@ import type * as model_ops from "../model/ops.js";
 import type * as model_project from "../model/project.js";
 import type * as model_runs from "../model/runs.js";
 import type * as ops from "../ops.js";
-import type * as raw from "../raw.js";
+import type * as products from "../products.js";
 import type * as schemes_coop from "../schemes/coop.js";
 
 import type {
@@ -50,7 +50,7 @@ declare const fullApi: ApiFromModules<{
   "model/project": typeof model_project;
   "model/runs": typeof model_runs;
   ops: typeof ops;
-  raw: typeof raw;
+  products: typeof products;
   "schemes/coop": typeof schemes_coop;
 }>;
 

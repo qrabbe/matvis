@@ -23,15 +23,15 @@ import {
 } from '../lib/contract';
 import { argInputs, buildArgs, type ArgInput } from '../lib/tryIt';
 
-// Documents the clean, store-agnostic contract only. The raw per-chain product
-// tables behind it are not exposed here.
+// Documents the clean, store-agnostic contract only. The `eans` worklist behind
+// it is not exposed here.
 const OPERATION_NOTES: Record<string, string> = {
   getByEan:
     'Every clean row for one EAN. Returns an ARRAY: the catalog is keyed by (store, EAN), so each chain keeps its own row for a shared product and the caller picks. Empty when the EAN is not catalogued.',
   getManyByEan:
     'The same lookup for a whole receipt at once, without the round trips. One flat array; group by `ean` and `store` yourself. The server throws above its cap rather than truncating.',
   search:
-    'Reactive, paginated rows. Empty `q` returns newest-first; a digit-only `q` of 6+ characters searches EANs; anything else runs the full-text name search (relevance-ordered). `store` narrows any of the three to one chain.',
+    'Reactive, paginated rows. Empty `q` returns newest-first; a digit-only `q` of 6+ characters matches EANs exactly or by prefix; anything else runs the full-text name search (relevance-ordered). Filter by chain on the result, using each row’s `store`.',
   stats:
     'Cheap totals for a header — the maintained catalog count, plus which chains actually have rows.',
 };
@@ -138,27 +138,26 @@ export function DevPortal() {
 
       <Card.Root>
         <Card.Header>
-          <Card.Title>Provenance, and what is not behind it</Card.Title>
+          <Card.Title>What is behind a catalog row</Card.Title>
         </Card.Header>
         <Card.Content>
           <Stack direction="column" gap="md">
             <Text variant="body-md">
-              <strong>
-                <Code>sourceTable</Code> and <Code>sourceId</Code> look
-                dereferenceable and are not.
-              </strong>{' '}
-              They are breadcrumbs to quote in a bug report — they say which raw
-              row a clean row was projected from, so a wrong value can be traced
-              — and nothing more. No public function accepts either of them, and
-              none ever will: the raw row they name is not part of this
-              contract.
+              <strong>Source payloads are not stored.</strong> A catalog row is
+              projected from a chain's API response at fetch time and the
+              response is then discarded, so there is no raw row to dereference
+              and no <Code>sourceTable</Code> or <Code>sourceId</Code> to quote.
+              Rows carry <Code>_creationTime</Code>, which is when we first
+              wrote the product.
             </Text>
             <Text variant="body-md">
-              The raw per-chain tables (<Code>raw_coop</Code>, and one per chain
-              as connectors land) are not searchable and not part of any public
-              promise. That is <em>enforced</em> rather than documented: every{' '}
-              <Code>raw.js:*</Code> and <Code>backfill.js:*</Code> function is
-              registered <Code>internal</Code>, which makes it unreachable by
+              What we keep alongside <Code>catalog</Code> is <Code>eans</Code>:
+              a flat list of every barcode we have heard of per chain. It is the
+              worklist a sweep walks to find products the catalog is missing,
+              and it is not searchable or part of any public promise. That is{' '}
+              <em>enforced</em> rather than documented: every{' '}
+              <Code>ingest.js:*</Code> and <Code>backfill.js:*</Code> function
+              is registered <Code>internal</Code>, which makes it unreachable by
               any client whatever it asks for. The operations above are the
               whole public surface.
             </Text>

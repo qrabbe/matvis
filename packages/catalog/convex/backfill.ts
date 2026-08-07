@@ -1,58 +1,18 @@
 import { v } from 'convex/values';
 import { internalAction, internalMutation } from './_generated/server';
 import { internal } from './_generated/api';
-import type { CleanFields } from './model/project';
+import { STORES } from '@matvis/shared';
 import { QUEUE_STATUSES } from './model/ingest';
-import { queueCountKey, setCounter, NEVER_FETCHED_KEY } from './model/counters';
-
-type CleanPage = {
-  items: CleanFields[];
-  continueCursor: string;
-  isDone: boolean;
-};
-
-export const rebuildCleanFromRaw = internalAction({
-  args: { batchSize: v.optional(v.number()) },
-  returns: v.object({ pages: v.number(), inserted: v.number() }),
-  handler: async (ctx, { batchSize }) => {
-    const numItems = batchSize ?? 200;
-    let pages = 0;
-    let inserted = 0;
-
-    let page: CleanPage = await ctx.runQuery(internal.raw.pageRawCoop, {
-      cursor: null,
-      numItems,
-    });
-    for (;;) {
-      const nextPage = page.isDone
-        ? Promise.resolve(null)
-        : ctx.runQuery(internal.raw.pageRawCoop, {
-            cursor: page.continueCursor,
-            numItems,
-          });
-      const written =
-        page.items.length > 0
-          ? ctx.runMutation(internal.raw.upsertCleanBatch, {
-              items: page.items,
-            })
-          : Promise.resolve(0);
-
-      const [count, next]: [number, CleanPage | null] = await Promise.all([
-        written,
-        nextPage,
-      ]);
-
-      inserted += count;
-      pages += 1;
-      if (!next) break;
-      page = next;
-    }
-    return { pages, inserted };
-  },
-});
+import {
+  catalogStoreKey,
+  queueCountKey,
+  setCounter,
+  CATALOG_COUNT_KEY,
+  EANS_COUNT_KEY,
+} from './model/counters';
 
 const RECOUNT_QUEUE_PAGE = 1000;
-export const RECOUNT_RAW_PAGE = 200;
+export const RECOUNT_CATALOG_PAGE = 500;
 
 type CountPage = {
   counts: Record<string, number>;
@@ -84,7 +44,7 @@ export const recountQueuePage = internalMutation({
   },
 });
 
-export const recountRawPage = internalMutation({
+export const recountCatalogPage = internalMutation({
   args: { cursor: v.union(v.string(), v.null()) },
   returns: v.object({
     counts: v.record(v.string(), v.number()),
@@ -93,13 +53,36 @@ export const recountRawPage = internalMutation({
   }),
   handler: async (ctx, { cursor }) => {
     const page = await ctx.db
-      .query('raw_coop')
-      .paginate({ cursor, numItems: RECOUNT_RAW_PAGE });
-    const neverFetched = page.page.filter(
-      (row) => row.lastFetchedAt === undefined,
-    ).length;
+      .query('catalog')
+      .paginate({ cursor, numItems: RECOUNT_CATALOG_PAGE });
+    const counts: Record<string, number> = {
+      [CATALOG_COUNT_KEY]: page.page.length,
+    };
+    for (const row of page.page) {
+      const key = catalogStoreKey(row.store);
+      counts[key] = (counts[key] ?? 0) + 1;
+    }
     return {
-      counts: { [NEVER_FETCHED_KEY]: neverFetched },
+      counts,
+      continueCursor: page.continueCursor,
+      isDone: page.isDone,
+    };
+  },
+});
+
+export const recountEansPage = internalMutation({
+  args: { cursor: v.union(v.string(), v.null()) },
+  returns: v.object({
+    counts: v.record(v.string(), v.number()),
+    continueCursor: v.string(),
+    isDone: v.boolean(),
+  }),
+  handler: async (ctx, { cursor }) => {
+    const page = await ctx.db
+      .query('eans')
+      .paginate({ cursor, numItems: RECOUNT_CATALOG_PAGE });
+    return {
+      counts: { [EANS_COUNT_KEY]: page.page.length },
       continueCursor: page.continueCursor,
       isDone: page.isDone,
     };
@@ -122,27 +105,36 @@ export const writeCounters = internalMutation({
 export const rebuildCounters = internalAction({
   args: {
     scope: v.optional(
-      v.union(v.literal('queue'), v.literal('raw'), v.literal('all')),
+      v.union(v.literal('queue'), v.literal('catalog'), v.literal('all')),
     ),
   },
   returns: v.object({
     queue: v.union(v.record(v.string(), v.number()), v.null()),
-    neverFetched: v.union(v.number(), v.null()),
+    catalog: v.union(v.record(v.string(), v.number()), v.null()),
     pages: v.number(),
   }),
   handler: async (ctx, { scope }) => {
-    const doQueue = scope !== 'raw';
-    const doRaw = scope !== 'queue';
+    const doQueue = scope !== 'catalog';
+    const doCatalog = scope !== 'queue';
 
     const totals: Record<string, number> = {};
     if (doQueue) {
       for (const status of QUEUE_STATUSES) totals[queueCountKey(status)] = 0;
     }
-    if (doRaw) totals[NEVER_FETCHED_KEY] = 0;
+    if (doCatalog) {
+      totals[CATALOG_COUNT_KEY] = 0;
+      totals[EANS_COUNT_KEY] = 0;
+      for (const store of STORES) totals[catalogStoreKey(store)] = 0;
+    }
 
     const steps = [
       ...(doQueue ? [internal.backfill.recountQueuePage] : []),
-      ...(doRaw ? [internal.backfill.recountRawPage] : []),
+      ...(doCatalog
+        ? [
+            internal.backfill.recountCatalogPage,
+            internal.backfill.recountEansPage,
+          ]
+        : []),
     ];
 
     let pages = 0;
@@ -168,10 +160,16 @@ export const rebuildCounters = internalAction({
         queue[status] = totals[queueCountKey(status)] ?? 0;
       }
     }
-    return {
-      queue,
-      neverFetched: doRaw ? totals[NEVER_FETCHED_KEY] : null,
-      pages,
-    };
+    let catalog: Record<string, number> | null = null;
+    if (doCatalog) {
+      catalog = {
+        total: totals[CATALOG_COUNT_KEY] ?? 0,
+        eans: totals[EANS_COUNT_KEY] ?? 0,
+      };
+      for (const store of STORES) {
+        catalog[store] = totals[catalogStoreKey(store)] ?? 0;
+      }
+    }
+    return { queue, catalog, pages };
   },
 });

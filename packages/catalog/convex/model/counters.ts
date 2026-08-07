@@ -1,13 +1,20 @@
+import type { StoreSlug } from '@matvis/shared';
 import { QueryCtx, MutationCtx } from '../_generated/server';
 import type { QueueStatus } from './ingest';
 
 export const CATALOG_COUNT_KEY = 'catalog';
 
+export const EANS_COUNT_KEY = 'eans';
+
 export function queueCountKey(status: QueueStatus): string {
   return `queue:${status}`;
 }
 
-export const NEVER_FETCHED_KEY = 'raw_coop:neverFetched';
+/** Per store totals live here rather than behind a `by_store` index, which is
+ * the trade that keeps `catalog` down to two indexes. */
+export function catalogStoreKey(store: StoreSlug): string {
+  return `catalog:${store}`;
+}
 
 export async function readCounter(ctx: QueryCtx, key: string): Promise<number> {
   const row = await ctx.db

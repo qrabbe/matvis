@@ -21,13 +21,6 @@ describe('argInputs', () => {
         options: [],
         example: 'kaffe',
       },
-      {
-        name: 'store',
-        optional: true,
-        kind: 'choice',
-        options: expect.arrayContaining(['coop', 'ica']),
-        example: '',
-      },
     ]);
   });
 
@@ -52,7 +45,7 @@ describe('buildArgs', () => {
   });
 
   it('leaves an empty optional out, and supplies paginationOpts', () => {
-    expect(buildArgs(byName('search'), { q: '', store: '  ' })).toEqual({
+    expect(buildArgs(byName('search'), { q: '  ' })).toEqual({
       paginationOpts: { numItems: 3, cursor: null },
     });
   });

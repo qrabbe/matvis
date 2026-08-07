@@ -1,18 +1,18 @@
 import type { CatalogItem, CatalogNutrition, StoreSlug } from '@matvis/shared';
 import type { MutationCtx } from '../_generated/server';
-import type { DataModel, Doc } from '../_generated/dataModel';
-import { bumpCounter, CATALOG_COUNT_KEY } from './counters';
+import {
+  bumpCounter,
+  catalogStoreKey,
+  CATALOG_COUNT_KEY,
+  EANS_COUNT_KEY,
+} from './counters';
+import type { CoopProduct } from '../coop/sanitize';
 
 export type CleanFields = CatalogItem;
 
-export type ProjectedFields = Omit<
-  CleanFields,
-  'store' | 'sourceTable' | 'sourceId'
->;
+export type ProjectedFields = Omit<CleanFields, 'store'>;
 
 export type Projector<Raw> = (doc: Raw) => ProjectedFields | null;
-
-export type SourceTable = Extract<keyof DataModel, `raw_${string}`>;
 
 type NutrientSlot = Exclude<
   keyof CatalogNutrition,
@@ -54,7 +54,7 @@ export function parseNutrientAmount(
 }
 
 export function nutritionFromCoop(
-  doc: Doc<'raw_coop'>,
+  doc: CoopProduct,
 ): CatalogNutrition | undefined {
   const links = doc.nutrientLinks ?? [];
   if (links.length === 0) return undefined;
@@ -98,9 +98,7 @@ function isNavNode(value: unknown): value is NavNode {
 
 /** `navCategories[0]` is the LEAF and `superCategories` nests upward, so this
  * walks in reverse. */
-export function categoryPathFromCoop(
-  doc: Doc<'raw_coop'>,
-): string[] | undefined {
+export function categoryPathFromCoop(doc: CoopProduct): string[] | undefined {
   const path: string[] = [];
   let node: unknown = doc.navCategories?.[0];
   while (isNavNode(node) && path.length < 8) {
@@ -112,7 +110,7 @@ export function categoryPathFromCoop(
   return path.length > 0 ? path.reverse() : undefined;
 }
 
-export function labelsFromCoop(doc: Doc<'raw_coop'>): string[] | undefined {
+export function labelsFromCoop(doc: CoopProduct): string[] | undefined {
   const names = (doc.accreditedTags ?? []).flatMap((tag) => {
     const description = tag.description?.trim();
     return description ? [description] : [];
@@ -138,7 +136,7 @@ function text(value: string | undefined): string | undefined {
   return trimmed ? trimmed : undefined;
 }
 
-export const projectCoop: Projector<Doc<'raw_coop'>> = (doc) => {
+export const projectCoop: Projector<CoopProduct> = (doc) => {
   if (!doc.ean || !doc.name) return null;
 
   const ingredients = text(doc.listOfIngredients);
@@ -164,32 +162,25 @@ export const projectCoop: Projector<Doc<'raw_coop'>> = (doc) => {
   };
 };
 
-export const projectors: {
-  [T in SourceTable]: { store: StoreSlug; project: Projector<Doc<T>> };
-} = {
-  raw_coop: { store: 'coop', project: projectCoop },
-};
-
-export function project<T extends SourceTable>(
-  table: T,
-  doc: Doc<T>,
+export function project(
+  store: StoreSlug,
+  doc: CoopProduct,
 ): CleanFields | null {
-  const { store, project: projector } = projectors[table];
-  const projected = projector(doc);
+  const projected = projectCoop(doc);
   if (!projected) return null;
-  return { ...projected, store, sourceTable: table, sourceId: doc._id };
+  return { ...projected, store };
 }
 
-/** Replaces rather than patches: a projection is a total function of one raw
- * row, so a value the source dropped must not linger on the clean row. */
+/** Replaces rather than patches: a projection is a total function of one source
+ * payload, so a value the source dropped must not linger on the clean row. */
 export async function upsertClean(
   ctx: MutationCtx,
   fields: CleanFields,
 ): Promise<boolean> {
   const existing = await ctx.db
     .query('catalog')
-    .withIndex('by_store_ean', (q) =>
-      q.eq('store', fields.store).eq('ean', fields.ean),
+    .withIndex('by_ean_store', (q) =>
+      q.eq('ean', fields.ean).eq('store', fields.store),
     )
     .first();
   if (existing) {
@@ -198,5 +189,23 @@ export async function upsertClean(
   }
   await ctx.db.insert('catalog', fields);
   await bumpCounter(ctx, CATALOG_COUNT_KEY, 1);
+  await bumpCounter(ctx, catalogStoreKey(fields.store), 1);
+  return true;
+}
+
+/** Records a barcode as one we have heard of. Called for every EAN that enters
+ * the pipeline, hit or miss, so the sweep has a durable worklist. */
+export async function rememberEan(
+  ctx: MutationCtx,
+  store: StoreSlug,
+  ean: string,
+): Promise<boolean> {
+  const existing = await ctx.db
+    .query('eans')
+    .withIndex('by_store_ean', (q) => q.eq('store', store).eq('ean', ean))
+    .first();
+  if (existing) return false;
+  await ctx.db.insert('eans', { ean, store, addedAt: Date.now() });
+  await bumpCounter(ctx, EANS_COUNT_KEY, 1);
   return true;
 }

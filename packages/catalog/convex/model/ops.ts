@@ -14,7 +14,7 @@ import {
   bumpCounter,
   queueCountKey,
   readCounter,
-  NEVER_FETCHED_KEY,
+  EANS_COUNT_KEY,
 } from './counters';
 
 type QueueRowFields = WithoutSystemFields<Doc<'coop_ingest_queue'>>;
@@ -81,37 +81,6 @@ export async function readQueueStats(ctx: QueryCtx): Promise<QueueStats> {
   };
 }
 
-export type FreshnessStats = {
-  neverFetched: number;
-  oldestFetchedAt: number | null;
-};
-
-export async function readFreshnessStats(
-  ctx: QueryCtx,
-): Promise<FreshnessStats> {
-  const oldest = await ctx.db
-    .query('raw_coop')
-    .withIndex('by_lastFetchedAt', (q) => q.gt('lastFetchedAt', 0))
-    .first();
-  return {
-    neverFetched: await readCounter(ctx, NEVER_FETCHED_KEY),
-    oldestFetchedAt: oldest?.lastFetchedAt ?? null,
-  };
-}
-
-/** With `raw.upsertCoopByEan`, the only place `lastFetchedAt` is written, which
- * is what keeps NEVER_FETCHED_KEY honest. */
-export async function stampFetched(
-  ctx: MutationCtx,
-  row: Doc<'raw_coop'>,
-  at: number,
-): Promise<void> {
-  if (row.lastFetchedAt === undefined) {
-    await bumpCounter(ctx, NEVER_FETCHED_KEY, -1);
-  }
-  await ctx.db.patch(row._id, { lastFetchedAt: at });
-}
-
 export async function readPaused(ctx: QueryCtx): Promise<boolean> {
   const row = await ctx.db.query('ingest_settings').first();
   return row?.paused ?? false;
@@ -127,6 +96,35 @@ export async function writePaused(
     await ctx.db.patch(row._id, fields);
   } else {
     await ctx.db.insert('ingest_settings', fields);
+  }
+}
+
+export type FillStats = { eansKnown: number; cursorAtEnd: boolean };
+
+export async function readFillStats(ctx: QueryCtx): Promise<FillStats> {
+  return {
+    eansKnown: await readCounter(ctx, EANS_COUNT_KEY),
+    cursorAtEnd: (await readFillCursor(ctx)) === null,
+  };
+}
+
+/** `null` means the sweep is at the start of a fresh pass. It wraps back to
+ * null on the last page, so the worklist cycles forever. */
+export async function readFillCursor(ctx: QueryCtx): Promise<string | null> {
+  const row = await ctx.db.query('ingest_settings').first();
+  return row?.fillCursor ?? null;
+}
+
+export async function writeFillCursor(
+  ctx: MutationCtx,
+  cursor: string | null,
+): Promise<void> {
+  const row = await ctx.db.query('ingest_settings').first();
+  const fields = { fillCursor: cursor ?? undefined, updatedAt: Date.now() };
+  if (row) {
+    await ctx.db.patch(row._id, fields);
+  } else {
+    await ctx.db.insert('ingest_settings', { paused: false, ...fields });
   }
 }
 

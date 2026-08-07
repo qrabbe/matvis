@@ -1,11 +1,10 @@
-import { useEffect, useMemo, useState, type ComponentProps } from 'react';
-import { usePaginatedQuery, useQuery } from 'convex/react';
+import { useEffect, useMemo, useState } from 'react';
+import { usePaginatedQuery } from 'convex/react';
 import {
   Button,
   Card,
   EmptyState,
   InputControl,
-  SelectControl,
   Stack,
   Text,
 } from '@wordpress/ui';
@@ -23,12 +22,6 @@ import { api } from '../lib/convexApi';
 function storeLabel(store: string): string {
   return STORE_LABELS[store as StoreSlug] ?? store;
 }
-
-type SelectItem = NonNullable<
-  ComponentProps<typeof SelectControl>['items']
->[number];
-
-const ALL_STORES: SelectItem = { label: 'All stores', value: null };
 
 const IMAGE_PX = 400;
 
@@ -108,30 +101,13 @@ const DEFAULT_VIEW: View = {
 
 export function CatalogPanel() {
   const [q, setQ] = useState('');
-  const [store, setStore] = useState<StoreSlug | null>(null);
   const debouncedQ = useDebounced(q, 250);
-  const stats = useQuery(api.catalog.stats, {});
   const page = usePaginatedQuery(
     api.catalog.search,
-    { q: debouncedQ || undefined, store: store ?? undefined },
+    { q: debouncedQ || undefined },
     { initialNumItems: 10 },
   );
   const [view, setView] = useState<View>(DEFAULT_VIEW);
-
-  const storeItems = useMemo<SelectItem[]>(
-    () => [
-      ALL_STORES,
-      ...(stats?.stores ?? []).map((slug) => ({
-        label: storeLabel(slug),
-        value: slug,
-      })),
-    ],
-    [stats?.stores],
-  );
-  // The control selects whole item objects, so the selection has to come out of
-  // the current array. A new object with the same value would not match.
-  const storeSelection =
-    storeItems.find((item) => item.value === store) ?? ALL_STORES;
 
   const { data, paginationInfo } = useMemo(
     () => filterSortAndPaginate(page.results, view, FIELDS),
@@ -146,26 +122,12 @@ export function CatalogPanel() {
       </Card.Header>
       <Card.Content>
         <Stack direction="column" gap="md">
-          <Stack direction="row" gap="md" align="end" wrap="wrap">
-            <div style={{ flex: '1 1 260px' }}>
-              <InputControl
-                label="Search"
-                placeholder="Search by name or EAN…"
-                value={q}
-                onValueChange={(value) => setQ(value)}
-              />
-            </div>
-            <div style={{ flex: '0 1 180px' }}>
-              <SelectControl
-                label="Store"
-                items={storeItems}
-                value={storeSelection}
-                onValueChange={(item) =>
-                  setStore((item?.value as StoreSlug | null) ?? null)
-                }
-              />
-            </div>
-          </Stack>
+          <InputControl
+            label="Search"
+            placeholder="Search by name or EAN…"
+            value={q}
+            onValueChange={(value) => setQ(value)}
+          />
           <DataViews
             data={data}
             fields={FIELDS}

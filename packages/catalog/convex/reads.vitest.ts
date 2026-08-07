@@ -6,9 +6,10 @@ import { describe, expect, test } from 'vitest';
 import { internal } from './_generated/api';
 import type { MutationCtx, QueryCtx } from './_generated/server';
 import * as backfill from './backfill';
-import { RECOUNT_RAW_PAGE } from './backfill';
+import { RECOUNT_CATALOG_PAGE } from './backfill';
 import * as catalog from './catalog';
 import { CATALOG_COUNT_KEY, readCounter } from './model/counters';
+import { upsertClean } from './model/project';
 import schema from './schema';
 
 const modules = import.meta.glob('./**/*.ts');
@@ -40,16 +41,12 @@ async function countMutation(
 }
 
 async function seed(t: Test, eans: string[]) {
-  await t.mutation(internal.raw.upsertCleanBatch, {
-    items: eans.flatMap((ean) =>
-      STORES.map((store) => ({
-        ean,
-        name: `Mellanmjölk ${ean}`,
-        store,
-        sourceTable: 'raw_coop',
-        sourceId: `raw-${store}-${ean}`,
-      })),
-    ),
+  await t.run(async (ctx) => {
+    for (const ean of eans) {
+      for (const store of STORES) {
+        await upsertClean(ctx, { ean, name: `Mellanmjölk ${ean}`, store });
+      }
+    }
   });
 }
 
@@ -71,7 +68,7 @@ describe('getManyByEan', () => {
 
     expect(counts.ranges).toHaveLength(MAX_EANS_PER_LOOKUP);
     expect(new Set(counts.ranges.map((range) => range.index))).toEqual(
-      new Set(['by_ean']),
+      new Set(['by_ean_store']),
     );
     expect(counts.gets).toBe(0);
     expect(counts.docs).toBe(MAX_EANS_PER_LOOKUP * STORES.length);
@@ -115,7 +112,7 @@ describe('the maintained counters', () => {
     const t = convexTest(schema, modules);
     await seed(t, eansUpTo(3));
     await t.mutation(internal.backfill.writeCounters, {
-      counts: { 'queue:pending': 1, 'queue:done': 2, 'raw_coop:x': 3 },
+      counts: { 'queue:pending': 1, 'queue:done': 2, 'catalog:ica': 3 },
     });
 
     const counts = await countQuery(t, (ctx) =>
@@ -130,31 +127,34 @@ describe('the maintained counters', () => {
 });
 
 describe('rebuildCounters', () => {
-  test('reads each raw page exactly once', async () => {
+  test('reads each catalog page exactly once', async () => {
     const t = convexTest(schema, modules);
-    const rows = RECOUNT_RAW_PAGE + 1;
+    const rows = RECOUNT_CATALOG_PAGE + 1;
     await t.run(async (ctx) => {
       for (let n = 0; n < rows; n += 1) {
-        await ctx.db.insert('raw_coop', {
+        await ctx.db.insert('catalog', {
           ean: `750000000${String(n).padStart(4, '0')}`,
           name: `Product ${n}`,
+          store: 'coop',
         });
       }
     });
 
     const counts = await countMutation(t, (ctx) =>
-      handlerOf(backfill.recountRawPage)(ctx, { cursor: null }),
+      handlerOf(backfill.recountCatalogPage)(ctx, { cursor: null }),
     );
     expect(counts.ranges).toEqual([
-      { table: 'raw_coop', kind: 'scan', index: null },
+      { table: 'catalog', kind: 'scan', index: null },
     ]);
-    expect(counts.docs).toBe(RECOUNT_RAW_PAGE);
+    expect(counts.docs).toBe(RECOUNT_CATALOG_PAGE);
     expect(counts.gets).toBe(0);
 
     const result = await t.action(internal.backfill.rebuildCounters, {
-      scope: 'raw',
+      scope: 'catalog',
     });
-    expect(result.pages).toBe(Math.ceil(rows / RECOUNT_RAW_PAGE));
-    expect(result.neverFetched).toBe(rows);
+    // One extra page closes the catalog scan and one more walks the empty
+    // `eans` table.
+    expect(result.pages).toBe(Math.ceil(rows / RECOUNT_CATALOG_PAGE) + 1);
+    expect(result.catalog).toMatchObject({ total: rows, coop: rows });
   });
 });
