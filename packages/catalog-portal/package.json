@@ -17,6 +17,7 @@
     "typecheck": "tsc -b"
   },
   "dependencies": {
+    "@matvis/catalog": "workspace:*",
     "@matvis/shared": "workspace:*",
     "@matvis/ui": "workspace:*",
     "@wordpress/components": "^37.0.0",

@@ -14,75 +14,49 @@ import {
 const RECOUNT_QUEUE_PAGE = 1000;
 export const RECOUNT_CATALOG_PAGE = 500;
 
+const countedTableValidator = v.union(
+  v.literal('coop_ingest_queue'),
+  v.literal('catalog'),
+  v.literal('eans'),
+);
+
+type CountedTable = 'coop_ingest_queue' | 'catalog' | 'eans';
+
 type CountPage = {
   counts: Record<string, number>;
   continueCursor: string;
   isDone: boolean;
 };
 
-export const recountQueuePage = internalMutation({
-  args: { cursor: v.union(v.string(), v.null()) },
+/** One page of one table, tallied into counter keys. Each table derives its own
+ * keys, so the paging, the cursor and the return shape are written once. */
+export const recountPage = internalMutation({
+  args: { table: countedTableValidator, cursor: v.union(v.string(), v.null()) },
   returns: v.object({
     counts: v.record(v.string(), v.number()),
     continueCursor: v.string(),
     isDone: v.boolean(),
   }),
-  handler: async (ctx, { cursor }) => {
-    const page = await ctx.db
-      .query('coop_ingest_queue')
-      .paginate({ cursor, numItems: RECOUNT_QUEUE_PAGE });
+  handler: async (ctx, { table, cursor }) => {
+    const numItems =
+      table === 'coop_ingest_queue' ? RECOUNT_QUEUE_PAGE : RECOUNT_CATALOG_PAGE;
+    const page = await ctx.db.query(table).paginate({ cursor, numItems });
+
     const counts: Record<string, number> = {};
-    for (const row of page.page) {
-      const key = queueCountKey(row.status);
+    const tally = (key: string) => {
       counts[key] = (counts[key] ?? 0) + 1;
+    };
+    // Narrowed by field rather than by `table`: one paginate call means
+    // `page.page` is a union, and the table name does not narrow it.
+    for (const row of page.page) {
+      if ('status' in row) tally(queueCountKey(row.status));
+      else if ('name' in row) tally(catalogStoreKey(row.store));
     }
+    if (table === 'catalog') counts[CATALOG_COUNT_KEY] = page.page.length;
+    if (table === 'eans') counts[EANS_COUNT_KEY] = page.page.length;
+
     return {
       counts,
-      continueCursor: page.continueCursor,
-      isDone: page.isDone,
-    };
-  },
-});
-
-export const recountCatalogPage = internalMutation({
-  args: { cursor: v.union(v.string(), v.null()) },
-  returns: v.object({
-    counts: v.record(v.string(), v.number()),
-    continueCursor: v.string(),
-    isDone: v.boolean(),
-  }),
-  handler: async (ctx, { cursor }) => {
-    const page = await ctx.db
-      .query('catalog')
-      .paginate({ cursor, numItems: RECOUNT_CATALOG_PAGE });
-    const counts: Record<string, number> = {
-      [CATALOG_COUNT_KEY]: page.page.length,
-    };
-    for (const row of page.page) {
-      const key = catalogStoreKey(row.store);
-      counts[key] = (counts[key] ?? 0) + 1;
-    }
-    return {
-      counts,
-      continueCursor: page.continueCursor,
-      isDone: page.isDone,
-    };
-  },
-});
-
-export const recountEansPage = internalMutation({
-  args: { cursor: v.union(v.string(), v.null()) },
-  returns: v.object({
-    counts: v.record(v.string(), v.number()),
-    continueCursor: v.string(),
-    isDone: v.boolean(),
-  }),
-  handler: async (ctx, { cursor }) => {
-    const page = await ctx.db
-      .query('eans')
-      .paginate({ cursor, numItems: RECOUNT_CATALOG_PAGE });
-    return {
-      counts: { [EANS_COUNT_KEY]: page.page.length },
       continueCursor: page.continueCursor,
       isDone: page.isDone,
     };
@@ -127,21 +101,19 @@ export const rebuildCounters = internalAction({
       for (const store of STORES) totals[catalogStoreKey(store)] = 0;
     }
 
-    const steps = [
-      ...(doQueue ? [internal.backfill.recountQueuePage] : []),
-      ...(doCatalog
-        ? [
-            internal.backfill.recountCatalogPage,
-            internal.backfill.recountEansPage,
-          ]
-        : []),
+    const tables: CountedTable[] = [
+      ...(doQueue ? (['coop_ingest_queue'] as const) : []),
+      ...(doCatalog ? (['catalog', 'eans'] as const) : []),
     ];
 
     let pages = 0;
-    for (const step of steps) {
+    for (const table of tables) {
       let cursor: string | null = null;
       for (;;) {
-        const page: CountPage = await ctx.runMutation(step, { cursor });
+        const page: CountPage = await ctx.runMutation(
+          internal.backfill.recountPage,
+          { table, cursor },
+        );
         for (const [key, value] of Object.entries(page.counts)) {
           totals[key] = (totals[key] ?? 0) + value;
         }

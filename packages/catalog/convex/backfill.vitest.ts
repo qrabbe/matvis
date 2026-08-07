@@ -10,28 +10,36 @@ import {
   EANS_COUNT_KEY,
 } from './model/counters';
 import { rememberEan, upsertClean } from './model/project';
+import { readFillStats, readQueueStats } from './model/ops';
 import type { QueueStatus } from './model/ingest';
 
 const modules = import.meta.glob('./**/*.ts');
 
 async function seedQueue(
   t: ReturnType<typeof convexTest>,
-  rows: { status: QueueStatus; kind?: 'ean' | 'name' }[],
+  rows: { status: QueueStatus }[],
 ) {
   await t.run(async (ctx) => {
     let n = 0;
     for (const row of rows) {
       n += 1;
       await ctx.db.insert('coop_ingest_queue', {
-        kind: row.kind ?? 'ean',
         ean: `730000000000${n}`,
         status: row.status,
         attempts: 0,
-        source: 'sitemap',
+        source: 'census',
         enqueuedAt: Date.now(),
       });
     }
   });
+}
+
+async function queueStats(t: ReturnType<typeof convexTest>) {
+  return await t.run(async (ctx) => await readQueueStats(ctx));
+}
+
+async function fillStats(t: ReturnType<typeof convexTest>) {
+  return await t.run(async (ctx) => await readFillStats(ctx));
 }
 
 async function seedCatalog(t: ReturnType<typeof convexTest>, total: number) {
@@ -75,14 +83,14 @@ describe('rebuildCounters', () => {
     expect(result.catalog).toMatchObject({ total: 5, eans: 5, coop: 5 });
     expect(result.pages).toBe(3);
 
-    expect(await t.query(internal.ingest.queueStats, {})).toEqual({
+    expect(await queueStats(t)).toEqual({
       pending: 3,
       processing: 1,
       done: 2,
       skipped: 0,
       failed: 0,
     });
-    expect(await t.query(internal.ingest.fillStats, {})).toMatchObject({
+    expect(await fillStats(t)).toMatchObject({
       eansKnown: 5,
     });
   });
@@ -96,13 +104,13 @@ describe('rebuildCounters', () => {
     ]);
 
     await t.mutation(internal.ingest.claimBatch, { limit: 1 });
-    expect(await t.query(internal.ingest.queueStats, {})).toMatchObject({
+    expect(await queueStats(t)).toMatchObject({
       pending: -1,
       processing: 1,
     });
 
     await t.action(internal.backfill.rebuildCounters, { scope: 'queue' });
-    expect(await t.query(internal.ingest.queueStats, {})).toMatchObject({
+    expect(await queueStats(t)).toMatchObject({
       pending: 2,
       processing: 1,
     });
@@ -116,7 +124,7 @@ describe('rebuildCounters', () => {
     });
 
     await t.action(internal.backfill.rebuildCounters, { scope: 'queue' });
-    expect(await t.query(internal.ingest.queueStats, {})).toMatchObject({
+    expect(await queueStats(t)).toMatchObject({
       pending: 1,
       failed: 0,
     });

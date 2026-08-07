@@ -1,5 +1,9 @@
 {
   "$schema": "https://json.schemastore.org/tsconfig.json",
   "extends": "../../tsconfig.base.json",
-  "references": [{ "path": "../shared" }, { "path": "../ui" }]
+  "references": [
+    { "path": "../catalog" },
+    { "path": "../shared" },
+    { "path": "../ui" }
+  ]
 }

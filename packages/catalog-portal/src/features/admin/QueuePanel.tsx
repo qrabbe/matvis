@@ -1,7 +1,6 @@
 import { useState, type ComponentProps } from 'react';
 import { useAction, useQuery } from 'convex/react';
 import {
-  Badge,
   Button,
   Card,
   EmptyState,
@@ -133,7 +132,7 @@ export function QueuePanel({ token }: { token: string }) {
             <div style={{ flex: '1 1 240px' }}>
               <InputControl
                 label="Remove rows"
-                description="An EAN, or the exact search text of a name row."
+                description="Every queue row for one EAN."
                 placeholder="7311312009203"
                 value={removeText}
                 onValueChange={(value) => setRemoveText(value)}
@@ -145,12 +144,10 @@ export function QueuePanel({ token }: { token: string }) {
               disabled={removeText.trim().length === 0}
               onClick={() =>
                 run(async () => {
-                  const text = removeText.trim();
-                  const result = await removeQueueRows(
-                    /^\d+$/.test(text)
-                      ? { token, ean: text }
-                      : { token, query: text },
-                  );
+                  const result = await removeQueueRows({
+                    token,
+                    ean: removeText.trim(),
+                  });
                   setRemoveText('');
                   return `Deleted ${result.deleted} queue row(s).`;
                 })
@@ -171,22 +168,14 @@ function QueueLine({ row }: { row: QueueRow }) {
   return (
     <Stack direction="column" gap="xs">
       <Stack direction="row" gap="sm" align="center" wrap="wrap">
-        <Badge intent="none">{row.kind}</Badge>
-        {row.ean ? (
-          <Text
-            variant="body-md"
-            render={
-              <a
-                href={href(productPath(row.ean))}
-                style={{ color: 'inherit' }}
-              />
-            }
-          >
-            {row.ean}
-          </Text>
-        ) : (
-          <Text variant="body-md">{row.query ?? '—'}</Text>
-        )}
+        <Text
+          variant="body-md"
+          render={
+            <a href={href(productPath(row.ean))} style={{ color: 'inherit' }} />
+          }
+        >
+          {row.ean}
+        </Text>
         <Text variant="body-sm">
           {row.attempts} attempt(s), from {row.source}
         </Text>

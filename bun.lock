@@ -53,6 +53,7 @@
       "name": "@matvis/catalog-portal",
       "version": "0.0.0",
       "dependencies": {
+        "@matvis/catalog": "workspace:*",
         "@matvis/shared": "workspace:*",
         "@matvis/ui": "workspace:*",
         "@wordpress/components": "^37.0.0",

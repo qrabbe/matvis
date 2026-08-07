@@ -14,16 +14,7 @@ const crons = cronJobs();
 //   {},
 // );
 
-// Growth.
-//
-// crons.cron(
-//   'coop discovery',
-//   '15 4 * * 1',
-//   internal.coop.discovery.discoverFromSitemap,
-//   {},
-// );
-
-// The queue's heartbeat, for rows discovery did not drain itself.
+// The queue's heartbeat, for rows the fill sweep did not drain itself.
 //
 // crons.interval(
 //   'coop ingest queue',

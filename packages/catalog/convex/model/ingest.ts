@@ -1,6 +1,4 @@
-import { v } from 'convex/values';
-
-export const queueKindValidator = v.union(v.literal('ean'), v.literal('name'));
+import { v, type Infer } from 'convex/values';
 
 export const queueStatusValidator = v.union(
   v.literal('pending'),
@@ -10,10 +8,9 @@ export const queueStatusValidator = v.union(
   v.literal('failed'),
 );
 
-export type QueueKind = 'ean' | 'name';
-export type QueueStatus =
-  'pending' | 'processing' | 'done' | 'skipped' | 'failed';
+export type QueueStatus = Infer<typeof queueStatusValidator>;
 
+/** The iteration order the counter keys are read back in. */
 export const QUEUE_STATUSES: readonly QueueStatus[] = [
   'pending',
   'processing',
@@ -35,11 +32,12 @@ export const DEFAULT_FILL_BATCHES = 4;
 
 export const STALE_CLAIM_MS = 30 * 60 * 1000;
 
-export const SEARCH_HITS_PER_NAME = 10;
-
 export const ENQUEUE_CHUNK = 200;
 
-export const DISCOVERY_DRAIN_MAX_BATCHES = 30;
+/** Ceiling on the batches a single console press may schedule, for both drain
+ * and fill. Chains that reschedule themselves are stopped by pause, this only
+ * bounds the opening request. */
+export const MAX_RUN_BATCHES = 30;
 
 export const QUEUE_DEDUP_SCAN = 8;
 
@@ -50,9 +48,7 @@ export const MAX_ERROR_LENGTH = 500;
 export const queueRowValidator = v.object({
   _id: v.id('coop_ingest_queue'),
   _creationTime: v.number(),
-  kind: queueKindValidator,
-  ean: v.optional(v.string()),
-  query: v.optional(v.string()),
+  ean: v.string(),
   status: queueStatusValidator,
   attempts: v.number(),
   lastError: v.optional(v.string()),
@@ -69,21 +65,21 @@ export const queueStatsValidator = v.object({
   failed: v.number(),
 });
 
+export type QueueStats = Infer<typeof queueStatsValidator>;
+
 export const fillStatsValidator = v.object({
   eansKnown: v.number(),
   cursorAtEnd: v.boolean(),
 });
+
+export type FillStats = Infer<typeof fillStatsValidator>;
 
 export function errorText(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error);
   return message.slice(0, MAX_ERROR_LENGTH);
 }
 
-export const runKindValidator = v.union(
-  v.literal('discovery'),
-  v.literal('drain'),
-  v.literal('fill'),
-);
+export const runKindValidator = v.union(v.literal('drain'), v.literal('fill'));
 
 export const runStatusValidator = v.union(
   v.literal('running'),
@@ -94,8 +90,8 @@ export const runStatusValidator = v.union(
 
 export const runSummaryValidator = v.record(v.string(), v.number());
 
-export type RunKind = 'discovery' | 'drain' | 'fill';
-export type RunSummary = Record<string, number>;
+export type RunKind = Infer<typeof runKindValidator>;
+export type RunSummary = Infer<typeof runSummaryValidator>;
 
 export const RUN_LOG_PAGE = 20;
 

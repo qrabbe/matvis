@@ -3,13 +3,10 @@
 // and that flip is only legal while the module exports nothing but actions.
 import { v } from 'convex/values';
 import { internalAction } from '../_generated/server';
-import { COOP_BATCH_SIZE, SEARCH_HITS_PER_NAME } from '../model/ingest';
+import { COOP_BATCH_SIZE } from '../model/ingest';
 
 const BY_ID_URL =
   'https://external.api.coop.se/personalization/search/entities/by-id?api-version=v1&store=231400&groups=CUSTOMER_PRIVATE,CUSTOMER_MEDMERA&direct=false';
-
-const SEARCH_URL =
-  'https://external.api.coop.se/personalization/search/global?api-version=v1&store=231400';
 
 /** Read lazily inside a handler. Convex imports every module at push time with
  * no deployment env vars, so a top-level throw fails the push. */
@@ -68,25 +65,5 @@ export const fetchByEan = internalAction({
       body: JSON.stringify(eans),
     });
     return await readItems(response, 'Coop by-id');
-  },
-});
-
-export const searchByName = internalAction({
-  args: { query: v.string(), take: v.optional(v.number()) },
-  returns: v.array(v.any()),
-  handler: async (_ctx, { query, take }) => {
-    const wanted = Math.max(take ?? SEARCH_HITS_PER_NAME, 1);
-    const response = await fetch(SEARCH_URL, {
-      method: 'POST',
-      headers: requestHeaders(),
-      body: JSON.stringify({
-        query,
-        resultsOptions: { skip: 0, take: wanted, sortBy: [], facets: [] },
-        relatedResultsOptions: { skip: 0, take: 0 },
-        customData: { consent: false },
-      }),
-    });
-    const items = await readItems(response, 'Coop search');
-    return items.slice(0, wanted);
   },
 });

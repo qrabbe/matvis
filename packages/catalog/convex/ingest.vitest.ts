@@ -5,6 +5,7 @@ import { internal } from './_generated/api';
 import type { Doc } from './_generated/dataModel';
 import schema from './schema';
 import { rememberEan, upsertClean } from './model/project';
+import { readQueueStats } from './model/ops';
 import { COOP_BATCH_SIZE, STALE_CLAIM_MS } from './model/ingest';
 
 const modules = import.meta.glob('./**/*.ts');
@@ -17,10 +18,14 @@ async function queueRows(
   );
 }
 
+async function queueStats(t: ReturnType<typeof convexTest>) {
+  return await t.run(async (ctx) => await readQueueStats(ctx));
+}
+
 async function enqueueEans(t: ReturnType<typeof convexTest>, count: number) {
   return await t.mutation(internal.ingest.enqueueEans, {
     eans: Array.from({ length: count }, (_, n) => `730000000000${n}`),
-    source: 'sitemap',
+    source: 'census',
   });
 }
 
@@ -32,7 +37,7 @@ describe('enqueue', () => {
       known: 0,
       duplicate: 0,
     });
-    expect(await t.query(internal.ingest.queueStats, {})).toMatchObject({
+    expect(await queueStats(t)).toMatchObject({
       pending: 3,
     });
 
@@ -55,7 +60,7 @@ describe('enqueue', () => {
     });
     const result = await t.mutation(internal.ingest.enqueueEans, {
       eans: ['7300000000000', '7300000000001', '7300000000001'],
-      source: 'sitemap',
+      source: 'census',
     });
     expect(result).toEqual({ queued: 1, known: 1, duplicate: 1 });
   });
@@ -65,28 +70,10 @@ describe('enqueue', () => {
     await expect(
       t.mutation(internal.ingest.enqueueEans, {
         eans: Array.from({ length: COOP_BATCH_SIZE + 1 }, (_, n) => `ean-${n}`),
-        source: 'sitemap',
+        source: 'census',
       }),
     ).rejects.toThrow(/at most 500 EANs per call/);
     expect(await queueRows(t)).toEqual([]);
-  });
-
-  test('a name row dedupes on its trimmed text and rejects empty text', async () => {
-    const t = convexTest(schema, modules);
-    expect(
-      await t.mutation(internal.ingest.enqueueName, { query: ' Mjölk 3% ' }),
-    ).toEqual({ status: 'queued' });
-    expect(
-      await t.mutation(internal.ingest.enqueueName, { query: 'Mjölk 3%' }),
-    ).toEqual({ status: 'duplicate' });
-    await expect(
-      t.mutation(internal.ingest.enqueueName, { query: '   ' }),
-    ).rejects.toThrow(/empty query text/);
-
-    const [row] = await queueRows(t);
-    expect(row.kind).toBe('name');
-    expect(row.query).toBe('Mjölk 3%');
-    expect(row.source).toBe('manual');
   });
 });
 
@@ -97,7 +84,7 @@ describe('claimBatch', () => {
 
     const first = await t.mutation(internal.ingest.claimBatch, { limit: 10 });
     expect(first).toHaveLength(2);
-    expect(await t.query(internal.ingest.queueStats, {})).toMatchObject({
+    expect(await queueStats(t)).toMatchObject({
       pending: 0,
       processing: 2,
     });
@@ -125,7 +112,7 @@ describe('claimBatch', () => {
     expect(settled.status).toBe('done');
     expect(settled.claimedAt).toBeUndefined();
     expect(settled.processedAt).toBeDefined();
-    expect(await t.query(internal.ingest.queueStats, {})).toMatchObject({
+    expect(await queueStats(t)).toMatchObject({
       processing: 0,
       done: 1,
     });
@@ -178,32 +165,22 @@ describe('claimBatch', () => {
     });
     expect(reclaimed.map((row) => row.id)).toEqual([claimed.id]);
     expect((await queueRows(t))[0].attempts).toBe(2);
-    expect(await t.query(internal.ingest.queueStats, {})).toMatchObject({
+    expect(await queueStats(t)).toMatchObject({
       pending: 0,
       processing: 1,
     });
   });
 
-  test('EAN rows are served before name rows', async () => {
+  test('a claim never returns more than its limit', async () => {
     const t = convexTest(schema, modules);
-    await t.mutation(internal.ingest.enqueueName, { query: 'mjölk' });
-    await t.mutation(internal.ingest.enqueueName, { query: 'smör' });
-    await enqueueEans(t, 2);
+    await enqueueEans(t, 5);
 
     const first = await t.mutation(internal.ingest.claimBatch, { limit: 2 });
-    expect(first.map((row) => row.kind)).toEqual(['ean', 'ean']);
+    expect(first).toHaveLength(2);
+    expect(await queueStats(t)).toMatchObject({ pending: 3, processing: 2 });
 
-    const second = await t.mutation(internal.ingest.claimBatch, { limit: 2 });
-    expect(second.map((row) => row.query)).toEqual(['mjölk', 'smör']);
-  });
-
-  test('a short claim tops up with name rows in the same batch', async () => {
-    const t = convexTest(schema, modules);
-    await enqueueEans(t, 1);
-    await t.mutation(internal.ingest.enqueueName, { query: 'mjölk' });
-
-    const claimed = await t.mutation(internal.ingest.claimBatch, { limit: 5 });
-    expect(claimed.map((row) => row.kind)).toEqual(['ean', 'name']);
+    const second = await t.mutation(internal.ingest.claimBatch, { limit: 10 });
+    expect(second).toHaveLength(3);
   });
 });
 
@@ -224,13 +201,13 @@ describe('queue maintenance', () => {
     });
     const left = await queueRows(t);
     expect(left.map((row) => row.status)).toEqual(['skipped']);
-    expect(await t.query(internal.ingest.queueStats, {})).toMatchObject({
+    expect(await queueStats(t)).toMatchObject({
       done: 0,
       skipped: 1,
     });
   });
 
-  test('removeQueueRows drops rows by EAN, and needs something to match on', async () => {
+  test('removeQueueRows drops every row for one EAN', async () => {
     const t = convexTest(schema, modules);
     await enqueueEans(t, 2);
 
@@ -240,46 +217,9 @@ describe('queue maintenance', () => {
       }),
     ).toEqual({ deleted: 1 });
     expect(await queueRows(t)).toHaveLength(1);
-    expect(await t.query(internal.ingest.queueStats, {})).toMatchObject({
+    expect(await queueStats(t)).toMatchObject({
       pending: 1,
     });
-
-    await expect(
-      t.mutation(internal.ingest.removeQueueRows, {}),
-    ).rejects.toThrow(/needs an ean or a query/);
-  });
-
-  test('listQueueRows pages one status, newest first', async () => {
-    const t = convexTest(schema, modules);
-    await enqueueEans(t, 3);
-    const claimed = await t.mutation(internal.ingest.claimBatch, { limit: 10 });
-    await t.mutation(internal.ingest.markResults, {
-      results: claimed.map((row) => ({
-        id: row.id,
-        status: 'failed' as const,
-        error: `no luck for ${row.ean}`,
-      })),
-    });
-
-    const page = await t.query(internal.ingest.listQueueRows, {
-      status: 'failed',
-      numItems: 2,
-    });
-    expect(page.rows).toHaveLength(2);
-    expect(page.isDone).toBe(false);
-    expect(page.rows[0].lastError).toMatch(/^no luck for /);
-    expect(page.rows[0].ean).toBe('7300000000002');
-
-    const rest = await t.query(internal.ingest.listQueueRows, {
-      status: 'failed',
-      cursor: page.continueCursor,
-      numItems: 2,
-    });
-    expect(rest.rows.map((row) => row.ean)).toEqual(['7300000000000']);
-    const pending = await t.query(internal.ingest.listQueueRows, {
-      status: 'pending',
-    });
-    expect(pending.rows).toEqual([]);
   });
 });
 

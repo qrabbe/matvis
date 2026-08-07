@@ -1,7 +1,7 @@
 import { MAX_EANS_PER_LOOKUP, STORES } from '@matvis/shared';
 import { paginationOptsValidator } from 'convex/server';
 import { v } from 'convex/values';
-import { query } from './_generated/server';
+import { query, type QueryCtx } from './_generated/server';
 import { catalogDocValidator, storeValidator } from './model/fields';
 import {
   readCounter,
@@ -62,14 +62,18 @@ export const search = query({
   },
 });
 
+/** One row per store at most, which is what bounds the take. */
+function rowsForEan(ctx: QueryCtx, ean: string) {
+  return ctx.db
+    .query('catalog')
+    .withIndex('by_ean_store', (i) => i.eq('ean', ean))
+    .take(STORES.length);
+}
+
 export const getByEan = query({
   args: { ean: v.string() },
   returns: v.array(catalogItem),
-  handler: async (ctx, { ean }) =>
-    await ctx.db
-      .query('catalog')
-      .withIndex('by_ean_store', (i) => i.eq('ean', ean))
-      .take(STORES.length),
+  handler: async (ctx, { ean }) => await rowsForEan(ctx, ean),
 });
 
 export const getManyByEan = query({
@@ -82,14 +86,7 @@ export const getManyByEan = query({
         `getManyByEan accepts at most ${MAX_EANS_PER_LOOKUP} EANs, got ${unique.length}`,
       );
     }
-    const rows = await Promise.all(
-      unique.map((ean) =>
-        ctx.db
-          .query('catalog')
-          .withIndex('by_ean_store', (i) => i.eq('ean', ean))
-          .take(STORES.length),
-      ),
-    );
+    const rows = await Promise.all(unique.map((ean) => rowsForEan(ctx, ean)));
     return rows.flat();
   },
 });

@@ -1,9 +1,9 @@
 import { Badge, Card, Stack, Text } from '@wordpress/ui';
 import type { Overview } from '../../lib/adminApi';
-import { formatAge, formatCount } from './format';
+import { formatCount } from './format';
 
 export function OverviewPanel({ overview }: { overview: Overview }) {
-  const { queue, freshness } = overview;
+  const { queue, fill } = overview;
   return (
     <Card.Root>
       <Card.Header>
@@ -30,14 +30,14 @@ export function OverviewPanel({ overview }: { overview: Overview }) {
           </Stack>
           <Stack direction="row" gap="xl" wrap="wrap">
             <Stat
-              label="Never fetched"
-              value={formatCount(freshness.neverFetched)}
-              note="raw rows with no fetch stamp"
+              label="EANs known"
+              value={formatCount(fill.eansKnown)}
+              note="the target set the fill sweep works through"
             />
             <Stat
-              label="Stalest row"
-              value={formatAge(freshness.oldestFetchedAt)}
-              note="oldest lastFetchedAt"
+              label="Fill sweep"
+              value={fill.cursorAtEnd ? 'at end of pass' : 'mid pass'}
+              note="where the persisted cursor sits"
             />
           </Stack>
         </Stack>

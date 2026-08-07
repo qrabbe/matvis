@@ -54,6 +54,8 @@ export const catalogDocValidator = v.object({
   ...catalogFields,
 });
 
-type _CatalogItemMatches = Assert<
+/** Exported so `noUnusedLocals` cannot delete the pin: this is the compile-time
+ * assertion that the table and `@matvis/shared`'s `CatalogItem` stay identical. */
+export type CatalogItemMatches = Assert<
   Equal<Infer<ReturnType<typeof v.object<typeof catalogFields>>>, CatalogItem>
 >;

@@ -26,14 +26,15 @@ import {
   delay,
   generateSessionToken,
   secretsMatch,
+  sessionLiveByHash,
   sha256Hex,
 } from './model/admin';
 import {
   DEFAULT_FILL_BATCHES,
   DEFAULT_QUEUE_BATCHES,
-  DISCOVERY_DRAIN_MAX_BATCHES,
   ENQUEUE_CHUNK,
   ENQUEUE_PASTE_MAX,
+  MAX_RUN_BATCHES,
   QUEUE_PAGE_SIZE,
   fillStatsValidator,
   queueRowValidator,
@@ -58,12 +59,7 @@ async function sessionIsValid(
   ctx: QueryCtx | MutationCtx,
   token: string,
 ): Promise<boolean> {
-  const tokenHash = await sha256Hex(token);
-  const row = await ctx.db
-    .query('admin_sessions')
-    .withIndex('by_tokenHash', (q) => q.eq('tokenHash', tokenHash))
-    .first();
-  return row !== null && row.expiresAt > Date.now();
+  return await sessionLiveByHash(ctx, await sha256Hex(token));
 }
 
 const tokenArg = { token: v.string() };
@@ -136,16 +132,13 @@ function adminAction<
   });
 }
 
+/** The action-side door onto the same check: `adminAction` has no `ctx.db`, so
+ * it hashes the token itself and asks through here. */
 export const sessionIsLive = internalQuery({
   args: { tokenHash: v.string() },
   returns: v.boolean(),
-  handler: async (ctx, { tokenHash }) => {
-    const row = await ctx.db
-      .query('admin_sessions')
-      .withIndex('by_tokenHash', (q) => q.eq('tokenHash', tokenHash))
-      .first();
-    return row !== null && row.expiresAt > Date.now();
-  },
+  handler: async (ctx, { tokenHash }) =>
+    await sessionLiveByHash(ctx, tokenHash),
 });
 
 export const signInGate = internalQuery({
@@ -310,16 +303,14 @@ export const queueRows = adminQuery({
   handler: async (ctx, { status, cursor }) => {
     const page = await ctx.db
       .query('coop_ingest_queue')
-      .withIndex('by_status_kind', (q) => q.eq('status', status))
+      .withIndex('by_status', (q) => q.eq('status', status))
       .order('desc')
       .paginate({ cursor: cursor ?? null, numItems: QUEUE_PAGE_SIZE });
     return {
       rows: page.page.map((row) => ({
         _id: row._id,
         _creationTime: row._creationTime,
-        kind: row.kind,
         ean: row.ean,
-        query: row.query,
         status: row.status,
         attempts: row.attempts,
         lastError: row.lastError,
@@ -330,19 +321,6 @@ export const queueRows = adminQuery({
       continueCursor: page.continueCursor,
       isDone: page.isDone,
     };
-  },
-});
-
-export const startDiscovery = adminMutation({
-  args: { drain: v.optional(v.boolean()) },
-  returns: v.null(),
-  handler: async (ctx, { drain }) => {
-    await ctx.scheduler.runAfter(
-      0,
-      internal.coop.discovery.discoverFromSitemap,
-      { drain: drain ?? true },
-    );
-    return null;
   },
 });
 
@@ -372,10 +350,7 @@ export const startFill = adminMutation({
 
 function boundedBatches(batches: number): number {
   if (!Number.isFinite(batches)) return 1;
-  return Math.min(
-    Math.max(Math.floor(batches), 1),
-    DISCOVERY_DRAIN_MAX_BATCHES,
-  );
+  return Math.min(Math.max(Math.floor(batches), 1), MAX_RUN_BATCHES);
 }
 
 export const setPaused = adminMutation({
@@ -402,10 +377,10 @@ export const clearDoneRows = adminAction({
 });
 
 export const removeQueueRows = adminAction({
-  args: { ean: v.optional(v.string()), query: v.optional(v.string()) },
+  args: { ean: v.string() },
   returns: v.object({ deleted: v.number() }),
-  handler: async (ctx, { ean, query }): Promise<{ deleted: number }> =>
-    await ctx.runMutation(internal.ingest.removeQueueRows, { ean, query }),
+  handler: async (ctx, { ean }): Promise<{ deleted: number }> =>
+    await ctx.runMutation(internal.ingest.removeQueueRows, { ean }),
 });
 
 export const enqueueEans = adminAction({
@@ -433,19 +408,4 @@ export const enqueueEans = adminAction({
     }
     return totals;
   },
-});
-
-export const enqueueName = adminAction({
-  args: { query: v.string() },
-  returns: v.object({
-    status: v.union(v.literal('queued'), v.literal('duplicate')),
-  }),
-  handler: async (
-    ctx,
-    { query },
-  ): Promise<{ status: 'queued' | 'duplicate' }> =>
-    await ctx.runMutation(internal.ingest.enqueueName, {
-      query,
-      source: 'manual',
-    }),
 });

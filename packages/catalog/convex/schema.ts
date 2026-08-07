@@ -1,9 +1,7 @@
 import { defineSchema, defineTable } from 'convex/server';
 import { v } from 'convex/values';
-import { coopProductInformationFields } from './schemes/coop';
 import { catalogFields, storeValidator } from './model/fields';
 import {
-  queueKindValidator,
   queueStatusValidator,
   runKindValidator,
   runStatusValidator,
@@ -20,10 +18,11 @@ export default defineSchema({
     addedAt: v.number(),
   }).index('by_store_ean', ['store', 'ean']),
 
+  /** One lane, one row shape: an EAN waiting to be fetched. `by_status` drives
+   * the claim and every console count, `by_ean` answers "is this already
+   * queued". */
   coop_ingest_queue: defineTable({
-    kind: queueKindValidator,
-    ean: v.optional(v.string()),
-    query: v.optional(v.string()),
+    ean: v.string(),
     status: queueStatusValidator,
     attempts: v.number(),
     lastError: v.optional(v.string()),
@@ -32,9 +31,8 @@ export default defineSchema({
     claimedAt: v.optional(v.number()),
     processedAt: v.optional(v.number()),
   })
-    .index('by_status_kind', ['status', 'kind'])
-    .index('by_ean', ['ean'])
-    .index('by_kind_query', ['kind', 'query']),
+    .index('by_status', ['status'])
+    .index('by_ean', ['ean']),
 
   /** Two indexes on purpose. `by_ean_store` is ean first so it serves both an
    * ean only lookup and the exact per store upsert, and EAN search is a range

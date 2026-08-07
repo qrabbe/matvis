@@ -1,5 +1,5 @@
 import type { StoreSlug } from '@matvis/shared';
-import { QueryCtx, MutationCtx } from '../_generated/server';
+import type { QueryCtx, MutationCtx } from '../_generated/server';
 import type { QueueStatus } from './ingest';
 
 export const CATALOG_COUNT_KEY = 'catalog';
@@ -16,12 +16,30 @@ export function catalogStoreKey(store: StoreSlug): string {
   return `catalog:${store}`;
 }
 
-export async function readCounter(ctx: QueryCtx, key: string): Promise<number> {
-  const row = await ctx.db
+function counterRow(ctx: QueryCtx, key: string) {
+  return ctx.db
     .query('app_counters')
     .withIndex('by_key', (q) => q.eq('key', key))
     .unique();
+}
+
+export async function readCounter(ctx: QueryCtx, key: string): Promise<number> {
+  const row = await counterRow(ctx, key);
   return row?.value ?? 0;
+}
+
+async function writeCounter(
+  ctx: MutationCtx,
+  key: string,
+  next: (current: number) => number,
+): Promise<void> {
+  const row = await counterRow(ctx, key);
+  const value = next(row?.value ?? 0);
+  if (row) {
+    await ctx.db.patch(row._id, { value });
+  } else {
+    await ctx.db.insert('app_counters', { key, value });
+  }
 }
 
 /** Call from the same mutation as the insert or delete it counts, so the two
@@ -31,15 +49,7 @@ export async function bumpCounter(
   key: string,
   delta: number,
 ): Promise<void> {
-  const row = await ctx.db
-    .query('app_counters')
-    .withIndex('by_key', (q) => q.eq('key', key))
-    .unique();
-  if (row) {
-    await ctx.db.patch(row._id, { value: row.value + delta });
-  } else {
-    await ctx.db.insert('app_counters', { key, value: delta });
-  }
+  await writeCounter(ctx, key, (current) => current + delta);
 }
 
 export async function setCounter(
@@ -47,13 +57,5 @@ export async function setCounter(
   key: string,
   value: number,
 ): Promise<void> {
-  const row = await ctx.db
-    .query('app_counters')
-    .withIndex('by_key', (q) => q.eq('key', key))
-    .unique();
-  if (row) {
-    await ctx.db.patch(row._id, { value });
-  } else {
-    await ctx.db.insert('app_counters', { key, value });
-  }
+  await writeCounter(ctx, key, () => value);
 }

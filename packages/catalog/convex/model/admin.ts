@@ -1,3 +1,5 @@
+import type { MutationCtx, QueryCtx } from '../_generated/server';
+
 export const SESSION_TTL_MS = 12 * 60 * 60 * 1000;
 
 export const SIGNIN_FAILURE_LIMIT = 10;
@@ -46,4 +48,17 @@ export async function secretsMatch(
 
 export function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** Takes the hash rather than the token because an action cannot reach the
+ * database and has to hash on its own side before asking. */
+export async function sessionLiveByHash(
+  ctx: QueryCtx | MutationCtx,
+  tokenHash: string,
+): Promise<boolean> {
+  const row = await ctx.db
+    .query('admin_sessions')
+    .withIndex('by_tokenHash', (q) => q.eq('tokenHash', tokenHash))
+    .first();
+  return row !== null && row.expiresAt > Date.now();
 }

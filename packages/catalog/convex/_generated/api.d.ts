@@ -11,7 +11,6 @@
 import type * as admin from "../admin.js";
 import type * as backfill from "../backfill.js";
 import type * as catalog from "../catalog.js";
-import type * as coop_discovery from "../coop/discovery.js";
 import type * as coop_fetch from "../coop/fetch.js";
 import type * as coop_sanitize from "../coop/sanitize.js";
 import type * as crons from "../crons.js";
@@ -37,7 +36,6 @@ declare const fullApi: ApiFromModules<{
   admin: typeof admin;
   backfill: typeof backfill;
   catalog: typeof catalog;
-  "coop/discovery": typeof coop_discovery;
   "coop/fetch": typeof coop_fetch;
   "coop/sanitize": typeof coop_sanitize;
   crons: typeof crons;

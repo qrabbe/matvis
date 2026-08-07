@@ -133,6 +133,40 @@ describe('the session gate', () => {
   });
 });
 
+describe('the queue console', () => {
+  test('queueRows pages one status, newest first', async () => {
+    const t = convexTest(schema, modules);
+    const token = await signIn(t);
+    await t.mutation(internal.ingest.enqueueEans, {
+      eans: ['7300000000000', '7300000000001', '7300000000002'],
+      source: 'census',
+    });
+    const claimed = await t.mutation(internal.ingest.claimBatch, { limit: 10 });
+    await t.mutation(internal.ingest.markResults, {
+      results: claimed.map((row) => ({
+        id: row.id,
+        status: 'failed' as const,
+        error: `no luck for ${row.ean}`,
+      })),
+    });
+
+    const page = await t.query(api.admin.queueRows, {
+      token,
+      status: 'failed',
+    });
+    expect(page).not.toBeNull();
+    expect(page!.rows).toHaveLength(3);
+    expect(page!.rows[0].lastError).toMatch(/^no luck for /);
+    expect(page!.rows[0].ean).toBe('7300000000002');
+
+    const pending = await t.query(api.admin.queueRows, {
+      token,
+      status: 'pending',
+    });
+    expect(pending!.rows).toEqual([]);
+  });
+});
+
 describe('the sign-in lockout', () => {
   test('locks the door on the guess after the limit, and clears after the window', async () => {
     const t = convexTest(schema, modules);

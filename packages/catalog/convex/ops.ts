@@ -1,10 +1,6 @@
 import { v } from 'convex/values';
 import { internalMutation, internalQuery } from './_generated/server';
-import {
-  runKindValidator,
-  runSummaryValidator,
-  MAX_ERROR_LENGTH,
-} from './model/ingest';
+import { runKindValidator, runSummaryValidator } from './model/ingest';
 import { insertRun, readPaused, settleRun } from './model/ops';
 
 export const isPaused = internalQuery({
@@ -28,11 +24,7 @@ export const finishRun = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, { runId, status, summary, error }) => {
-    await settleRun(ctx, runId, {
-      status,
-      summary,
-      error: error?.slice(0, MAX_ERROR_LENGTH),
-    });
+    await settleRun(ctx, runId, { status, summary, error });
     return null;
   },
 });

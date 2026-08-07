@@ -5,7 +5,7 @@ import { adminApi } from '../../lib/adminApi';
 import { TaskResult, useAdminTask } from './task';
 
 const DEFAULT_DRAIN_BATCHES = 4;
-const DEFAULT_REFRESH_BATCHES = 8;
+const DEFAULT_FILL_BATCHES = 8;
 
 export function RunControls({
   token,
@@ -14,17 +14,14 @@ export function RunControls({
   token: string;
   paused: boolean;
 }) {
-  const startDiscovery = useMutation(adminApi.admin.startDiscovery);
   const startDrain = useMutation(adminApi.admin.startDrain);
-  const startRefresh = useMutation(adminApi.admin.startRefresh);
+  const startFill = useMutation(adminApi.admin.startFill);
   const setPaused = useMutation(adminApi.admin.setPaused);
 
   const [drainBatches, setDrainBatches] = useState(
     String(DEFAULT_DRAIN_BATCHES),
   );
-  const [refreshBatches, setRefreshBatches] = useState(
-    String(DEFAULT_REFRESH_BATCHES),
-  );
+  const [fillBatches, setFillBatches] = useState(String(DEFAULT_FILL_BATCHES));
   const { state, run } = useAdminTask();
 
   return (
@@ -36,21 +33,10 @@ export function RunControls({
         <Stack direction="column" gap="lg">
           <Stack direction="column" gap="sm">
             <Text variant="body-sm">
-              Read Coop&rsquo;s product sitemap and queue every id the catalog
-              does not hold yet, then drain what it queued.
+              Fill walks the known EANs and queues whatever the catalog has no
+              row for. Drain fetches what is queued. New barcodes come from the
+              local census script, not from here.
             </Text>
-            <Stack direction="row" gap="md" align="center" wrap="wrap">
-              <Button
-                onClick={() =>
-                  run(async () => {
-                    await startDiscovery({ token, drain: true });
-                    return 'Discovery scheduled. Watch the run log.';
-                  })
-                }
-              >
-                Run discovery
-              </Button>
-            </Stack>
           </Stack>
 
           <Stack direction="row" gap="md" align="end" wrap="wrap">
@@ -77,24 +63,24 @@ export function RunControls({
             </Button>
             <div style={{ flex: '0 1 140px' }}>
               <InputControl
-                label="Refresh batches"
+                label="Fill batches"
                 type="number"
-                value={refreshBatches}
-                onValueChange={(value) => setRefreshBatches(value)}
+                value={fillBatches}
+                onValueChange={(value) => setFillBatches(value)}
               />
             </div>
             <Button
               onClick={() =>
                 run(async () => {
-                  const result = await startRefresh({
+                  const result = await startFill({
                     token,
-                    batches: Number(refreshBatches),
+                    batches: Number(fillBatches),
                   });
-                  return `Refresh sweep scheduled for ${result.batches} batch(es).`;
+                  return `Fill sweep scheduled for ${result.batches} batch(es).`;
                 })
               }
             >
-              Refresh oldest
+              Fill missing
             </Button>
           </Stack>
 

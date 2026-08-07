@@ -1,22 +1,12 @@
 import { useState } from 'react';
 import { useAction } from 'convex/react';
-import {
-  Button,
-  Card,
-  Field,
-  InputControl,
-  Stack,
-  Text,
-  Textarea,
-} from '@wordpress/ui';
+import { Button, Card, Field, Stack, Text, Textarea } from '@wordpress/ui';
 import { adminApi } from '../../lib/adminApi';
 import { TaskResult, useAdminTask } from './task';
 
 export function EnqueuePanel({ token }: { token: string }) {
   const enqueueEans = useAction(adminApi.admin.enqueueEans);
-  const enqueueName = useAction(adminApi.admin.enqueueName);
   const [eanText, setEanText] = useState('');
-  const [nameText, setNameText] = useState('');
   const { state, run } = useAdminTask();
 
   return (
@@ -56,33 +46,6 @@ export function EnqueuePanel({ token }: { token: string }) {
                 {parseEans(eanText).length} recognised
               </Text>
             </Stack>
-          </Stack>
-
-          <Stack direction="row" gap="md" align="end" wrap="wrap">
-            <div style={{ flex: '1 1 260px' }}>
-              <InputControl
-                label="Search phrase"
-                description="Resolved through Coop search. Every hit is ingested."
-                placeholder="tabasco röd"
-                value={nameText}
-                onValueChange={(value) => setNameText(value)}
-              />
-            </div>
-            <Button
-              disabled={nameText.trim().length === 0}
-              onClick={() =>
-                run(async () => {
-                  const query = nameText.trim();
-                  const result = await enqueueName({ token, query });
-                  setNameText('');
-                  return result.status === 'queued'
-                    ? `Queued "${query}".`
-                    : `"${query}" is already queued.`;
-                })
-              }
-            >
-              Queue phrase
-            </Button>
           </Stack>
 
           <TaskResult state={state} busyLabel="Queueing…" />

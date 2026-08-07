@@ -141,7 +141,7 @@ describe('rebuildCounters', () => {
     });
 
     const counts = await countMutation(t, (ctx) =>
-      handlerOf(backfill.recountCatalogPage)(ctx, { cursor: null }),
+      handlerOf(backfill.recountPage)(ctx, { table: 'catalog', cursor: null }),
     );
     expect(counts.ranges).toEqual([
       { table: 'catalog', kind: 'scan', index: null },
