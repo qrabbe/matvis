@@ -249,6 +249,12 @@
                 }
               },
               "optional": true
+            },
+            "fetchedAt": {
+              "fieldType": {
+                "type": "number"
+              },
+              "optional": true
             }
           }
         }
@@ -503,6 +509,12 @@
                     "optional": true
                   }
                 }
+              },
+              "optional": true
+            },
+            "fetchedAt": {
+              "fieldType": {
+                "type": "number"
               },
               "optional": true
             }
@@ -820,6 +832,12 @@
                           "optional": true
                         }
                       }
+                    },
+                    "optional": true
+                  },
+                  "fetchedAt": {
+                    "fieldType": {
+                      "type": "number"
                     },
                     "optional": true
                   }

@@ -125,6 +125,52 @@ describe('getManyByEan', () => {
   });
 });
 
+describe('fetchedAt', () => {
+  test('is stamped at the write and moves forward on a re-fetch', async () => {
+    const t = convexTest(schema, modules);
+    const before = Date.now();
+    await seed(t, [{ ean: '7310865085733', name: 'Mellanmjölk' }]);
+
+    const [first] = await t.query(api.catalog.getByEan, {
+      ean: '7310865085733',
+    });
+    expect(first!.fetchedAt).toBeGreaterThanOrEqual(before);
+
+    const later = Date.now() + 60_000;
+    await t.run(async (ctx) => {
+      await upsertClean(
+        ctx,
+        { ean: '7310865085733', name: 'Mellanmjölk 3%', store: 'coop' },
+        later,
+      );
+    });
+
+    const [again] = await t.query(api.catalog.getByEan, {
+      ean: '7310865085733',
+    });
+    expect(again!.fetchedAt).toBe(later);
+    // A replace preserves _creationTime, which is why that field can never
+    // stand in for this one.
+    expect(again!._creationTime).toBe(first!._creationTime);
+  });
+
+  test('a row written before the field existed reads as absent, not as fresh', async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      await ctx.db.insert('catalog', {
+        ean: '7310865085734',
+        name: 'Smör',
+        store: 'coop',
+      });
+    });
+
+    const [row] = await t.query(api.catalog.getByEan, {
+      ean: '7310865085734',
+    });
+    expect(row!.fetchedAt).toBeUndefined();
+  });
+});
+
 describe('stats', () => {
   function countFor(
     stats: { stores: { store: string; count: number }[] },

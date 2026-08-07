@@ -46,6 +46,12 @@ export const catalogFields = {
   labels: v.optional(v.array(v.string())),
 
   food: v.optional(foodValidator),
+
+  /** Optional because every row written before this field existed has no value
+   * for it, and there is no honest one to backfill: `_creationTime` survives a
+   * replace and so means first write, never last fetch. Absent reads as "not
+   * verified since this landed", which is the truth. */
+  fetchedAt: v.optional(v.number()),
 } as const;
 
 export const catalogDocValidator = v.object({

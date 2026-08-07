@@ -74,6 +74,10 @@ const COLUMNS: Field<CatalogRow>[] = [
     ),
   },
   {
+    // Deliberately `_creationTime` and deliberately labelled "Added". Convex
+    // preserves it across a replace, so it means first write and nothing else.
+    // Last verified is `fetchedAt`, which is a different column and is absent
+    // on every row nothing has re-fetched.
     id: 'date',
     label: 'Added',
     getValue: ({ item }) => item._creationTime,

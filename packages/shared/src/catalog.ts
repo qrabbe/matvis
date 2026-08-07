@@ -104,5 +104,10 @@ export const CatalogItem = z.object({
     description:
       'Present only for consumable products, absent entirely for a toothbrush. Its presence IS the "this is food" signal; there is no kind classifier.',
   }),
+
+  fetchedAt: z.number().optional().meta({
+    description:
+      'Unix ms when this row was last verified against the source. Absent means it has not been re-fetched since the field was introduced, not that it is fresh. Nothing runs on a schedule, so treat a distant value as exactly what it says.',
+  }),
 });
 export type CatalogItem = z.infer<typeof CatalogItem>;

@@ -8,7 +8,10 @@ import {
 } from './counters';
 import type { CoopProduct } from '../coop/sanitize';
 
-export type CleanFields = CatalogItem;
+/** What a projector produces. `fetchedAt` is excluded because a projection is a
+ * pure function of a payload and the time it arrived is not in the payload:
+ * `upsertClean` stamps it at the write, which is the one place that knows. */
+export type CleanFields = Omit<CatalogItem, 'fetchedAt'>;
 
 export type ProjectedFields = Omit<CleanFields, 'store'>;
 
@@ -172,10 +175,16 @@ export function project(
 }
 
 /** Replaces rather than patches: a projection is a total function of one source
- * payload, so a value the source dropped must not linger on the clean row. */
+ * payload, so a value the source dropped must not linger on the clean row.
+ *
+ * Stamps `fetchedAt` here because this is the only place that both knows the
+ * row came from the source and survives the replace. Anything that rewrites a
+ * row without re-reading the source must carry the old stamp forward instead of
+ * calling this, or it claims a freshness it did not earn. */
 export async function upsertClean(
   ctx: MutationCtx,
   fields: CleanFields,
+  fetchedAt: number = Date.now(),
 ): Promise<boolean> {
   const existing = await ctx.db
     .query('catalog')
@@ -184,10 +193,10 @@ export async function upsertClean(
     )
     .first();
   if (existing) {
-    await ctx.db.replace(existing._id, fields);
+    await ctx.db.replace(existing._id, { ...fields, fetchedAt });
     return false;
   }
-  await ctx.db.insert('catalog', fields);
+  await ctx.db.insert('catalog', { ...fields, fetchedAt });
   await bumpCounter(ctx, CATALOG_COUNT_KEY, 1);
   await bumpCounter(ctx, catalogStoreKey(fields.store), 1);
   return true;
