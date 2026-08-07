@@ -25,12 +25,11 @@ function storeLabel(store: string): string {
 
 const IMAGE_PX = 400;
 
-const FIELDS: Field<CatalogRow>[] = [
+const COLUMNS: Field<CatalogRow>[] = [
   {
     id: 'thumb',
     label: 'Image',
     type: 'media',
-    enableSorting: false,
     enableHiding: false,
     getValue: ({ item }) => item.imageUrl ?? '',
     render: ({ item }) => {
@@ -86,6 +85,20 @@ const FIELDS: Field<CatalogRow>[] = [
   },
 ];
 
+/** No column sorts, and the ban is applied here rather than field by field so
+ * that a new column cannot quietly bring sorting back.
+ *
+ * The order is the server's to decide and it is not one order: a name query
+ * comes back relevance-ordered from the search index, a digit query is a prefix
+ * range and so is EAN-ascending, and an empty query is newest first. None of
+ * those can be re-sorted by another field without fetching the whole table.
+ * A header sort would only reorder the pages already loaded while presenting
+ * itself as having sorted the catalog. */
+const FIELDS: Field<CatalogRow>[] = COLUMNS.map((field) => ({
+  ...field,
+  enableSorting: false,
+}));
+
 /** The media, title and description fields must stay out of `fields`, which
  * lists only the remaining columns. A field named in both places renders twice. */
 const DEFAULT_VIEW: View = {
@@ -109,6 +122,8 @@ export function CatalogPanel() {
   );
   const [view, setView] = useState<View>(DEFAULT_VIEW);
 
+  // Still needed for the `paginationInfo` DataViews requires, and for hiding
+  // columns. With every field's sorting off it has nothing left to reorder.
   const { data, paginationInfo } = useMemo(
     () => filterSortAndPaginate(page.results, view, FIELDS),
     [page.results, view],
