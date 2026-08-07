@@ -4,6 +4,7 @@ import {
   bumpCounter,
   catalogStoreKey,
   CATALOG_COUNT_KEY,
+  CATALOG_VERIFIED_KEY,
   EANS_COUNT_KEY,
 } from './counters';
 import type { CoopProduct } from '../coop/sanitize';
@@ -193,12 +194,18 @@ export async function upsertClean(
     )
     .first();
   if (existing) {
+    // A row verified for the first time crosses from never-fetched to fetched,
+    // and that is the only moment the verified count can move on a replace.
+    if (existing.fetchedAt === undefined) {
+      await bumpCounter(ctx, CATALOG_VERIFIED_KEY, 1);
+    }
     await ctx.db.replace(existing._id, { ...fields, fetchedAt });
     return false;
   }
   await ctx.db.insert('catalog', { ...fields, fetchedAt });
   await bumpCounter(ctx, CATALOG_COUNT_KEY, 1);
   await bumpCounter(ctx, catalogStoreKey(fields.store), 1);
+  await bumpCounter(ctx, CATALOG_VERIFIED_KEY, 1);
   return true;
 }
 

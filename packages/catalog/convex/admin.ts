@@ -37,6 +37,7 @@ import {
   MAX_RUN_BATCHES,
   QUEUE_PAGE_SIZE,
   fillStatsValidator,
+  freshnessValidator,
   queueRowValidator,
   queueStatsValidator,
   queueStatusValidator,
@@ -46,6 +47,7 @@ import {
 } from './model/ingest';
 import {
   readFillStats,
+  readFreshness,
   readPaused,
   readQueueStats,
   readRecentRuns,
@@ -264,12 +266,14 @@ export const overview = adminQuery({
     paused: v.boolean(),
     queue: queueStatsValidator,
     fill: fillStatsValidator,
+    freshness: freshnessValidator,
   }),
   handler: async (ctx) => ({
     catalogTotal: await readCounter(ctx, CATALOG_COUNT_KEY),
     paused: await readPaused(ctx),
     queue: await readQueueStats(ctx),
     fill: await readFillStats(ctx),
+    freshness: await readFreshness(ctx),
   }),
 });
 

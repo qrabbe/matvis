@@ -14,7 +14,7 @@ export function OverviewPanel({
   overview: Overview;
   token: string;
 }) {
-  const { queue, fill } = overview;
+  const { queue, fill, freshness } = overview;
   // The per-store breakdown is the same public query the site header reads,
   // rather than a second copy of the same counters behind the session gate.
   const stats = useQuery(api.catalog.stats, {});
@@ -80,6 +80,40 @@ export function OverviewPanel({
               }
               note="where the persisted cursor sits. A deployment that has never run a fill reads the same way, because both are a null cursor"
             />
+          </Stack>
+
+          <Stack direction="column" gap="sm">
+            <Text variant="body-sm">
+              How much of the catalog has ever been checked against Coop.
+              Nothing runs on a schedule, so this only moves when you move it.
+            </Text>
+            <Stack direction="row" gap="xl" wrap="wrap">
+              <Stat
+                label="Verified"
+                value={formatCount(freshness.verified)}
+                note="rows carrying a fetch timestamp"
+              />
+              <Stat
+                label="Never fetched"
+                value={formatCount(freshness.never)}
+                note="written before the timestamp existed, and not re-read since"
+              />
+            </Stack>
+            <Text variant="body-sm">
+              {`Age of the ${freshness.sample.size.toLocaleString()} most recently added rows. A sample, and one biased toward new rows, because bucketing the whole table by age is a scan.`}
+            </Text>
+            <Stack direction="row" gap="xl" wrap="wrap">
+              <Stat
+                label="Past week"
+                value={formatCount(freshness.sample.week)}
+              />
+              <Stat
+                label="Past month"
+                value={formatCount(freshness.sample.month)}
+              />
+              <Stat label="Older" value={formatCount(freshness.sample.older)} />
+              <Stat label="Never" value={formatCount(freshness.sample.never)} />
+            </Stack>
           </Stack>
 
           <Stack direction="column" gap="sm">

@@ -6,6 +6,13 @@ export const CATALOG_COUNT_KEY = 'catalog';
 
 export const EANS_COUNT_KEY = 'eans';
 
+/** Rows carrying a `fetchedAt` at all. Maintained rather than bucketed by age
+ * on purpose: an age bucket moves as time passes without anything writing to
+ * the row, so a maintained bucket count would be wrong by tomorrow. Whether a
+ * row has ever been verified only ever changes on a write, so this one is
+ * exact and stays exact. */
+export const CATALOG_VERIFIED_KEY = 'catalog:verified';
+
 export function queueCountKey(status: QueueStatus): string {
   return `queue:${status}`;
 }

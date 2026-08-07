@@ -9,6 +9,8 @@ import * as backfill from './backfill';
 import { RECOUNT_CATALOG_PAGE } from './backfill';
 import * as catalog from './catalog';
 import { CATALOG_COUNT_KEY, readCounter } from './model/counters';
+import { FRESHNESS_SAMPLE } from './model/ingest';
+import { readFreshness } from './model/ops';
 import { upsertClean } from './model/project';
 import schema from './schema';
 
@@ -123,6 +125,34 @@ describe('the maintained counters', () => {
     ]);
     expect(counts.docs).toBe(1);
     expect(counts.gets).toBe(0);
+  });
+});
+
+describe('readFreshness', () => {
+  test('reads one bounded page however big the catalog gets', async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      for (let n = 0; n < FRESHNESS_SAMPLE + 50; n += 1) {
+        await ctx.db.insert('catalog', {
+          ean: `750000000${String(n).padStart(4, '0')}`,
+          name: `Product ${n}`,
+          store: 'coop',
+        });
+      }
+    });
+    await t.mutation(internal.backfill.writeCounters, {
+      counts: { catalog: FRESHNESS_SAMPLE + 50, 'catalog:verified': 0 },
+    });
+
+    const counts = await countQuery(t, (ctx) => readFreshness(ctx));
+    // Two counter lookups plus the one capped scan, and nothing that grows
+    // with the table.
+    expect(counts.ranges).toEqual([
+      { table: 'app_counters', kind: 'index', index: 'by_key' },
+      { table: 'app_counters', kind: 'index', index: 'by_key' },
+      { table: 'catalog', kind: 'scan', index: null },
+    ]);
+    expect(counts.docs).toBe(FRESHNESS_SAMPLE + 2);
   });
 });
 

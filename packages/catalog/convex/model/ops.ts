@@ -2,12 +2,16 @@ import type { MutationCtx, QueryCtx } from '../_generated/server';
 import type { Doc, Id } from '../_generated/dataModel';
 import type { WithoutSystemFields } from 'convex/server';
 import {
+  FRESHNESS_SAMPLE,
+  MONTH_MS,
   QUEUE_DEDUP_SCAN,
   QUEUE_STATUSES,
   RUN_LOG_PAGE,
   RUN_LOG_TRIM,
   RUN_LOG_TTL_MS,
+  WEEK_MS,
   type FillStats,
+  type Freshness,
   type QueueStats,
   type QueueStatus,
   type RunKind,
@@ -17,6 +21,8 @@ import {
   bumpCounter,
   queueCountKey,
   readCounter,
+  CATALOG_COUNT_KEY,
+  CATALOG_VERIFIED_KEY,
   EANS_COUNT_KEY,
 } from './counters';
 
@@ -159,6 +165,40 @@ export async function readFillStats(ctx: QueryCtx): Promise<FillStats> {
   return {
     eansKnown: await readCounter(ctx, EANS_COUNT_KEY),
     cursorAtEnd: (settings?.fillCursor ?? null) === null,
+  };
+}
+
+/** How much of the catalog has ever been verified against the source, and how
+ * old the verified rows are.
+ *
+ * Two different kinds of number, deliberately. `verified` and `never` come from
+ * maintained counters and are exact for the whole table. The buckets come from
+ * a bounded sample of the most recently added rows, because bucketing the whole
+ * table by age is a scan and an age bucket cannot be maintained on write. The
+ * sample is biased toward new rows and the console says so; a number without
+ * its window is a number that gets misremembered as all-time. */
+export async function readFreshness(ctx: QueryCtx): Promise<Freshness> {
+  const now = Date.now();
+  const total = await readCounter(ctx, CATALOG_COUNT_KEY);
+  const verified = await readCounter(ctx, CATALOG_VERIFIED_KEY);
+
+  const sample = await ctx.db
+    .query('catalog')
+    .order('desc')
+    .take(FRESHNESS_SAMPLE);
+
+  const buckets = { week: 0, month: 0, older: 0, never: 0 };
+  for (const row of sample) {
+    if (row.fetchedAt === undefined) buckets.never += 1;
+    else if (row.fetchedAt > now - WEEK_MS) buckets.week += 1;
+    else if (row.fetchedAt > now - MONTH_MS) buckets.month += 1;
+    else buckets.older += 1;
+  }
+
+  return {
+    verified,
+    never: Math.max(total - verified, 0),
+    sample: { size: sample.length, ...buckets },
   };
 }
 

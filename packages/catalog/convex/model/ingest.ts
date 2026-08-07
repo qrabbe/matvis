@@ -74,6 +74,32 @@ export const fillStatsValidator = v.object({
 
 export type FillStats = Infer<typeof fillStatsValidator>;
 
+export const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+
+export const MONTH_MS = 30 * 24 * 60 * 60 * 1000;
+
+/** Rows the freshness buckets are read off. Bounded because bucketing the whole
+ * table by age is a scan, and `reads.vitest.ts` is there to keep it bounded. */
+export const FRESHNESS_SAMPLE = 200;
+
+/** `verified` and `never` are exact and cover the whole table. Everything under
+ * `sample` covers only the rows that were looked at, which is why it is nested
+ * rather than sitting alongside them: the two are not the same kind of number
+ * and must not read as if they were. */
+export const freshnessValidator = v.object({
+  verified: v.number(),
+  never: v.number(),
+  sample: v.object({
+    size: v.number(),
+    week: v.number(),
+    month: v.number(),
+    older: v.number(),
+    never: v.number(),
+  }),
+});
+
+export type Freshness = Infer<typeof freshnessValidator>;
+
 export function errorText(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error);
   return message.slice(0, MAX_ERROR_LENGTH);

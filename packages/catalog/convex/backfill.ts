@@ -8,6 +8,7 @@ import {
   queueCountKey,
   setCounter,
   CATALOG_COUNT_KEY,
+  CATALOG_VERIFIED_KEY,
   EANS_COUNT_KEY,
 } from './model/counters';
 
@@ -50,7 +51,10 @@ export const recountPage = internalMutation({
     // `page.page` is a union, and the table name does not narrow it.
     for (const row of page.page) {
       if ('status' in row) tally(queueCountKey(row.status));
-      else if ('name' in row) tally(catalogStoreKey(row.store));
+      else if ('name' in row) {
+        tally(catalogStoreKey(row.store));
+        if (row.fetchedAt !== undefined) tally(CATALOG_VERIFIED_KEY);
+      }
     }
     if (table === 'catalog') counts[CATALOG_COUNT_KEY] = page.page.length;
     if (table === 'eans') counts[EANS_COUNT_KEY] = page.page.length;
@@ -98,6 +102,7 @@ export const rebuildCounters = internalAction({
     if (doCatalog) {
       totals[CATALOG_COUNT_KEY] = 0;
       totals[EANS_COUNT_KEY] = 0;
+      totals[CATALOG_VERIFIED_KEY] = 0;
       for (const store of STORES) totals[catalogStoreKey(store)] = 0;
     }
 
@@ -137,6 +142,7 @@ export const rebuildCounters = internalAction({
       catalog = {
         total: totals[CATALOG_COUNT_KEY] ?? 0,
         eans: totals[EANS_COUNT_KEY] ?? 0,
+        verified: totals[CATALOG_VERIFIED_KEY] ?? 0,
       };
       for (const store of STORES) {
         catalog[store] = totals[catalogStoreKey(store)] ?? 0;

@@ -4,6 +4,7 @@ import { describe, expect, test } from 'vitest';
 import { api, internal } from './_generated/api';
 import * as admin from './admin';
 import schema from './schema';
+import { upsertClean } from './model/project';
 import {
   SESSION_TTL_MS,
   SIGNIN_FAILURE_LIMIT,
@@ -196,6 +197,67 @@ describe('the queue console', () => {
       status: 'pending',
     });
     expect(pending!.rows).toEqual([]);
+  });
+});
+
+describe('freshness', () => {
+  test('counts never-fetched exactly and buckets the sample by age', async () => {
+    const t = convexTest(schema, modules);
+    const token = await signIn(t);
+    const now = Date.now();
+
+    await t.run(async (ctx) => {
+      // Two rows from before the field existed, so they carry no stamp.
+      for (const ean of ['7300000000000', '7300000000001']) {
+        await ctx.db.insert('catalog', { ean, name: ean, store: 'coop' });
+      }
+      await upsertClean(
+        ctx,
+        { ean: '7300000000002', name: 'Fresh', store: 'coop' },
+        now,
+      );
+      await upsertClean(
+        ctx,
+        { ean: '7300000000003', name: 'Stale', store: 'coop' },
+        now - 200 * 24 * 60 * 60 * 1000,
+      );
+    });
+    // The two direct inserts bypassed the counters, so recount before reading.
+    await t.mutation(api.admin.setPaused, { token, paused: true });
+    await t.action(api.admin.rebuildCounters, { token });
+
+    const overview = await t.query(api.admin.overview, { token });
+    expect(overview!.freshness).toMatchObject({
+      verified: 2,
+      never: 2,
+      sample: { size: 4, week: 1, month: 0, older: 1, never: 2 },
+    });
+  });
+
+  test('verifying a row that never was moves it out of never, once', async () => {
+    const t = convexTest(schema, modules);
+    const token = await signIn(t);
+    await t.run(async (ctx) => {
+      await upsertClean(ctx, {
+        ean: '7300000000000',
+        name: 'A',
+        store: 'coop',
+      });
+    });
+
+    const first = await t.query(api.admin.overview, { token });
+    expect(first!.freshness).toMatchObject({ verified: 1, never: 0 });
+
+    // A second fetch of the same row is a re-verification, not a new one.
+    await t.run(async (ctx) => {
+      await upsertClean(ctx, {
+        ean: '7300000000000',
+        name: 'A again',
+        store: 'coop',
+      });
+    });
+    const second = await t.query(api.admin.overview, { token });
+    expect(second!.freshness).toMatchObject({ verified: 1, never: 0 });
   });
 });
 
