@@ -50,7 +50,13 @@ async function writeCounter(
 }
 
 /** Call from the same mutation as the insert or delete it counts, so the two
- * land in one transaction. */
+ * land in one transaction.
+ *
+ * The catalog keys have no decrement path today because nothing deletes a
+ * catalog row. Anything that starts to must decrement all three of them
+ * (`CATALOG_COUNT_KEY`, the store key and `CATALOG_VERIFIED_KEY`) through one
+ * guarded helper, or every total on the console and the site header drifts
+ * silently. See DECISIONS.md, "Delisting". */
 export async function bumpCounter(
   ctx: MutationCtx,
   key: string,
