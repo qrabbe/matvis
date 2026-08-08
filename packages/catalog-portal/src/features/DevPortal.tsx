@@ -110,27 +110,29 @@ export function DevPortal() {
         <Card.Content>
           <Stack direction="column" gap="md">
             <Text variant="body-md">
-              One optional nested block rather than eight sibling optionals:
-              roughly a quarter of the catalog is toothbrushes, magazines and
-              detergent. Check <Code>item.food</Code> once and render either the
-              full card or the simple one. Its presence IS the &ldquo;this is a
-              consumable&rdquo; signal — there is no <Code>kind</Code>{' '}
-              classifier, because deriving one needs a per-store category
-              mapping that is wrong at the edges.
+              One optional nested block rather than eight sibling optionals,
+              because a large part of the catalog is not food at all —
+              toothbrushes, magazines and detergent. Check{' '}
+              <Code>item.food</Code> once and render either the full card or the
+              simple one. Its presence IS the &ldquo;this is a consumable&rdquo;
+              signal — there is no <Code>kind</Code> classifier, because
+              deriving one needs a per-store category mapping that is wrong at
+              the edges.
             </Text>
             <Text variant="body-md">
               <strong>Not an allergen source.</strong> Allergens appear in the
               catalog only as prose inside <Code>food.ingredients</Code>. The
-              structured allergen field the sources offer is on under 9% of
-              rows, which is too few to promise anything, so no field here means
-              &ldquo;contains no allergens&rdquo; and nothing here may be
-              presented as allergen coverage.
+              structured allergen field some sources offer is not ingested at
+              all, so no field here means &ldquo;contains no allergens&rdquo;
+              and nothing here may be presented as allergen coverage. This is a
+              policy, not a coverage figure: it does not change if coverage
+              improves.
             </Text>
             <Text variant="body-md">
               <Code>food.nutrition</Code> uses fixed slots so a consumer never
               needs a nutrient vocabulary of its own. Nutrients outside them
-              (vitamins, minerals) are dropped; they are on a small minority of
-              rows, and adding a slot later is a compatible change.
+              (vitamins, minerals) are dropped rather than passed through, and
+              adding a slot later is a compatible change.
             </Text>
           </Stack>
         </Card.Content>
