@@ -22,9 +22,11 @@ import type * as model_ingest from "../model/ingest.js";
 import type * as model_ops from "../model/ops.js";
 import type * as model_project from "../model/project.js";
 import type * as model_runs from "../model/runs.js";
+import type * as model_search from "../model/search.js";
 import type * as ops from "../ops.js";
 import type * as products from "../products.js";
 import type * as schemes_coop from "../schemes/coop.js";
+import type * as search from "../search.js";
 
 import type {
   ApiFromModules,
@@ -47,9 +49,11 @@ declare const fullApi: ApiFromModules<{
   "model/ops": typeof model_ops;
   "model/project": typeof model_project;
   "model/runs": typeof model_runs;
+  "model/search": typeof model_search;
   ops: typeof ops;
   products: typeof products;
   "schemes/coop": typeof schemes_coop;
+  search: typeof search;
 }>;
 
 /**

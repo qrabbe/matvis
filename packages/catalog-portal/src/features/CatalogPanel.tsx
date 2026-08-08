@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { usePaginatedQuery } from 'convex/react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMutation, usePaginatedQuery } from 'convex/react';
 import {
   Button,
   Card,
@@ -18,6 +18,7 @@ import { STORE_LABELS, type CatalogRow, type StoreSlug } from '@matvis/shared';
 import { InlineSpinner, sizedImageUrl } from '@matvis/ui';
 import { href, productPath } from '../lib/route';
 import { api } from '../lib/convexApi';
+import { visitorId } from '../lib/visitor';
 
 function storeLabel(store: string): string {
   return STORE_LABELS[store as StoreSlug] ?? store;
@@ -125,6 +126,7 @@ export function CatalogPanel() {
     { initialNumItems: 10 },
   );
   const [view, setView] = useState<View>(DEFAULT_VIEW);
+  useSearchLog(debouncedQ, page.status, page.results.length);
 
   // Still needed for the `paginationInfo` DataViews requires, and for hiding
   // columns. With every field's sorting off it has nothing left to reorder.
@@ -185,6 +187,37 @@ export function CatalogPanel() {
       </Card.Content>
     </Card.Root>
   );
+}
+
+/** Records a term once it has settled and its first page has arrived.
+ *
+ * The `logged` ref is the whole correctness story. Without it a re-render, a
+ * Load more or a change of view logs the same term again, and the top-terms
+ * table ends up measuring scrolling rather than searching. Three things this
+ * must not do, each a natural-looking mistake: not once per keystroke (the
+ * debounce is there for this), not once per page of results, and not for the
+ * empty term, because browsing everything is not a search. */
+function useSearchLog(term: string, status: string, resultCount: number): void {
+  const logSearch = useMutation(api.search.logSearch);
+  const logged = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (term === '') return;
+    // Wait for a page that actually arrived, or `results` is zero because
+    // nothing has loaded rather than because nothing matched.
+    if (status === 'LoadingFirstPage') return;
+    if (logged.current === term) return;
+
+    logged.current = term;
+    // Fired and forgotten. A telemetry write that cannot land must never
+    // produce a toast, block the results or retry: the user is looking for a
+    // product.
+    void logSearch({
+      term,
+      visitor: visitorId(),
+      results: resultCount,
+    }).catch(() => {});
+  }, [term, status, resultCount, logSearch]);
 }
 
 function useDebounced<T>(value: T, ms: number): T {
