@@ -6,12 +6,17 @@ import { QUEUE_STATUSES } from './model/ingest';
 import { netContentFrom, soldByFrom } from './model/project';
 import {
   catalogStoreKey,
+  coverageKey,
   queueCountKey,
   setCounter,
   CATALOG_COUNT_KEY,
   CATALOG_VERIFIED_KEY,
+  COVERAGE_FIELDS,
+  COVERAGE_MEASURED_AT_KEY,
   EANS_COUNT_KEY,
+  type CoverageField,
 } from './model/counters';
+import type { Doc } from './_generated/dataModel';
 
 const RECOUNT_QUEUE_PAGE = 1000;
 export const RECOUNT_CATALOG_PAGE = 500;
@@ -23,6 +28,33 @@ const countedTableValidator = v.union(
 );
 
 type CountedTable = 'coop_ingest_queue' | 'catalog' | 'eans';
+
+/** One row against one coverage field. Nested fields are spelled out rather
+ * than reached by path, so a rename breaks the build instead of quietly
+ * measuring nothing and reporting 0%. An empty array counts as absent: a
+ * product with no labels has no label coverage. */
+function hasField(row: Doc<'catalog'>, field: CoverageField): boolean {
+  switch (field) {
+    case 'brand':
+      return row.brand !== undefined;
+    case 'imageUrl':
+      return row.imageUrl !== undefined;
+    case 'netContent':
+      return row.netContent !== undefined;
+    case 'categoryPath':
+      return (row.categoryPath?.length ?? 0) > 0;
+    case 'countryOfOrigin':
+      return row.countryOfOrigin !== undefined;
+    case 'labels':
+      return (row.labels?.length ?? 0) > 0;
+    case 'food':
+      return row.food !== undefined;
+    case 'foodIngredients':
+      return row.food?.ingredients !== undefined;
+    case 'foodNutrition':
+      return row.food?.nutrition !== undefined;
+  }
+}
 
 type CountPage = {
   counts: Record<string, number>;
@@ -55,6 +87,9 @@ export const recountPage = internalMutation({
       else if ('name' in row) {
         tally(catalogStoreKey(row.store));
         if (row.fetchedAt !== undefined) tally(CATALOG_VERIFIED_KEY);
+        for (const field of COVERAGE_FIELDS) {
+          if (hasField(row, field)) tally(coverageKey(field));
+        }
       }
     }
     if (table === 'catalog') counts[CATALOG_COUNT_KEY] = page.page.length;
@@ -223,6 +258,7 @@ export const rebuildCounters = internalAction({
       totals[EANS_COUNT_KEY] = 0;
       totals[CATALOG_VERIFIED_KEY] = 0;
       for (const store of STORES) totals[catalogStoreKey(store)] = 0;
+      for (const field of COVERAGE_FIELDS) totals[coverageKey(field)] = 0;
     }
 
     const tables: CountedTable[] = [
@@ -247,6 +283,9 @@ export const rebuildCounters = internalAction({
       }
     }
 
+    // Stamped just before the write, so the timestamp means "these counts are
+    // as of here" rather than "a recount started at some point".
+    if (doCatalog) totals[COVERAGE_MEASURED_AT_KEY] = Date.now();
     await ctx.runMutation(internal.backfill.writeCounters, { counts: totals });
 
     let queue: Record<string, number> | null = null;

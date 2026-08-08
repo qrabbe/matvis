@@ -36,6 +36,7 @@ import {
   ENQUEUE_PASTE_MAX,
   MAX_RUN_BATCHES,
   QUEUE_PAGE_SIZE,
+  coverageValidator,
   fillStatsValidator,
   freshnessValidator,
   queueRowValidator,
@@ -46,6 +47,7 @@ import {
   runSummaryValidator,
 } from './model/ingest';
 import {
+  readCoverage,
   readFillStats,
   readFreshness,
   readPaused,
@@ -275,6 +277,12 @@ export const overview = adminQuery({
     fill: await readFillStats(ctx),
     freshness: await readFreshness(ctx),
   }),
+});
+
+export const coverage = adminQuery({
+  args: {},
+  returns: coverageValidator,
+  handler: async (ctx) => await readCoverage(ctx),
 });
 
 export const runs = adminQuery({

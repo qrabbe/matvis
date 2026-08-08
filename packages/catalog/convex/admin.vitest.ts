@@ -40,6 +40,7 @@ async function recordFailures(t: ReturnType<typeof convexTest>, n: number) {
  * registration, because it is what issues the token the rest check. */
 const PUBLIC_ADMIN_FUNCTIONS = [
   'clearDoneRows',
+  'coverage',
   'enqueueEans',
   'overview',
   'queueRows',

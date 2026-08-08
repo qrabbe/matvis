@@ -10,6 +10,7 @@ import {
   RUN_LOG_TRIM,
   RUN_LOG_TTL_MS,
   WEEK_MS,
+  type Coverage,
   type FillStats,
   type Freshness,
   type QueueStats,
@@ -19,10 +20,13 @@ import {
 } from './ingest';
 import {
   bumpCounter,
+  coverageKey,
   queueCountKey,
   readCounter,
   CATALOG_COUNT_KEY,
   CATALOG_VERIFIED_KEY,
+  COVERAGE_FIELDS,
+  COVERAGE_MEASURED_AT_KEY,
   EANS_COUNT_KEY,
 } from './counters';
 
@@ -199,6 +203,29 @@ export async function readFreshness(ctx: QueryCtx): Promise<Freshness> {
     verified,
     never: Math.max(total - verified, 0),
     sample: { size: sample.length, ...buckets },
+  };
+}
+
+/** What share of rows carry each optional field, as of the last recount.
+ *
+ * Recount-on-demand rather than maintained on write. Maintaining nine more
+ * counters on every upsert is real write cost on the hot path, and a recount is
+ * just as honest as long as its timestamp is on screen next to it - which is
+ * why `measuredAt` is in the return shape rather than being decoration.
+ * `measuredAt` is null before the first recount, and the console says so
+ * instead of drawing nine zeroes as if they were measurements. */
+export async function readCoverage(ctx: QueryCtx): Promise<Coverage> {
+  const measuredAt = await readCounter(ctx, COVERAGE_MEASURED_AT_KEY);
+  const fields = await Promise.all(
+    COVERAGE_FIELDS.map(async (field) => ({
+      field,
+      count: await readCounter(ctx, coverageKey(field)),
+    })),
+  );
+  return {
+    measuredAt: measuredAt > 0 ? measuredAt : null,
+    total: await readCounter(ctx, CATALOG_COUNT_KEY),
+    fields,
   };
 }
 

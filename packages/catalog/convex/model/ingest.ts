@@ -100,6 +100,14 @@ export const freshnessValidator = v.object({
 
 export type Freshness = Infer<typeof freshnessValidator>;
 
+export const coverageValidator = v.object({
+  measuredAt: v.union(v.number(), v.null()),
+  total: v.number(),
+  fields: v.array(v.object({ field: v.string(), count: v.number() })),
+});
+
+export type Coverage = Infer<typeof coverageValidator>;
+
 export function errorText(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error);
   return message.slice(0, MAX_ERROR_LENGTH);

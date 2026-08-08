@@ -23,6 +23,37 @@ export function catalogStoreKey(store: StoreSlug): string {
   return `catalog:${store}`;
 }
 
+/** The optional fields worth measuring coverage on. Everything past the
+ * identity block is optional, which is exactly why the share carrying each one
+ * is worth knowing rather than assuming: it says whether ingest is degrading,
+ * and it is the measured version of the numbers the developer page used to
+ * assert from memory.
+ *
+ * The same shape the ICA spike used, so the two chains stay comparable. */
+export const COVERAGE_FIELDS = [
+  'brand',
+  'imageUrl',
+  'netContent',
+  'categoryPath',
+  'countryOfOrigin',
+  'labels',
+  'food',
+  'foodIngredients',
+  'foodNutrition',
+] as const;
+
+export type CoverageField = (typeof COVERAGE_FIELDS)[number];
+
+export function coverageKey(field: CoverageField): string {
+  return `coverage:${field}`;
+}
+
+/** When the coverage recount last ran, in unix ms, stored as a counter because
+ * that is the one table already built for stray numbers. A coverage share
+ * without the date it was measured is the same mistake the developer page made
+ * the first time. */
+export const COVERAGE_MEASURED_AT_KEY = 'coverage:measuredAt';
+
 function counterRow(ctx: QueryCtx, key: string) {
   return ctx.db
     .query('app_counters')

@@ -11,7 +11,7 @@ import {
   EANS_COUNT_KEY,
 } from './model/counters';
 import { rememberEan, upsertClean } from './model/project';
-import { readFillStats, readQueueStats } from './model/ops';
+import { readCoverage, readFillStats, readQueueStats } from './model/ops';
 import type { QueueStatus } from './model/ingest';
 
 const modules = import.meta.glob('./**/*.ts');
@@ -55,7 +55,9 @@ async function seedCatalog(t: ReturnType<typeof convexTest>, total: number) {
 
 async function counters(t: ReturnType<typeof convexTest>) {
   return await t.run(async (ctx) => {
-    const rows = await ctx.db.query('app_counters').take(20);
+    // Every counter key, not a page of them: the coverage keys pushed the
+    // total past the old take and silently hid the queue counts.
+    const rows = await ctx.db.query('app_counters').take(100);
     return Object.fromEntries(rows.map((row) => [row.key, row.value]));
   });
 }
@@ -257,5 +259,74 @@ describe('normalizeUnits', () => {
 
     const [row] = await catalogRows(t);
     expect(row!.netContent).toEqual({ value: 500, unit: 'ml' });
+  });
+});
+
+describe('field coverage', () => {
+  test('counts each optional field, and an empty array is absent not present', async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      await upsertClean(ctx, {
+        ean: '1',
+        name: 'Full',
+        store: 'coop',
+        brand: 'Santa Maria',
+        imageUrl: 'https://example.test/a.jpg',
+        netContent: { value: 360, unit: 'g' },
+        categoryPath: ['Mat', 'Sås'],
+        countryOfOrigin: 'Sverige',
+        labels: ['KRAV'],
+        food: {
+          ingredients: 'Tomat',
+          nutrition: { basisQuantity: 100, basisUnit: 'g' },
+        },
+      });
+      await upsertClean(ctx, {
+        ean: '2',
+        name: 'Bare',
+        store: 'coop',
+        categoryPath: [],
+        labels: [],
+      });
+      await upsertClean(ctx, {
+        ean: '3',
+        name: 'Ingredients only',
+        store: 'coop',
+        food: { ingredients: 'Vatten' },
+      });
+    });
+
+    const before = Date.now();
+    await t.action(internal.backfill.rebuildCounters, { scope: 'catalog' });
+    const coverage = await t.run(async (ctx) => await readCoverage(ctx));
+
+    expect(coverage.total).toBe(3);
+    expect(coverage.measuredAt).toBeGreaterThanOrEqual(before);
+
+    const counts = Object.fromEntries(
+      coverage.fields.map((row) => [row.field, row.count]),
+    );
+    expect(counts).toMatchObject({
+      brand: 1,
+      imageUrl: 1,
+      netContent: 1,
+      countryOfOrigin: 1,
+      food: 2,
+      foodIngredients: 2,
+      foodNutrition: 1,
+      // Row 2 carries [] for both. An empty list is no coverage.
+      categoryPath: 1,
+      labels: 1,
+    });
+  });
+
+  test('reads as not measured until a recount has run', async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      await upsertClean(ctx, { ean: '1', name: 'A', store: 'coop' });
+    });
+
+    const coverage = await t.run(async (ctx) => await readCoverage(ctx));
+    expect(coverage.measuredAt).toBeNull();
   });
 });

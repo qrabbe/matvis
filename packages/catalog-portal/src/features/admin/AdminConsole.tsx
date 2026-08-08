@@ -5,6 +5,7 @@ import { InlineSpinner } from '@matvis/ui';
 import { adminApi } from '../../lib/adminApi';
 import { clearAdminToken, useAdminToken } from '../../lib/adminSession';
 import { href } from '../../lib/route';
+import { CoveragePanel } from './CoveragePanel';
 import { EnqueuePanel } from './EnqueuePanel';
 import { OverviewPanel } from './OverviewPanel';
 import { QueuePanel } from './QueuePanel';
@@ -46,6 +47,7 @@ function SignedIn({ token }: { token: string }) {
         <RunControls token={token} paused={overview.paused} />
         <QueuePanel token={token} />
         <EnqueuePanel token={token} />
+        <CoveragePanel token={token} />
         <RunLogPanel token={token} />
         <Stack direction="column" gap="sm">
           <Stack direction="row" gap="md" align="center" wrap="wrap">
