@@ -4,6 +4,94 @@ Choices that are not visible in the code, because the code's answer is silence.
 
 ---
 
+## The failure paths, and which of them are acceptable
+
+Read off the code and pinned by `convex/failures.vitest.ts`. Every behaviour
+below is deliberate as of this writing; the ones marked **blocker** are
+deliberate _only while runs are started by hand_.
+
+### A failed fetch does not fail the run
+
+The most surprising one, and it was found by writing the test rather than by
+reading. The `catch` in `drainOneBatch` is **inside** the run body, so a batch
+in which every row failed settles as `status: 'ok'` with a summary carrying
+`failed: N`. A run in which nothing succeeded is not an errored run.
+
+Anything watching for `status: 'error'` will therefore never see the most
+common real failure. That is not a defect in the drain — the run genuinely did
+complete and record what happened — but it is a trap for whatever eventually
+watches runs, and the distinction has to be built in from the start:
+
+- `status: 'error'` — the run itself broke.
+- `status: 'ok'` with `failed` climbing — the run worked, the source did not.
+- `status: 'ok'` with `added: 0` and nothing claimed — there was no work.
+
+### One bad response fails the whole batch
+
+**Accepted.** The catch marks all up to `COOP_BATCH_SIZE` (500) claimed rows
+`failed` with the same error text.
+
+It looks harsh, and the alternative is worse. Coop throttles with `403` over a
+rolling window, so the overwhelmingly common cause of a thrown fetch is a
+statement about the _caller_, not about any row in the batch. Degrading to
+per-row retry would answer one refused request with up to 500 more, against the
+limit that just refused it. The correct response to a throttle is fewer
+requests.
+
+Nothing is lost: the rows sit in `failed` and one **Requeue failed** press
+returns them to `pending`.
+
+### A missing product is skipped, and never retried
+
+**Accepted today, needs revisiting with any refresh path.** An EAN Coop returns
+nothing for is recorded `skipped` with `not stocked by Coop`. `requeueFailed`
+only reaches `failed`, so `skipped` is terminal.
+
+The census README says the assortment is live stock and an item out of stock
+everywhere is invisible, so some of those absences are temporary. Right now
+nothing re-fetches anything at all, which makes the question moot. The day a
+refresh path exists, `skipped` needs a re-check policy, and it is the same
+ambiguity delisting runs into below.
+
+### `attempts` increments and nothing caps it
+
+**Blocker for automation.** There is no dead-letter state. A permanently failing
+EAN is requeued by hand forever, and `attempts` just climbs.
+
+While runs are manual this is fine, because the human pressing Requeue _is_ the
+cap. Schedule anything and it becomes an uncapped retry loop pointed at someone
+else's API. A cap, or a dead-letter status, is a precondition for turning
+anything on.
+
+### No retry or backoff of any kind
+
+**Blocker for automation**, same reasoning. `coop/fetch.ts` has no retry, no
+backoff and no request budget. The census README records 24 concurrent requests
+being refused where 12 were not, so the working limit is known and is not
+encoded anywhere. Under manual operation the operator is the backoff.
+
+### A missing API key fails a run, not a push
+
+**Accepted, and deliberate.** `coopApiKey()` is read lazily inside the handler
+because Convex imports every module at push time with no deployment env vars, so
+a top-level throw would fail the deploy of the whole deployment rather than the
+one function that needs the key.
+
+### A dead worker's claim comes back after 30 minutes
+
+**Accepted.** `claimBatch` resets `processing` rows older than `STALE_CLAIM_MS`
+back to `pending`. Already covered by a test before this pass.
+
+### What is not covered here
+
+Reproducing a real `403` and a real shape change **against the live API** is
+deliberately not done. A test that calls Coop is a test that consumes the rate
+limit that causes the failure it is testing. Both are simulated at the response
+boundary instead, which pins how this code reacts; it does not prove what Coop
+sends. Confirming that is the remaining half of this work and needs a live run.
+
+---
+
 ## Delisting: the catalog does not forget products
 
 **Decided: ignore delisting. Nothing is deleted and nothing is flagged.**
