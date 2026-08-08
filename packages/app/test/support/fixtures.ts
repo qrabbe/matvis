@@ -53,8 +53,7 @@ export function product(overrides: Partial<CatalogRow> = {}): CatalogRow {
     store: 'coop',
     sourceTable: 'raw_coop',
     sourceId: 'raw_1',
-    packageSize: 500,
-    packageSizeUnit: 'Gram',
+    netContent: { value: 500, unit: 'g' },
     food: {
       nutrition: {
         basisQuantity: 100,

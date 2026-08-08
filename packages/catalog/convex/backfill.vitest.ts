@@ -1,4 +1,5 @@
 /// <reference types="vite/client" />
+import { defineSchema } from 'convex/server';
 import { convexTest } from 'convex-test';
 import { describe, expect, test } from 'vitest';
 import { internal } from './_generated/api';
@@ -155,5 +156,106 @@ describe('rebuildCounters', () => {
       [CATALOG_COUNT_KEY]: 1,
       [queueCountKey('pending')]: 2,
     });
+  });
+});
+
+/** The real tables with validation off. Rows on disk carry three fields the
+ * schema no longer declares, so this is the only way to stage the situation the
+ * migration exists to resolve — and it is exactly what the deployment runs
+ * during the migration window, for the same reason. */
+const migrationSchema = defineSchema(schema.tables, {
+  schemaValidation: false,
+});
+
+describe('normalizeUnits', () => {
+  /** Rows as they sit on disk before the migration: the three legacy fields
+   * the schema no longer declares. Inserted through a cast for the same reason
+   * the migration reads them through one. */
+  async function seedLegacy(
+    t: ReturnType<typeof convexTest>,
+    rows: {
+      ean: string;
+      packageSize?: number;
+      packageSizeUnit?: string;
+      salesUnit?: string;
+    }[],
+  ) {
+    await t.run(async (ctx) => {
+      for (const row of rows) {
+        await ctx.db.insert('catalog', {
+          ean: row.ean,
+          name: `Product ${row.ean}`,
+          store: 'coop',
+          packageSize: row.packageSize,
+          packageSizeUnit: row.packageSizeUnit,
+          salesUnit: row.salesUnit,
+        } as never);
+      }
+    });
+  }
+
+  async function catalogRows(t: ReturnType<typeof convexTest>) {
+    return await t.run(async (ctx) => await ctx.db.query('catalog').take(50));
+  }
+
+  test('resolves the legacy fields in place and removes them from the row', async () => {
+    const t = convexTest(migrationSchema, modules);
+    await seedLegacy(t, [
+      { ean: '1', packageSize: 0.75, packageSizeUnit: 'Kilogram' },
+      { ean: '2', packageSize: 50, packageSizeUnit: 'cl', salesUnit: 'Styck' },
+      { ean: '3', packageSize: 6, packageSizeUnit: 'knippe' },
+    ]);
+
+    const result = await t.action(internal.backfill.normalizeUnits, {});
+    expect(result).toMatchObject({ scanned: 3, rewritten: 3, unresolved: 1 });
+
+    const byEan = new Map((await catalogRows(t)).map((row) => [row.ean, row]));
+    expect(byEan.get('1')!.netContent).toEqual({ value: 750, unit: 'g' });
+    expect(byEan.get('2')!.netContent).toEqual({ value: 500, unit: 'ml' });
+    expect(byEan.get('2')!.soldBy).toBe('piece');
+    // Unresolvable stays absent rather than becoming a guess.
+    expect(byEan.get('3')!.netContent).toBeUndefined();
+
+    // The replace has to actually drop them, or they linger as undeclared
+    // extras and fail validation when schema checking comes back on.
+    for (const row of byEan.values()) {
+      expect(row).not.toHaveProperty('packageSize');
+      expect(row).not.toHaveProperty('packageSizeUnit');
+      expect(row).not.toHaveProperty('salesUnit');
+    }
+  });
+
+  test('carries fetchedAt forward, because a rewrite is not a verification', async () => {
+    const t = convexTest(migrationSchema, modules);
+    const stamped = Date.now() - 90_000;
+    await t.run(async (ctx) => {
+      await ctx.db.insert('catalog', {
+        ean: '1',
+        name: 'Mjölk',
+        store: 'coop',
+        fetchedAt: stamped,
+        packageSize: 1,
+        packageSizeUnit: 'l',
+      } as never);
+    });
+
+    await t.action(internal.backfill.normalizeUnits, {});
+    const [row] = await catalogRows(t);
+    expect(row!.fetchedAt).toBe(stamped);
+    expect(row!.netContent).toEqual({ value: 1000, unit: 'ml' });
+  });
+
+  test('is idempotent, so a re-run after a failure resumes rather than doubling', async () => {
+    const t = convexTest(migrationSchema, modules);
+    await seedLegacy(t, [{ ean: '1', packageSize: 50, packageSizeUnit: 'cl' }]);
+
+    const first = await t.action(internal.backfill.normalizeUnits, {});
+    expect(first).toMatchObject({ rewritten: 1 });
+
+    const second = await t.action(internal.backfill.normalizeUnits, {});
+    expect(second).toMatchObject({ scanned: 1, rewritten: 0 });
+
+    const [row] = await catalogRows(t);
+    expect(row!.netContent).toEqual({ value: 500, unit: 'ml' });
   });
 });

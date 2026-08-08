@@ -3,9 +3,11 @@ import type { CoopProduct } from '../convex/coop/sanitize';
 import {
   categoryPathFromCoop,
   labelsFromCoop,
+  netContentFrom,
   nutritionFromCoop,
   parseNutrientAmount,
   projectCoop,
+  soldByFrom,
   webImageUrl,
 } from '../convex/model/project';
 
@@ -389,10 +391,9 @@ describe('projectCoop', () => {
       ean: '7311312009203',
       name: 'Sås Tikka Masala',
       brand: 'Santa Maria',
-      packageSize: 360,
-      packageSizeUnit: 'Gram',
+      netContent: { value: 360, unit: 'g' },
       packageSizeText: '360g',
-      salesUnit: 'Styck',
+      soldBy: 'piece',
       description: 'En klassisk och tidlös indisk smak.',
       countryOfOrigin: 'Sverige',
     });
@@ -457,5 +458,90 @@ describe('projectCoop', () => {
     expect(clean?.description).toBeUndefined();
     expect(clean?.brand).toBeUndefined();
     expect(clean?.food).toBeUndefined();
+  });
+});
+
+describe('netContentFrom', () => {
+  /** Every distinct `packageSizeUnit` measured across the whole catalog, with
+   * the row count each was seen on. The counts are the point: `MMT`, `Liter`,
+   * `MTR` and `KGM` appear once or twice and are absent from the first 3000
+   * rows, so a lookup table built from a sample would have dropped them.
+   *
+   * Three vocabularies interleaved in one column: display names, abbreviations
+   * and raw UN/ECE codes. */
+  const MEASURED: [
+    source: string,
+    rows: number,
+    unit: string,
+    factor: number,
+  ][] = [
+    ['Gram', 7252, 'g', 1],
+    ['gram ungefärlig vikt', 220, 'g', 1],
+    ['gr', 135, 'g', 1],
+    ['GRM', 46, 'g', 1],
+    ['gram/st ungefärlig vikt', 2, 'g', 1],
+    ['Kilogram', 5, 'g', 1000],
+    ['KGM', 1, 'g', 1000],
+
+    ['Milliliter', 3223, 'ml', 1],
+    ['ml', 58, 'ml', 1],
+    ['MLT', 16, 'ml', 1],
+    ['cl', 14, 'ml', 10],
+    ['l', 9, 'ml', 1000],
+    ['LTR', 2, 'ml', 1000],
+    ['Liter', 1, 'ml', 1000],
+
+    ['Styck', 1548, 'st', 1],
+    ['st', 230, 'st', 1],
+    ['ST', 66, 'st', 1],
+    ['H87', 18, 'st', 1],
+
+    ['Millimeter', 21, 'mm', 1],
+    ['MMT', 1, 'mm', 1],
+    ['MTR', 1, 'mm', 1000],
+  ];
+
+  /** The spec this came from says "22 distinct values". Its own table lists 21
+   * spellings plus a row for the 66 products that state no unit at all, which
+   * is where the 22nd went. `st` and `ST` also collapse to one key here, so the
+   * lookup table carries 20 entries for these 21 spellings. */
+  it('resolves every measured source unit, and none lands on the lenient path', () => {
+    expect(MEASURED).toHaveLength(21);
+    for (const [source, , unit, factor] of MEASURED) {
+      expect(netContentFrom(2, source)).toEqual({ value: 2 * factor, unit });
+    }
+  });
+
+  it('scales the units that are not already canonical', () => {
+    // The cases the multiplier exists for, from the spec's own worked examples.
+    expect(netContentFrom(0.75, 'Kilogram')).toEqual({ value: 750, unit: 'g' });
+    expect(netContentFrom(1, 'l')).toEqual({ value: 1000, unit: 'ml' });
+    expect(netContentFrom(50, 'cl')).toEqual({ value: 500, unit: 'ml' });
+    expect(netContentFrom(30, 'MTR')).toEqual({ value: 30000, unit: 'mm' });
+  });
+
+  it('is case and whitespace insensitive, which is what collapses st/ST/Styck', () => {
+    const expected = { value: 6, unit: 'st' };
+    expect(netContentFrom(6, 'st')).toEqual(expected);
+    expect(netContentFrom(6, 'ST')).toEqual(expected);
+    expect(netContentFrom(6, '  Styck ')).toEqual(expected);
+  });
+
+  it('answers undefined rather than guessing', () => {
+    expect(netContentFrom(6, 'knippe')).toBeUndefined();
+    expect(netContentFrom(undefined, 'Gram')).toBeUndefined();
+    expect(netContentFrom(360, undefined)).toBeUndefined();
+    expect(netContentFrom(Number.NaN, 'Gram')).toBeUndefined();
+  });
+});
+
+describe('soldByFrom', () => {
+  it('maps the two values the column actually carries', () => {
+    // 12,716 Styck and 218 Vikt across the table, one row with neither.
+    expect(soldByFrom('Styck')).toBe('piece');
+    expect(soldByFrom('Vikt')).toBe('weight');
+    expect(soldByFrom('vikt')).toBe('weight');
+    expect(soldByFrom(undefined)).toBeUndefined();
+    expect(soldByFrom('Kilo')).toBeUndefined();
   });
 });

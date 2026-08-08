@@ -5,6 +5,45 @@ import { ReceiptSource } from './stores';
  * this one constant instead of copying it. */
 export const MAX_EANS_PER_LOOKUP = 50;
 
+/**
+ * Canonical measurement units. One per dimension, and the single vocabulary
+ * every quantity on a clean row is expressed in, so comparing two of them is
+ * `===` rather than a lookup table.
+ *
+ * Deliberately not SI base units. Kilograms and cubic metres would state a
+ * bottle as 0.0005, so each unit is the one that keeps grocery quantities whole
+ * and matches the basis nutrition is published against.
+ */
+export const CATALOG_UNITS = [
+  'g', // mass
+  'ml', // volume
+  'st', // countable pieces
+  'mm', // length, for non-food goods sold by the metre
+] as const;
+
+export const CatalogUnit = z.enum(CATALOG_UNITS);
+export type CatalogUnit = z.infer<typeof CatalogUnit>;
+
+/**
+ * A measured quantity in a canonical unit. Value and unit travel together so
+ * neither can go missing without the other, which a pair of independently
+ * optional fields cannot promise.
+ */
+export const CatalogQuantity = z
+  .object({
+    value: z.number().meta({ description: 'Amount, stated in `unit`.' }),
+    unit: CatalogUnit.meta({
+      description: 'One of "g", "ml", "st" or "mm".',
+    }),
+  })
+  .meta({ id: 'CatalogQuantity' });
+export type CatalogQuantity = z.infer<typeof CatalogQuantity>;
+
+/** How a product is priced at the till. Canonical, not the store's own word. */
+export const SOLD_BY = ['piece', 'weight'] as const;
+export const SoldBy = z.enum(SOLD_BY);
+export type SoldBy = z.infer<typeof SoldBy>;
+
 /** Field notes are `.meta({ description })` and not JSDoc because the dev portal
  * renders them straight off `z.toJSONSchema`. */
 export const CatalogNutrition = z
@@ -12,7 +51,10 @@ export const CatalogNutrition = z
     basisQuantity: z
       .number()
       .meta({ description: 'Amount the values are stated per, e.g. 100.' }),
-    basisUnit: z.string().meta({ description: '"g", "ml" or "st" (pieces).' }),
+    basisUnit: CatalogUnit.meta({
+      description:
+        'Unit the basis is measured in. The same vocabulary as CatalogItem.netContent, which is what makes scaling a package a comparison rather than a conversion. Only ever "g", "ml" or "st" in practice.',
+    }),
     energyKcal: z
       .number()
       .optional()
@@ -69,20 +111,18 @@ export const CatalogItem = z.object({
     description:
       'Product image, normalized to an https URL a browser can render.',
   }),
-  packageSize: z.number().optional().meta({
-    description: 'Numeric package size, e.g. 360. Pairs with packageSizeUnit.',
-  }),
-  packageSizeUnit: z.string().optional().meta({
-    description: 'Unit of packageSize, verbatim from the source, e.g. "Gram".',
+  netContent: CatalogQuantity.optional().meta({
+    description:
+      'Net content in canonical units, resolved at ingest. This is the field to do arithmetic with. Scaling nutrition to a package is only valid when netContent.unit === food.nutrition.basisUnit; when they differ the product genuinely is not scalable and must not be approximated. Absent when the source stated no size, or a unit that did not resolve.',
   }),
   packageSizeText: z.string().optional().meta({
     description:
-      'Package size as printed, e.g. "360g". Prefer this for display.',
+      'Package size as printed, e.g. "360g". Prefer this for display, and netContent for arithmetic.',
   }),
-  salesUnit: z
-    .string()
-    .optional()
-    .meta({ description: 'How the product is sold, e.g. "Styck" or "Vikt".' }),
+  soldBy: SoldBy.optional().meta({
+    description:
+      'Whether the till prices this per piece or per weight. "piece" or "weight".',
+  }),
   categoryPath: z
     .array(z.string())
     .optional()

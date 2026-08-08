@@ -108,15 +108,41 @@
               },
               "optional": true
             },
-            "packageSize": {
+            "netContent": {
               "fieldType": {
-                "type": "number"
-              },
-              "optional": true
-            },
-            "packageSizeUnit": {
-              "fieldType": {
-                "type": "string"
+                "type": "object",
+                "value": {
+                  "value": {
+                    "fieldType": {
+                      "type": "number"
+                    },
+                    "optional": false
+                  },
+                  "unit": {
+                    "fieldType": {
+                      "type": "union",
+                      "value": [
+                        {
+                          "type": "literal",
+                          "value": "g"
+                        },
+                        {
+                          "type": "literal",
+                          "value": "ml"
+                        },
+                        {
+                          "type": "literal",
+                          "value": "st"
+                        },
+                        {
+                          "type": "literal",
+                          "value": "mm"
+                        }
+                      ]
+                    },
+                    "optional": false
+                  }
+                }
               },
               "optional": true
             },
@@ -126,9 +152,19 @@
               },
               "optional": true
             },
-            "salesUnit": {
+            "soldBy": {
               "fieldType": {
-                "type": "string"
+                "type": "union",
+                "value": [
+                  {
+                    "type": "literal",
+                    "value": "piece"
+                  },
+                  {
+                    "type": "literal",
+                    "value": "weight"
+                  }
+                ]
               },
               "optional": true
             },
@@ -184,7 +220,25 @@
                         },
                         "basisUnit": {
                           "fieldType": {
-                            "type": "string"
+                            "type": "union",
+                            "value": [
+                              {
+                                "type": "literal",
+                                "value": "g"
+                              },
+                              {
+                                "type": "literal",
+                                "value": "ml"
+                              },
+                              {
+                                "type": "literal",
+                                "value": "st"
+                              },
+                              {
+                                "type": "literal",
+                                "value": "mm"
+                              }
+                            ]
                           },
                           "optional": false
                         },
@@ -370,15 +424,41 @@
               },
               "optional": true
             },
-            "packageSize": {
+            "netContent": {
               "fieldType": {
-                "type": "number"
-              },
-              "optional": true
-            },
-            "packageSizeUnit": {
-              "fieldType": {
-                "type": "string"
+                "type": "object",
+                "value": {
+                  "value": {
+                    "fieldType": {
+                      "type": "number"
+                    },
+                    "optional": false
+                  },
+                  "unit": {
+                    "fieldType": {
+                      "type": "union",
+                      "value": [
+                        {
+                          "type": "literal",
+                          "value": "g"
+                        },
+                        {
+                          "type": "literal",
+                          "value": "ml"
+                        },
+                        {
+                          "type": "literal",
+                          "value": "st"
+                        },
+                        {
+                          "type": "literal",
+                          "value": "mm"
+                        }
+                      ]
+                    },
+                    "optional": false
+                  }
+                }
               },
               "optional": true
             },
@@ -388,9 +468,19 @@
               },
               "optional": true
             },
-            "salesUnit": {
+            "soldBy": {
               "fieldType": {
-                "type": "string"
+                "type": "union",
+                "value": [
+                  {
+                    "type": "literal",
+                    "value": "piece"
+                  },
+                  {
+                    "type": "literal",
+                    "value": "weight"
+                  }
+                ]
               },
               "optional": true
             },
@@ -446,7 +536,25 @@
                         },
                         "basisUnit": {
                           "fieldType": {
-                            "type": "string"
+                            "type": "union",
+                            "value": [
+                              {
+                                "type": "literal",
+                                "value": "g"
+                              },
+                              {
+                                "type": "literal",
+                                "value": "ml"
+                              },
+                              {
+                                "type": "literal",
+                                "value": "st"
+                              },
+                              {
+                                "type": "literal",
+                                "value": "mm"
+                              }
+                            ]
                           },
                           "optional": false
                         },
@@ -693,15 +801,41 @@
                     },
                     "optional": true
                   },
-                  "packageSize": {
+                  "netContent": {
                     "fieldType": {
-                      "type": "number"
-                    },
-                    "optional": true
-                  },
-                  "packageSizeUnit": {
-                    "fieldType": {
-                      "type": "string"
+                      "type": "object",
+                      "value": {
+                        "value": {
+                          "fieldType": {
+                            "type": "number"
+                          },
+                          "optional": false
+                        },
+                        "unit": {
+                          "fieldType": {
+                            "type": "union",
+                            "value": [
+                              {
+                                "type": "literal",
+                                "value": "g"
+                              },
+                              {
+                                "type": "literal",
+                                "value": "ml"
+                              },
+                              {
+                                "type": "literal",
+                                "value": "st"
+                              },
+                              {
+                                "type": "literal",
+                                "value": "mm"
+                              }
+                            ]
+                          },
+                          "optional": false
+                        }
+                      }
                     },
                     "optional": true
                   },
@@ -711,9 +845,19 @@
                     },
                     "optional": true
                   },
-                  "salesUnit": {
+                  "soldBy": {
                     "fieldType": {
-                      "type": "string"
+                      "type": "union",
+                      "value": [
+                        {
+                          "type": "literal",
+                          "value": "piece"
+                        },
+                        {
+                          "type": "literal",
+                          "value": "weight"
+                        }
+                      ]
                     },
                     "optional": true
                   },
@@ -769,7 +913,25 @@
                               },
                               "basisUnit": {
                                 "fieldType": {
-                                  "type": "string"
+                                  "type": "union",
+                                  "value": [
+                                    {
+                                      "type": "literal",
+                                      "value": "g"
+                                    },
+                                    {
+                                      "type": "literal",
+                                      "value": "ml"
+                                    },
+                                    {
+                                      "type": "literal",
+                                      "value": "st"
+                                    },
+                                    {
+                                      "type": "literal",
+                                      "value": "mm"
+                                    }
+                                  ]
                                 },
                                 "optional": false
                               },

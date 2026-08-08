@@ -1,4 +1,9 @@
-import { STORES, type CatalogItem } from '@matvis/shared';
+import {
+  CATALOG_UNITS,
+  SOLD_BY,
+  STORES,
+  type CatalogItem,
+} from '@matvis/shared';
 import { v, type Infer } from 'convex/values';
 
 type Equal<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
@@ -9,9 +14,20 @@ type Assert<T extends true> = T;
 
 export const storeValidator = v.union(...STORES.map((slug) => v.literal(slug)));
 
+export const unitValidator = v.union(
+  ...CATALOG_UNITS.map((unit) => v.literal(unit)),
+);
+
+export const soldByValidator = v.union(...SOLD_BY.map((how) => v.literal(how)));
+
+export const quantityValidator = v.object({
+  value: v.number(),
+  unit: unitValidator,
+});
+
 export const nutritionValidator = v.object({
   basisQuantity: v.number(),
-  basisUnit: v.string(),
+  basisUnit: unitValidator,
   energyKcal: v.optional(v.number()),
   energyKj: v.optional(v.number()),
   fatG: v.optional(v.number()),
@@ -35,10 +51,9 @@ export const catalogFields = {
 
   brand: v.optional(v.string()),
   imageUrl: v.optional(v.string()),
-  packageSize: v.optional(v.number()),
-  packageSizeUnit: v.optional(v.string()),
+  netContent: v.optional(quantityValidator),
   packageSizeText: v.optional(v.string()),
-  salesUnit: v.optional(v.string()),
+  soldBy: v.optional(soldByValidator),
   categoryPath: v.optional(v.array(v.string())),
 
   description: v.optional(v.string()),

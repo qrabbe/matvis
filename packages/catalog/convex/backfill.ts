@@ -3,6 +3,7 @@ import { internalAction, internalMutation } from './_generated/server';
 import { internal } from './_generated/api';
 import { STORES } from '@matvis/shared';
 import { QUEUE_STATUSES } from './model/ingest';
+import { netContentFrom, soldByFrom } from './model/project';
 import {
   catalogStoreKey,
   queueCountKey,
@@ -64,6 +65,124 @@ export const recountPage = internalMutation({
       continueCursor: page.continueCursor,
       isDone: page.isDone,
     };
+  },
+});
+
+/** The shape a pre-migration `catalog` row carries: three fields the schema no
+ * longer declares, still sitting in stored data. Read through a cast because
+ * the generated `Doc` type describes the schema, not the rows on disk. */
+type LegacySizeFields = {
+  packageSize?: number;
+  packageSizeUnit?: string;
+  salesUnit?: string;
+};
+
+/** One page of the unit migration.
+ *
+ * This is a local re-derivation, not a re-fetch. `packageSizeUnit` was stored
+ * verbatim on the clean row, so resolving it to a canonical unit is a pure
+ * function of data already here and costs no Coop traffic. That is the whole
+ * reason this migration is cheap: a projector change normally means
+ * re-projecting from a source payload, and those are not stored.
+ *
+ * Uses `replace` rather than `patch` so the three legacy fields actually
+ * disappear. A patch would leave them as undeclared extras, which is exactly
+ * what fails validation when schema checking is turned back on.
+ *
+ * `fetchedAt` is carried forward untouched. Rewriting a row is not verifying
+ * it, and stamping it here would claim a freshness this never earned. */
+export const normalizeUnitsPage = internalMutation({
+  args: { cursor: v.union(v.string(), v.null()) },
+  returns: v.object({
+    scanned: v.number(),
+    rewritten: v.number(),
+    unresolved: v.number(),
+    continueCursor: v.string(),
+    isDone: v.boolean(),
+  }),
+  handler: async (ctx, { cursor }) => {
+    const page = await ctx.db
+      .query('catalog')
+      .paginate({ cursor, numItems: RECOUNT_CATALOG_PAGE });
+
+    let rewritten = 0;
+    let unresolved = 0;
+
+    for (const row of page.page) {
+      const legacy = row as unknown as LegacySizeFields;
+      const hasLegacy =
+        legacy.packageSize !== undefined ||
+        legacy.packageSizeUnit !== undefined ||
+        legacy.salesUnit !== undefined;
+      if (!hasLegacy) continue;
+
+      const netContent =
+        row.netContent ??
+        netContentFrom(legacy.packageSize, legacy.packageSizeUnit);
+      const soldBy = row.soldBy ?? soldByFrom(legacy.salesUnit);
+
+      // A size that was stated but did not resolve is worth counting: it is the
+      // only signal that the lookup table has a gap.
+      if (netContent === undefined && legacy.packageSize !== undefined) {
+        unresolved += 1;
+      }
+
+      const { _id, _creationTime, ...fields } = row;
+      const next = { ...fields, netContent, soldBy };
+      delete (next as LegacySizeFields).packageSize;
+      delete (next as LegacySizeFields).packageSizeUnit;
+      delete (next as LegacySizeFields).salesUnit;
+
+      await ctx.db.replace(_id, next);
+      rewritten += 1;
+    }
+
+    return {
+      scanned: page.page.length,
+      rewritten,
+      unresolved,
+      continueCursor: page.continueCursor,
+      isDone: page.isDone,
+    };
+  },
+});
+
+/** Pause ingest before running this, for the same reason `rebuildCounters`
+ * says so: it pages across many transactions and a live drain writing rows
+ * underneath it is one more thing to reason about for no benefit.
+ *
+ * Idempotent. A row already carrying `netContent` keeps it, and a row with no
+ * legacy fields is skipped, so a re-run after a failure resumes rather than
+ * double-converting. */
+export const normalizeUnits = internalAction({
+  args: {},
+  returns: v.object({
+    scanned: v.number(),
+    rewritten: v.number(),
+    unresolved: v.number(),
+    pages: v.number(),
+  }),
+  handler: async (ctx) => {
+    const totals = { scanned: 0, rewritten: 0, unresolved: 0, pages: 0 };
+    let cursor: string | null = null;
+    for (;;) {
+      const page: {
+        scanned: number;
+        rewritten: number;
+        unresolved: number;
+        continueCursor: string;
+        isDone: boolean;
+      } = await ctx.runMutation(internal.backfill.normalizeUnitsPage, {
+        cursor,
+      });
+      totals.scanned += page.scanned;
+      totals.rewritten += page.rewritten;
+      totals.unresolved += page.unresolved;
+      totals.pages += 1;
+      if (page.isDone) break;
+      cursor = page.continueCursor;
+    }
+    return totals;
   },
 });
 

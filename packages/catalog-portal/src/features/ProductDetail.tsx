@@ -5,6 +5,7 @@ import {
   STORE_LABELS,
   type CatalogNutrition,
   type CatalogRow,
+  type SoldBy,
   type StoreSlug,
 } from '@matvis/shared';
 import { SkeletonList, sizedImageUrl } from '@matvis/ui';
@@ -13,6 +14,16 @@ import { api } from '../lib/convexApi';
 
 function storeLabel(store: string): string {
   return STORE_LABELS[store as StoreSlug] ?? store;
+}
+
+/** The contract is canonical, the badge is Swedish, and the page is Swedish. */
+const SOLD_BY_LABELS: Record<SoldBy, string> = {
+  piece: 'Styck',
+  weight: 'Vikt',
+};
+
+function soldByLabel(soldBy: SoldBy): string {
+  return SOLD_BY_LABELS[soldBy];
 }
 
 export function ProductDetail({ ean }: { ean: string }) {
@@ -116,7 +127,9 @@ function ProductCard({ item }: { item: CatalogRow }) {
               {item.packageSizeText && (
                 <Badge intent="none">{item.packageSizeText}</Badge>
               )}
-              {item.salesUnit && <Badge intent="none">{item.salesUnit}</Badge>}
+              {item.soldBy && (
+                <Badge intent="none">{soldByLabel(item.soldBy)}</Badge>
+              )}
             </Stack>
 
             {item.description && (
@@ -233,10 +246,10 @@ function ProvenanceCard({ item }: { item: CatalogRow }) {
         <Stack direction="column" gap="xs">
           <DefinitionRow label="EAN" value={item.ean} />
           <DefinitionRow label="Store" value={storeLabel(item.store)} />
-          {item.packageSize !== undefined && item.packageSizeUnit && (
+          {item.netContent && (
             <DefinitionRow
-              label="Package size"
-              value={`${item.packageSize} ${item.packageSizeUnit}`}
+              label="Net content"
+              value={`${item.netContent.value} ${item.netContent.unit}`}
             />
           )}
           <DefinitionRow

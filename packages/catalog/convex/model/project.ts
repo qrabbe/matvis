@@ -1,4 +1,11 @@
-import type { CatalogItem, CatalogNutrition, StoreSlug } from '@matvis/shared';
+import type {
+  CatalogItem,
+  CatalogNutrition,
+  CatalogQuantity,
+  CatalogUnit,
+  SoldBy,
+  StoreSlug,
+} from '@matvis/shared';
 import type { MutationCtx } from '../_generated/server';
 import {
   bumpCounter,
@@ -40,7 +47,7 @@ const ENERGY_SLOT_BY_UNIT: Record<string, NutrientSlot> = {
   kilojoule: 'energyKj',
 };
 
-const BASIS_UNIT_BY_CODE: Record<string, string> = {
+const BASIS_UNIT_BY_CODE: Record<string, CatalogUnit> = {
   GRM: 'g',
   MLT: 'ml',
   H87: 'st',
@@ -140,6 +147,68 @@ function text(value: string | undefined): string | undefined {
   return trimmed ? trimmed : undefined;
 }
 
+/** Coop's `packageSizeUnit` vocabulary as a canonical unit and a multiplier into
+ * it. Three naming systems are interleaved in that one column: display names
+ * (`Gram`), abbreviations (`gr`, `cl`, `l`) and raw UN/ECE codes (`GRM`, `MLT`,
+ * `H87`) - the same code family `BASIS_UNIT_BY_CODE` maps for the nutrition
+ * basis. Keyed lowercased and trimmed, which collapses `st`/`ST`/`Styck`
+ * without separate entries.
+ *
+ * Every key here was measured across the whole table rather than a sample.
+ * `MMT`, `Liter`, `MTR` and `KGM` appear once or twice each and are absent from
+ * the first 3000 rows, so a table built from a sample would have dropped them
+ * silently. */
+const UNIT_BY_SOURCE: Record<string, { unit: CatalogUnit; factor: number }> = {
+  gram: { unit: 'g', factor: 1 },
+  'gram ungefärlig vikt': { unit: 'g', factor: 1 },
+  'gram/st ungefärlig vikt': { unit: 'g', factor: 1 },
+  gr: { unit: 'g', factor: 1 },
+  grm: { unit: 'g', factor: 1 },
+  kilogram: { unit: 'g', factor: 1000 },
+  kgm: { unit: 'g', factor: 1000 },
+
+  milliliter: { unit: 'ml', factor: 1 },
+  ml: { unit: 'ml', factor: 1 },
+  mlt: { unit: 'ml', factor: 1 },
+  cl: { unit: 'ml', factor: 10 },
+  l: { unit: 'ml', factor: 1000 },
+  liter: { unit: 'ml', factor: 1000 },
+  ltr: { unit: 'ml', factor: 1000 },
+
+  styck: { unit: 'st', factor: 1 },
+  st: { unit: 'st', factor: 1 },
+  h87: { unit: 'st', factor: 1 },
+
+  millimeter: { unit: 'mm', factor: 1 },
+  mmt: { unit: 'mm', factor: 1 },
+  mtr: { unit: 'mm', factor: 1000 },
+};
+
+const SOLD_BY_SOURCE: Record<string, SoldBy> = {
+  styck: 'piece',
+  vikt: 'weight',
+};
+
+/** Lenient like its neighbours: an unresolvable unit or a missing size answers
+ * `undefined` and never throws, so one odd product cannot fail a whole batch.
+ * Absent is the honest answer, because a consumer skipping the item beats one
+ * dividing by a guess. */
+export function netContentFrom(
+  size: number | undefined,
+  sourceUnit: string | undefined,
+): CatalogQuantity | undefined {
+  if (typeof size !== 'number' || !Number.isFinite(size)) return undefined;
+  const key = sourceUnit?.trim().toLowerCase();
+  const resolved = key ? UNIT_BY_SOURCE[key] : undefined;
+  if (!resolved) return undefined;
+  return { value: size * resolved.factor, unit: resolved.unit };
+}
+
+export function soldByFrom(sourceUnit: string | undefined): SoldBy | undefined {
+  const key = sourceUnit?.trim().toLowerCase();
+  return key ? SOLD_BY_SOURCE[key] : undefined;
+}
+
 export const projectCoop: Projector<CoopProduct> = (doc) => {
   if (!doc.ean || !doc.name) return null;
 
@@ -152,10 +221,9 @@ export const projectCoop: Projector<CoopProduct> = (doc) => {
 
     brand: text(doc.manufacturerName),
     imageUrl: webImageUrl(doc.imageUrl),
-    packageSize: doc.packageSize,
-    packageSizeUnit: text(doc.packageSizeUnit),
+    netContent: netContentFrom(doc.packageSize, doc.packageSizeUnit),
     packageSizeText: text(doc.packageSizeInformation),
-    salesUnit: text(doc.salesUnit),
+    soldBy: soldByFrom(doc.salesUnit),
     categoryPath: categoryPathFromCoop(doc),
 
     description: text(doc.description),

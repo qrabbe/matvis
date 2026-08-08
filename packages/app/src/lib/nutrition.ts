@@ -1,6 +1,6 @@
-import type { CatalogRow, ReceiptItemDoc } from '@matvis/shared';
+import type { CatalogRow, CatalogUnit, ReceiptItemDoc } from '@matvis/shared';
 import { dayKey } from './format';
-import { parseUnit, toBaseUnits } from './units';
+import { parseUnit } from './units';
 
 export const CONSUMPTION_WINDOW_DAYS = 10;
 
@@ -70,12 +70,16 @@ export function scaleMacros(m: Macros, factor: number): Macros {
   };
 }
 
-/** A line sold by weight or volume must not have `packageSize` multiplied in,
- * or "0.652 KG loose bananas" becomes 0.652 of a package. */
+/** A line sold by weight or volume must not have the package size multiplied
+ * in, or "0.652 KG loose bananas" becomes 0.652 of a package.
+ *
+ * The receipt's own unit is still free prose and goes through `parseUnit`. The
+ * catalog's side does not: `netContent` and `basisUnit` are both canonical, so
+ * matching them is `===` rather than a dimension lookup and a conversion. */
 export function purchasedAmount(
   line: Pick<ReceiptItemDoc, 'quantity' | 'unit'>,
-  product: Pick<CatalogRow, 'packageSize' | 'packageSizeUnit'>,
-  basisUnit: string,
+  product: Pick<CatalogRow, 'netContent'>,
+  basisUnit: CatalogUnit,
 ): number | null {
   const basis = parseUnit(basisUnit);
   if (!basis) return null;
@@ -92,12 +96,13 @@ export function purchasedAmount(
 
   if (basis.dimension === 'count') return quantity;
 
-  if (product.packageSize == null || !Number.isFinite(product.packageSize)) {
-    return null;
-  }
-  const pack = toBaseUnits(product.packageSize, product.packageSizeUnit);
-  if (!pack || pack.dimension !== basis.dimension) return null;
-  return quantity * pack.amount;
+  const pack = product.netContent;
+  // A mismatch here is a product that genuinely cannot be scaled, e.g. a
+  // millilitre package against a per-gram basis. Reported as unscalable rather
+  // than approximated, which would need a density nobody has.
+  if (!pack || pack.unit !== basisUnit) return null;
+  if (!Number.isFinite(pack.value)) return null;
+  return quantity * pack.value;
 }
 
 /** Returns `null` and never `0` for a line that cannot be scaled. A zero would

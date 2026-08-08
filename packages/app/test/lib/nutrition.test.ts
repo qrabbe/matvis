@@ -19,8 +19,7 @@ function product(overrides: Partial<CatalogRow> = {}): CatalogRow {
     store: 'coop',
     sourceTable: 'raw_coop',
     sourceId: 'raw_1',
-    packageSize: 500,
-    packageSizeUnit: 'Gram',
+    netContent: { value: 500, unit: 'g' },
     food: {
       nutrition: {
         basisQuantity: 100,
@@ -71,29 +70,28 @@ describe('purchasedAmount', () => {
     ).toBe(652);
   });
 
-  it('converts a package size stated in a different unit of the same dimension', () => {
-    // The old repo's 1000x bug in reverse: 1.5 l against a 100 ml basis.
-    const bottle = product({ packageSize: 1.5, packageSizeUnit: 'Liter' });
+  it('uses net content as given, because the projector already canonicalised it', () => {
+    // The old repo's 1000x bug: a 1.5 l bottle against a 100 ml basis. The
+    // litres-to-millilitres conversion now happens once at ingest, so what
+    // arrives here is already 1500 ml and there is nothing left to get wrong.
+    const bottle = product({ netContent: { value: 1500, unit: 'ml' } });
     expect(purchasedAmount(line(), bottle, 'ml')).toBe(1500);
   });
 
-  it('returns null when the package unit is a different dimension to the basis', () => {
-    const bottle = product({ packageSize: 1.5, packageSizeUnit: 'Liter' });
+  it('returns null when net content and the basis are different units', () => {
+    const bottle = product({ netContent: { value: 1500, unit: 'ml' } });
     expect(purchasedAmount(line(), bottle, 'g')).toBeNull();
   });
 
-  it('returns null when the package unit is unrecognisable', () => {
-    const odd = product({ packageSize: 6, packageSizeUnit: 'knippe' });
-    expect(purchasedAmount(line(), odd, 'g')).toBeNull();
-  });
-
-  it('returns null when a count line has no package size to scale by', () => {
-    const sizeless = product({ packageSize: undefined });
+  it('returns null when a count line has no net content to scale by', () => {
+    // An unresolvable source unit lands here as an absent netContent, which is
+    // the same case as a product that stated no size at all.
+    const sizeless = product({ netContent: undefined });
     expect(purchasedAmount(line(), sizeless, 'g')).toBeNull();
   });
 
-  it('needs no package size when nutrition is stated per piece', () => {
-    const sizeless = product({ packageSize: undefined });
+  it('needs no net content when nutrition is stated per piece', () => {
+    const sizeless = product({ netContent: undefined });
     expect(purchasedAmount(line({ quantity: 3 }), sizeless, 'st')).toBe(3);
   });
 });
@@ -110,8 +108,7 @@ describe('itemMacros', () => {
 
   it('scales a 1.5 l bottle against a 100 ml basis by 15, not 0.015', () => {
     const bottle = product({
-      packageSize: 1.5,
-      packageSizeUnit: 'Liter',
+      netContent: { value: 1500, unit: 'ml' },
       food: {
         nutrition: { basisQuantity: 100, basisUnit: 'ml', energyKcal: 40 },
       },
@@ -124,8 +121,9 @@ describe('itemMacros', () => {
   });
 
   it('returns null rather than zero when the line cannot be scaled', () => {
-    const bottle = product({ packageSize: 1.5, packageSizeUnit: 'Liter' });
-    // Basis is grams, package is litres: no defensible conversion exists.
+    const bottle = product({ netContent: { value: 1500, unit: 'ml' } });
+    // Basis is grams, net content is millilitres: no defensible conversion
+    // exists without a density, so this is reported unscalable, not guessed.
     expect(itemMacros(line(), bottle)).toBeNull();
   });
 

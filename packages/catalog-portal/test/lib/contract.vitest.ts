@@ -19,6 +19,7 @@ describe('models', () => {
   it('names CatalogItem and the blocks it references', () => {
     expect(MODELS.map((model) => model.name)).toEqual([
       'CatalogItem',
+      'CatalogQuantity',
       'CatalogFood',
       'CatalogNutrition',
     ]);
