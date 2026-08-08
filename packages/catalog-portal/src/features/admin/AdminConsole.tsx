@@ -11,6 +11,7 @@ import { OverviewPanel } from './OverviewPanel';
 import { QueuePanel } from './QueuePanel';
 import { RunControls } from './RunControls';
 import { RunLogPanel } from './RunLogPanel';
+import { RunTrendPanel } from './RunTrendPanel';
 import { SignInPanel } from './SignInPanel';
 import { useAdminTask, TaskResult } from './task';
 
@@ -48,6 +49,7 @@ function SignedIn({ token }: { token: string }) {
         <QueuePanel token={token} />
         <EnqueuePanel token={token} />
         <CoveragePanel token={token} />
+        <RunTrendPanel token={token} />
         <RunLogPanel token={token} />
         <Stack direction="column" gap="sm">
           <Stack direction="row" gap="md" align="center" wrap="wrap">

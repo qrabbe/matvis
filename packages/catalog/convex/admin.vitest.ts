@@ -47,6 +47,7 @@ const PUBLIC_ADMIN_FUNCTIONS = [
   'rebuildCounters',
   'removeQueueRows',
   'requeueFailed',
+  'runHistory',
   'runs',
   'setPaused',
   'signIn',
@@ -342,6 +343,65 @@ describe('the sign-in lockout', () => {
     expect(guard?.failures).toBe(1);
     expect(await t.query(internal.admin.signInGate, {})).toEqual({
       lockedUntil: null,
+    });
+  });
+});
+
+describe('the run trend', () => {
+  test('plots drains oldest first and leaves fills out of the added axis', async () => {
+    const t = convexTest(schema, modules);
+    const token = await signIn(t);
+
+    await t.run(async (ctx) => {
+      const at = Date.now();
+      await ctx.db.insert('ingest_runs', {
+        kind: 'drain',
+        status: 'ok',
+        startedAt: at - 3000,
+        summary: { claimed: 10, added: 7, skipped: 2, failed: 1 },
+      });
+      // A fill reports scanned/queued and can never add a product, so drawing
+      // it would put a zero on the chart for a run that had no chance of one.
+      await ctx.db.insert('ingest_runs', {
+        kind: 'fill',
+        status: 'ok',
+        startedAt: at - 2000,
+        summary: { scanned: 500, queued: 40, passes: 0 },
+      });
+      await ctx.db.insert('ingest_runs', {
+        kind: 'drain',
+        status: 'ok',
+        startedAt: at - 1000,
+        summary: { claimed: 4, added: 0, skipped: 4, failed: 0 },
+      });
+    });
+
+    const history = await t.query(api.admin.runHistory, { token });
+    expect(history).not.toBeNull();
+    expect(history!.map((run) => run.kind)).toEqual(['drain', 'drain']);
+    // Oldest first: the chart reads left to right.
+    expect(history![0]!.added).toBe(7);
+    expect(history![1]!.added).toBe(0);
+    expect(history![0]!.failed).toBe(1);
+  });
+
+  test('a run with no summary reads as zeroes rather than breaking the shape', async () => {
+    const t = convexTest(schema, modules);
+    const token = await signIn(t);
+    await t.run(async (ctx) => {
+      await ctx.db.insert('ingest_runs', {
+        kind: 'drain',
+        status: 'error',
+        startedAt: Date.now(),
+        error: 'boom',
+      });
+    });
+
+    const history = await t.query(api.admin.runHistory, { token });
+    expect(history![0]).toMatchObject({
+      status: 'error',
+      added: 0,
+      claimed: 0,
     });
   });
 });

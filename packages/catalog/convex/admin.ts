@@ -43,6 +43,7 @@ import {
   queueStatsValidator,
   queueStatusValidator,
   runKindValidator,
+  runPointValidator,
   runStatusValidator,
   runSummaryValidator,
 } from './model/ingest';
@@ -53,6 +54,7 @@ import {
   readPaused,
   readQueueStats,
   readRecentRuns,
+  readRunHistory,
   writePaused,
 } from './model/ops';
 import { readCounter, CATALOG_COUNT_KEY } from './model/counters';
@@ -300,6 +302,14 @@ export const runs = adminQuery({
     }),
   ),
   handler: async (ctx) => await readRecentRuns(ctx),
+});
+
+/** The trend behind the run log: what each drain actually added, oldest first.
+ * Answers "is it still finding anything", which the newest-20 log cannot. */
+export const runHistory = adminQuery({
+  args: {},
+  returns: v.array(runPointValidator),
+  handler: async (ctx) => await readRunHistory(ctx),
 });
 
 export const queueRows = adminQuery({

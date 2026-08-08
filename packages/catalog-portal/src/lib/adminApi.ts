@@ -17,3 +17,7 @@ type QueuePage = Signed<FunctionReturnType<typeof api.admin.queueRows>>;
 export type QueueRow = QueuePage['rows'][number];
 
 export type RunRow = Signed<FunctionReturnType<typeof api.admin.runs>>[number];
+
+export type RunPoint = Signed<
+  FunctionReturnType<typeof api.admin.runHistory>
+>[number];

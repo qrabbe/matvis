@@ -6,6 +6,7 @@ import {
   MONTH_MS,
   QUEUE_DEDUP_SCAN,
   QUEUE_STATUSES,
+  RUN_HISTORY_PAGE,
   RUN_LOG_PAGE,
   RUN_LOG_TRIM,
   RUN_LOG_TTL_MS,
@@ -16,6 +17,7 @@ import {
   type QueueStats,
   type QueueStatus,
   type RunKind,
+  type RunPoint,
   type RunSummary,
 } from './ingest';
 import {
@@ -267,4 +269,31 @@ export async function settleRun(
 
 export async function readRecentRuns(ctx: QueryCtx) {
   return await ctx.db.query('ingest_runs').order('desc').take(RUN_LOG_PAGE);
+}
+
+/** Drain runs only, oldest first, flattened to the four numbers the trend
+ * plots.
+ *
+ * Fill runs are excluded rather than drawn as gaps. A fill reports
+ * `scanned`/`queued` and never adds a product, so plotting it on an "added"
+ * axis would draw a zero for a run that was never capable of a non-zero, and a
+ * row of those reads as the pipeline having stopped finding things. */
+export async function readRunHistory(ctx: QueryCtx): Promise<RunPoint[]> {
+  const runs = await ctx.db
+    .query('ingest_runs')
+    .order('desc')
+    .take(RUN_HISTORY_PAGE);
+
+  return runs
+    .filter((run) => run.kind === 'drain')
+    .map((run) => ({
+      startedAt: run.startedAt,
+      kind: run.kind,
+      status: run.status,
+      added: run.summary?.added ?? 0,
+      skipped: run.summary?.skipped ?? 0,
+      failed: run.summary?.failed ?? 0,
+      claimed: run.summary?.claimed ?? 0,
+    }))
+    .reverse();
 }

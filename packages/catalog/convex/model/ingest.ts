@@ -129,8 +129,31 @@ export type RunSummary = Infer<typeof runSummaryValidator>;
 
 export const RUN_LOG_PAGE = 20;
 
-export const RUN_LOG_TTL_MS = 14 * 24 * 60 * 60 * 1000;
+/** Six months, not the fortnight this used to be. The automation gate asks for
+ * several weeks of stable added/skipped/failed history before anything is
+ * scheduled, and a 14 day window cannot show that: under manual operation runs
+ * are sparse, so a fortnight is a handful of points. The table stays small
+ * because runs are counted in tens, and the trim is bounded per write either
+ * way. */
+export const RUN_LOG_TTL_MS = 180 * 24 * 60 * 60 * 1000;
 
 export const RUN_LOG_TRIM = 10;
+
+/** Runs the trend reads. Deliberately more than `RUN_LOG_PAGE`: the log answers
+ * "what did the last run do" and this answers "is it still finding anything",
+ * which needs a longer arm. */
+export const RUN_HISTORY_PAGE = 60;
+
+export const runPointValidator = v.object({
+  startedAt: v.number(),
+  kind: runKindValidator,
+  status: runStatusValidator,
+  added: v.number(),
+  skipped: v.number(),
+  failed: v.number(),
+  claimed: v.number(),
+});
+
+export type RunPoint = Infer<typeof runPointValidator>;
 
 export const QUEUE_PAGE_SIZE = 12;
