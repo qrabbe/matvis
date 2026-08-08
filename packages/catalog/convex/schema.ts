@@ -43,6 +43,20 @@ export default defineSchema({
     .index('by_ean_store', ['ean', 'store'])
     .searchIndex('search_name', { searchField: 'name' }),
 
+  /** One row per settled search term. `visitor` is a random id the browser
+   * makes up, not a signed-in identity: the catalog site has no sign-in and
+   * this row cannot name a person. Nothing else about the request is recorded.
+   *
+   * No `at` field and no index, on purpose. `_creationTime` is the date, and
+   * the only read is a bounded newest-first page, exactly as `ingest_runs` is
+   * served. A `by_term` index is what to reach for when the tally outgrows a
+   * sample, and that is a different step. */
+  search_events: defineTable({
+    term: v.string(),
+    visitor: v.string(),
+    results: v.number(),
+  }),
+
   app_counters: defineTable({
     key: v.string(),
     value: v.number(),
