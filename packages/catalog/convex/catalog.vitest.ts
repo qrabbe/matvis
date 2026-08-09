@@ -218,7 +218,8 @@ describe('health', () => {
     ]);
     // Queue depth exists but must not reach the public shape.
     await t.mutation(internal.ingest.enqueueEans, {
-      eans: ['7300000000009'],
+      store: 'coop',
+      rows: ['7300000000009'].map((ean) => ({ ean })),
       source: 'census',
     });
 

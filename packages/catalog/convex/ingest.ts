@@ -1,3 +1,4 @@
+import type { StoreSlug } from '@matvis/shared';
 import { v, type Infer } from 'convex/values';
 import {
   internalAction,
@@ -6,6 +7,7 @@ import {
 } from './_generated/server';
 import { internal } from './_generated/api';
 import { sanitizeCoopProduct } from './coop/sanitize';
+import { storeValidator } from './model/fields';
 import {
   COOP_BATCH_SIZE,
   DEFAULT_FILL_BATCHES,
@@ -13,6 +15,7 @@ import {
   FILL_PAGE_SIZE,
   QUEUE_MAINTENANCE_LIMIT,
   STALE_CLAIM_MS,
+  batchSizeFor,
   errorText,
 } from './model/ingest';
 import {
@@ -27,8 +30,9 @@ import { rememberEan } from './model/project';
 import { loggedRun } from './model/runs';
 
 const claimedRowValidator = v.object({
-  id: v.id('coop_ingest_queue'),
+  id: v.id('ingest_queue'),
   ean: v.string(),
+  sourceId: v.optional(v.string()),
 });
 
 const terminalStatusValidator = v.union(
@@ -38,7 +42,7 @@ const terminalStatusValidator = v.union(
 );
 
 const workerResultValidator = v.object({
-  id: v.id('coop_ingest_queue'),
+  id: v.id('ingest_queue'),
   status: terminalStatusValidator,
   error: v.optional(v.string()),
 });
@@ -46,46 +50,61 @@ const workerResultValidator = v.object({
 type ClaimedRow = Infer<typeof claimedRowValidator>;
 type WorkerResult = Infer<typeof workerResultValidator>;
 
+/** An EAN entering the pipeline, with the store's own product id where the
+ * store needs one to address it. */
+const enqueueRowValidator = v.object({
+  ean: v.string(),
+  sourceId: v.optional(v.string()),
+});
+
 export const enqueueEans = internalMutation({
-  args: { eans: v.array(v.string()), source: v.string() },
+  args: {
+    store: storeValidator,
+    rows: v.array(enqueueRowValidator),
+    source: v.string(),
+  },
   returns: v.object({
     queued: v.number(),
     known: v.number(),
     duplicate: v.number(),
   }),
-  handler: async (ctx, { eans, source }) => {
-    if (eans.length > COOP_BATCH_SIZE) {
+  handler: async (ctx, { store, rows, source }) => {
+    if (rows.length > COOP_BATCH_SIZE) {
       throw new Error(
-        `enqueueEans takes at most ${COOP_BATCH_SIZE} EANs per call, got ${eans.length}`,
+        `enqueueEans takes at most ${COOP_BATCH_SIZE} EANs per call, got ${rows.length}`,
       );
     }
     const now = Date.now();
     const seen = new Set<string>();
     const totals = { queued: 0, known: 0, duplicate: 0 };
 
-    for (const ean of eans) {
-      if (seen.has(ean)) {
+    for (const row of rows) {
+      if (seen.has(row.ean)) {
         totals.duplicate += 1;
         continue;
       }
-      seen.add(ean);
+      seen.add(row.ean);
 
-      await rememberEan(ctx, 'coop', ean);
-      totals[await queueEanIfMissing(ctx, ean, source, now)] += 1;
+      await rememberEan(ctx, store, row.ean, row.sourceId);
+      totals[
+        await queueEanIfMissing(ctx, store, row.ean, source, now, row.sourceId)
+      ] += 1;
     }
     return totals;
   },
 });
 
 export const claimBatch = internalMutation({
-  args: { limit: v.number() },
+  args: { store: storeValidator, limit: v.number() },
   returns: v.array(claimedRowValidator),
-  handler: async (ctx, { limit }) => {
+  handler: async (ctx, { store, limit }) => {
     const now = Date.now();
 
     const inFlight = await ctx.db
-      .query('coop_ingest_queue')
-      .withIndex('by_status', (q) => q.eq('status', 'processing'))
+      .query('ingest_queue')
+      .withIndex('by_store_status', (q) =>
+        q.eq('store', store).eq('status', 'processing'),
+      )
       .take(limit);
     for (const row of inFlight) {
       if ((row.claimedAt ?? row.enqueuedAt) <= now - STALE_CLAIM_MS) {
@@ -94,8 +113,10 @@ export const claimBatch = internalMutation({
     }
 
     const pending = await ctx.db
-      .query('coop_ingest_queue')
-      .withIndex('by_status', (q) => q.eq('status', 'pending'))
+      .query('ingest_queue')
+      .withIndex('by_store_status', (q) =>
+        q.eq('store', store).eq('status', 'pending'),
+      )
       .take(limit);
 
     const claimed: ClaimedRow[] = [];
@@ -104,7 +125,7 @@ export const claimBatch = internalMutation({
         attempts: row.attempts + 1,
         claimedAt: now,
       });
-      claimed.push({ id: row._id, ean: row.ean });
+      claimed.push({ id: row._id, ean: row.ean, sourceId: row.sourceId });
     }
     return claimed;
   },
@@ -127,12 +148,14 @@ export const markResults = internalMutation({
 });
 
 export const clearDoneRows = internalMutation({
-  args: { limit: v.optional(v.number()) },
+  args: { store: storeValidator, limit: v.optional(v.number()) },
   returns: v.object({ deleted: v.number() }),
-  handler: async (ctx, { limit }) => {
+  handler: async (ctx, { store, limit }) => {
     const rows = await ctx.db
-      .query('coop_ingest_queue')
-      .withIndex('by_status', (q) => q.eq('status', 'done'))
+      .query('ingest_queue')
+      .withIndex('by_store_status', (q) =>
+        q.eq('store', store).eq('status', 'done'),
+      )
       .take(limit ?? QUEUE_MAINTENANCE_LIMIT);
     for (const row of rows) await deleteQueueRow(ctx, row);
     return { deleted: rows.length };
@@ -140,12 +163,14 @@ export const clearDoneRows = internalMutation({
 });
 
 export const requeueFailed = internalMutation({
-  args: { limit: v.optional(v.number()) },
+  args: { store: storeValidator, limit: v.optional(v.number()) },
   returns: v.object({ requeued: v.number() }),
-  handler: async (ctx, { limit }) => {
+  handler: async (ctx, { store, limit }) => {
     const rows = await ctx.db
-      .query('coop_ingest_queue')
-      .withIndex('by_status', (q) => q.eq('status', 'failed'))
+      .query('ingest_queue')
+      .withIndex('by_store_status', (q) =>
+        q.eq('store', store).eq('status', 'failed'),
+      )
       .take(limit ?? QUEUE_MAINTENANCE_LIMIT);
     for (const row of rows) {
       await setQueueStatus(ctx, row, 'pending', {
@@ -159,14 +184,17 @@ export const requeueFailed = internalMutation({
 
 /** Bounded by the maintenance limit rather than `QUEUE_DEDUP_SCAN`, which is a
  * dedup lookahead of 8 and was never a removal bound. The console promises this
- * clears every row for the EAN, and at 1000 that promise holds. */
+ * clears every row for the EAN, and at 1000 that promise holds.
+ *
+ * Per store, because the same barcode legitimately sits in two lanes at once:
+ * about a third of the Coop and ICA ranges overlap. */
 export const removeQueueRows = internalMutation({
-  args: { ean: v.string() },
+  args: { store: storeValidator, ean: v.string() },
   returns: v.object({ deleted: v.number() }),
-  handler: async (ctx, { ean }) => {
+  handler: async (ctx, { store, ean }) => {
     const rows = await ctx.db
-      .query('coop_ingest_queue')
-      .withIndex('by_ean', (q) => q.eq('ean', ean))
+      .query('ingest_queue')
+      .withIndex('by_store_ean', (q) => q.eq('store', store).eq('ean', ean))
       .take(QUEUE_MAINTENANCE_LIMIT);
     for (const row of rows) await deleteQueueRow(ctx, row);
     return { deleted: rows.length };
@@ -187,56 +215,75 @@ const NO_QUEUE_WORK: QueueTotals = {
   failed: 0,
 };
 
+/** What one lane does with a claimed batch. Every chain resolves EANs its own
+ * way, so the shared drain owns claiming, counting, marking and rescheduling,
+ * and the lane owns only "turn these rows into catalog writes". */
+type Lane = (ctx: ActionCtx, claimed: ClaimedRow[]) => Promise<WorkerResult[]>;
+
+/** One request for the whole batch, which is what makes Coop cheap. An EAN the
+ * response omits is not stocked, not an error. */
+const drainCoop: Lane = async (ctx, claimed) => {
+  const results: WorkerResult[] = [];
+  const items: Record<string, unknown>[] = await ctx.runAction(
+    internal.coop.fetch.fetchByEan,
+    { eans: claimed.map((row) => row.ean) },
+  );
+  const byEan = new Map(items.map((item) => [item.ean as string, item]));
+
+  for (const row of claimed) {
+    const item = byEan.get(row.ean);
+    if (!item) {
+      results.push({
+        id: row.id,
+        status: 'skipped',
+        error: 'not stocked by Coop',
+      });
+      continue;
+    }
+    try {
+      await ctx.runMutation(internal.products.upsertCoopByEan, {
+        data: sanitizeCoopProduct(item),
+      });
+      results.push({ id: row.id, status: 'done' });
+    } catch (error) {
+      results.push({ id: row.id, status: 'failed', error: errorText(error) });
+    }
+  }
+  return results;
+};
+
+const LANES: Partial<Record<StoreSlug, Lane>> = {
+  coop: drainCoop,
+};
+
 async function drainOneBatch(
   ctx: ActionCtx,
+  store: StoreSlug,
   batches: number | undefined,
   batchSize: number | undefined,
 ): Promise<QueueTotals> {
-  const limit = Math.min(batchSize ?? COOP_BATCH_SIZE, COOP_BATCH_SIZE);
+  const lane = LANES[store];
+  if (!lane) throw new Error(`no ingest lane for ${store}`);
+
+  const ceiling = batchSizeFor(store);
+  const limit = Math.min(batchSize ?? ceiling, ceiling);
   const claimed: ClaimedRow[] = await ctx.runMutation(
     internal.ingest.claimBatch,
-    { limit },
+    { store, limit },
   );
   if (claimed.length === 0) return { ...NO_QUEUE_WORK };
 
-  const results: WorkerResult[] = [];
-  let added = 0;
-  let skipped = 0;
-  let failed = 0;
-
+  // One thrown fetch fails the whole claimed batch rather than losing it. The
+  // rows go back through `requeueFailed`, which is the decision step 10 pinned.
+  let results: WorkerResult[];
   try {
-    const items: Record<string, unknown>[] = await ctx.runAction(
-      internal.coop.fetch.fetchByEan,
-      { eans: claimed.map((row) => row.ean) },
-    );
-    const byEan = new Map(items.map((item) => [item.ean as string, item]));
-    for (const row of claimed) {
-      const item = byEan.get(row.ean);
-      if (!item) {
-        results.push({
-          id: row.id,
-          status: 'skipped',
-          error: 'not stocked by Coop',
-        });
-        skipped += 1;
-        continue;
-      }
-      try {
-        await ctx.runMutation(internal.products.upsertCoopByEan, {
-          data: sanitizeCoopProduct(item),
-        });
-        results.push({ id: row.id, status: 'done' });
-        added += 1;
-      } catch (error) {
-        results.push({ id: row.id, status: 'failed', error: errorText(error) });
-        failed += 1;
-      }
-    }
+    results = await lane(ctx, claimed);
   } catch (error) {
-    for (const row of claimed) {
-      results.push({ id: row.id, status: 'failed', error: errorText(error) });
-      failed += 1;
-    }
+    results = claimed.map((row) => ({
+      id: row.id,
+      status: 'failed' as const,
+      error: errorText(error),
+    }));
   }
 
   await ctx.runMutation(internal.ingest.markResults, { results });
@@ -244,25 +291,38 @@ async function drainOneBatch(
   const remaining = (batches ?? DEFAULT_QUEUE_BATCHES) - 1;
   if (remaining > 0 && claimed.length === limit) {
     await ctx.scheduler.runAfter(0, internal.ingest.processQueue, {
+      store,
       batches: remaining,
       batchSize,
     });
   }
 
-  return { claimed: claimed.length, added, skipped, failed };
+  const tally = (status: WorkerResult['status']) =>
+    results.filter((result) => result.status === status).length;
+
+  return {
+    claimed: claimed.length,
+    added: tally('done'),
+    skipped: tally('skipped'),
+    failed: tally('failed'),
+  };
 }
 
 export const processQueue = internalAction({
-  args: { batches: v.optional(v.number()), batchSize: v.optional(v.number()) },
+  args: {
+    store: storeValidator,
+    batches: v.optional(v.number()),
+    batchSize: v.optional(v.number()),
+  },
   returns: v.object({
     claimed: v.number(),
     added: v.number(),
     skipped: v.number(),
     failed: v.number(),
   }),
-  handler: async (ctx, { batches, batchSize }): Promise<QueueTotals> =>
+  handler: async (ctx, { store, batches, batchSize }): Promise<QueueTotals> =>
     await loggedRun(ctx, 'drain', NO_QUEUE_WORK, () =>
-      drainOneBatch(ctx, batches, batchSize),
+      drainOneBatch(ctx, store, batches, batchSize),
     ),
 });
 
@@ -270,29 +330,35 @@ export const processQueue = internalAction({
  * row. The cursor is persisted, so successive runs continue the pass instead
  * of rescanning from the top. */
 export const fillMissingPage = internalMutation({
-  args: { pageSize: v.optional(v.number()) },
+  args: { store: storeValidator, pageSize: v.optional(v.number()) },
   returns: v.object({
     scanned: v.number(),
     queued: v.number(),
     wrapped: v.boolean(),
   }),
-  handler: async (ctx, { pageSize }) => {
+  handler: async (ctx, { store, pageSize }) => {
     const numItems = Math.min(pageSize ?? FILL_PAGE_SIZE, FILL_PAGE_SIZE);
-    const cursor = await readFillCursor(ctx);
+    const cursor = await readFillCursor(ctx, store);
     const page = await ctx.db
       .query('eans')
-      .withIndex('by_store_ean', (q) => q.eq('store', 'coop'))
+      .withIndex('by_store_ean', (q) => q.eq('store', store))
       .paginate({ cursor, numItems });
 
     const now = Date.now();
     let queued = 0;
     for (const row of page.page) {
-      if ((await queueEanIfMissing(ctx, row.ean, 'fill', now)) === 'queued') {
-        queued += 1;
-      }
+      const outcome = await queueEanIfMissing(
+        ctx,
+        store,
+        row.ean,
+        'fill',
+        now,
+        row.sourceId,
+      );
+      if (outcome === 'queued') queued += 1;
     }
 
-    await writeFillCursor(ctx, page.isDone ? null : page.continueCursor);
+    await writeFillCursor(ctx, store, page.isDone ? null : page.continueCursor);
     return { scanned: page.page.length, queued, wrapped: page.isDone };
   },
 });
@@ -302,13 +368,17 @@ type FillTotals = { scanned: number; queued: number; passes: number };
 const NO_FILL_WORK: FillTotals = { scanned: 0, queued: 0, passes: 0 };
 
 export const fillMissing = internalAction({
-  args: { batches: v.optional(v.number()), pageSize: v.optional(v.number()) },
+  args: {
+    store: storeValidator,
+    batches: v.optional(v.number()),
+    pageSize: v.optional(v.number()),
+  },
   returns: v.object({
     scanned: v.number(),
     queued: v.number(),
     passes: v.number(),
   }),
-  handler: async (ctx, { batches, pageSize }): Promise<FillTotals> =>
+  handler: async (ctx, { store, batches, pageSize }): Promise<FillTotals> =>
     await loggedRun(ctx, 'fill', NO_FILL_WORK, async (paused) => {
       const rounds = Math.max(batches ?? DEFAULT_FILL_BATCHES, 1);
       const totals: FillTotals = { scanned: 0, queued: 0, passes: 0 };
@@ -326,6 +396,7 @@ export const fillMissing = internalAction({
           queued: number;
           wrapped: boolean;
         } = await ctx.runMutation(internal.ingest.fillMissingPage, {
+          store,
           pageSize,
         });
         totals.scanned += page.scanned;
@@ -336,7 +407,9 @@ export const fillMissing = internalAction({
         }
       }
       if (!stopped && totals.queued > 0) {
-        await ctx.scheduler.runAfter(0, internal.ingest.processQueue, {});
+        await ctx.scheduler.runAfter(0, internal.ingest.processQueue, {
+          store,
+        });
       }
       return totals;
     }),

@@ -24,7 +24,8 @@ async function seedQueue(
     let n = 0;
     for (const row of rows) {
       n += 1;
-      await ctx.db.insert('coop_ingest_queue', {
+      await ctx.db.insert('ingest_queue', {
+        store: 'coop',
         ean: `730000000000${n}`,
         status: row.status,
         attempts: 0,
@@ -40,7 +41,7 @@ async function queueStats(t: ReturnType<typeof convexTest>) {
 }
 
 async function fillStats(t: ReturnType<typeof convexTest>) {
-  return await t.run(async (ctx) => await readFillStats(ctx));
+  return await t.run(async (ctx) => await readFillStats(ctx, 'coop'));
 }
 
 async function seedCatalog(t: ReturnType<typeof convexTest>, total: number) {
@@ -106,7 +107,7 @@ describe('rebuildCounters', () => {
       { status: 'pending' },
     ]);
 
-    await t.mutation(internal.ingest.claimBatch, { limit: 1 });
+    await t.mutation(internal.ingest.claimBatch, { store: 'coop', limit: 1 });
     expect(await queueStats(t)).toMatchObject({
       pending: -1,
       processing: 1,
@@ -259,6 +260,102 @@ describe('normalizeUnits', () => {
 
     const [row] = await catalogRows(t);
     expect(row!.netContent).toEqual({ value: 500, unit: 'ml' });
+  });
+});
+
+describe('repairNetContent', () => {
+  /** The state the migration leaves behind for a row whose unit it could not
+   * resolve: legacy fields gone, `netContent` never written. A re-run cannot
+   * reach these, which is the whole reason the repair exists. */
+  async function seedEmptied(
+    t: ReturnType<typeof convexTest>,
+    rows: { ean: string; netContent?: { value: number; unit: 'g' | 'ml' } }[],
+  ) {
+    await t.run(async (ctx) => {
+      for (const row of rows) {
+        await ctx.db.insert('catalog', {
+          ean: row.ean,
+          name: `Product ${row.ean}`,
+          store: 'coop',
+          netContent: row.netContent,
+        });
+      }
+    });
+  }
+
+  test('fills the gap from replayed legacy fields, through the real lookup', async () => {
+    const t = convexTest(schema, modules);
+    await seedEmptied(t, [{ ean: '1' }, { ean: '2' }]);
+
+    const result = await t.mutation(internal.backfill.repairNetContent, {
+      rows: [
+        {
+          ean: '1',
+          store: 'coop',
+          packageSize: 1,
+          packageSizeUnit: 'kg',
+          salesUnit: 'Vikt',
+        },
+        {
+          ean: '2',
+          store: 'coop',
+          packageSize: 5,
+          packageSizeUnit: 'dl',
+        },
+      ],
+    });
+    expect(result).toMatchObject({ patched: 2, stillUnresolved: 0 });
+
+    const byEan = new Map(
+      (await t.run(async (ctx) => await ctx.db.query('catalog').take(50))).map(
+        (row) => [row.ean, row],
+      ),
+    );
+    expect(byEan.get('1')!.netContent).toEqual({ value: 1000, unit: 'g' });
+    expect(byEan.get('1')!.soldBy).toBe('weight');
+    expect(byEan.get('2')!.netContent).toEqual({ value: 500, unit: 'ml' });
+  });
+
+  test('never overwrites a row that already resolved', async () => {
+    const t = convexTest(schema, modules);
+    await seedEmptied(t, [{ ean: '1', netContent: { value: 750, unit: 'g' } }]);
+
+    const result = await t.mutation(internal.backfill.repairNetContent, {
+      rows: [
+        { ean: '1', store: 'coop', packageSize: 999, packageSizeUnit: 'gram' },
+      ],
+    });
+    expect(result).toMatchObject({ patched: 0, skipped: 1 });
+
+    const [row] = await t.run(
+      async (ctx) => await ctx.db.query('catalog').take(1),
+    );
+    expect(row!.netContent).toEqual({ value: 750, unit: 'g' });
+  });
+
+  test('separates a unit still unknown from a row that is not there', async () => {
+    const t = convexTest(schema, modules);
+    await seedEmptied(t, [{ ean: '1' }]);
+
+    const result = await t.mutation(internal.backfill.repairNetContent, {
+      rows: [
+        // An area, which CATALOG_UNITS deliberately cannot express.
+        {
+          ean: '1',
+          store: 'coop',
+          packageSize: 1,
+          packageSizeUnit: 'kvadratmeter',
+        },
+        { ean: '404', store: 'coop', packageSize: 1, packageSizeUnit: 'kg' },
+        // Right EAN, wrong store: the catalog is keyed on the pair.
+        { ean: '1', store: 'ica', packageSize: 1, packageSizeUnit: 'kg' },
+      ],
+    });
+    expect(result).toMatchObject({
+      patched: 0,
+      stillUnresolved: 1,
+      absent: 2,
+    });
   });
 });
 

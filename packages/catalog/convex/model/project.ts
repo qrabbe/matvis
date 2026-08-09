@@ -162,15 +162,18 @@ const UNIT_BY_SOURCE: Record<string, { unit: CatalogUnit; factor: number }> = {
   gram: { unit: 'g', factor: 1 },
   'gram ungefärlig vikt': { unit: 'g', factor: 1 },
   'gram/st ungefärlig vikt': { unit: 'g', factor: 1 },
+  'gram/bit ungefärlig vikt': { unit: 'g', factor: 1 },
   gr: { unit: 'g', factor: 1 },
   grm: { unit: 'g', factor: 1 },
   kilogram: { unit: 'g', factor: 1000 },
+  kg: { unit: 'g', factor: 1000 },
   kgm: { unit: 'g', factor: 1000 },
 
   milliliter: { unit: 'ml', factor: 1 },
   ml: { unit: 'ml', factor: 1 },
   mlt: { unit: 'ml', factor: 1 },
   cl: { unit: 'ml', factor: 10 },
+  dl: { unit: 'ml', factor: 100 },
   l: { unit: 'ml', factor: 1000 },
   liter: { unit: 'ml', factor: 1000 },
   ltr: { unit: 'ml', factor: 1000 },
@@ -181,7 +184,12 @@ const UNIT_BY_SOURCE: Record<string, { unit: CatalogUnit; factor: number }> = {
 
   millimeter: { unit: 'mm', factor: 1 },
   mmt: { unit: 'mm', factor: 1 },
+  meter: { unit: 'mm', factor: 1000 },
   mtr: { unit: 'mm', factor: 1000 },
+
+  // Deliberately absent: `kvadratmeter`, which one row states. It is an area
+  // and CATALOG_UNITS carries no area unit, so the honest answer is no
+  // netContent rather than a number filed under a length.
 };
 
 const SOLD_BY_SOURCE: Record<string, SoldBy> = {
@@ -278,18 +286,29 @@ export async function upsertClean(
 }
 
 /** Records a barcode as one we have heard of. Called for every EAN that enters
- * the pipeline, hit or miss, so the sweep has a durable worklist. */
+ * the pipeline, hit or miss, so the sweep has a durable worklist.
+ *
+ * A `sourceId` is filled in on a row that lacks one rather than only on insert.
+ * The Coop census reached many of these barcodes first and recorded no id, and
+ * the ICA load is what supplies it, so an already known EAN is exactly the case
+ * that needs the update. */
 export async function rememberEan(
   ctx: MutationCtx,
   store: StoreSlug,
   ean: string,
+  sourceId?: string,
 ): Promise<boolean> {
   const existing = await ctx.db
     .query('eans')
     .withIndex('by_store_ean', (q) => q.eq('store', store).eq('ean', ean))
     .first();
-  if (existing) return false;
-  await ctx.db.insert('eans', { ean, store, addedAt: Date.now() });
+  if (existing) {
+    if (sourceId !== undefined && existing.sourceId !== sourceId) {
+      await ctx.db.patch(existing._id, { sourceId });
+    }
+    return false;
+  }
+  await ctx.db.insert('eans', { ean, store, addedAt: Date.now(), sourceId });
   await bumpCounter(ctx, EANS_COUNT_KEY, 1);
   return true;
 }

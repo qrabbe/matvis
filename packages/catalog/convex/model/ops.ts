@@ -1,3 +1,4 @@
+import type { StoreSlug } from '@matvis/shared';
 import type { MutationCtx, QueryCtx } from '../_generated/server';
 import type { Doc, Id } from '../_generated/dataModel';
 import type { WithoutSystemFields } from 'convex/server';
@@ -32,21 +33,21 @@ import {
   EANS_COUNT_KEY,
 } from './counters';
 
-type QueueRowFields = WithoutSystemFields<Doc<'coop_ingest_queue'>>;
+type QueueRowFields = WithoutSystemFields<Doc<'ingest_queue'>>;
 
 /** The queue's status counts are maintained, not counted, so `ingest.ts` never
- * writes `coop_ingest_queue` directly. Every write goes through one of these. */
+ * writes `ingest_queue` directly. Every write goes through one of these. */
 export async function insertQueueRow(
   ctx: MutationCtx,
   fields: QueueRowFields,
-): Promise<Id<'coop_ingest_queue'>> {
+): Promise<Id<'ingest_queue'>> {
   await bumpCounter(ctx, queueCountKey(fields.status), 1);
-  return await ctx.db.insert('coop_ingest_queue', fields);
+  return await ctx.db.insert('ingest_queue', fields);
 }
 
 export async function setQueueStatus(
   ctx: MutationCtx,
-  row: Doc<'coop_ingest_queue'>,
+  row: Doc<'ingest_queue'>,
   status: QueueStatus,
   extra: Partial<QueueRowFields> = {},
 ): Promise<void> {
@@ -59,7 +60,7 @@ export async function setQueueStatus(
 
 export async function setQueueStatusById(
   ctx: MutationCtx,
-  id: Id<'coop_ingest_queue'>,
+  id: Id<'ingest_queue'>,
   status: QueueStatus,
   extra: Partial<QueueRowFields> = {},
 ): Promise<void> {
@@ -69,7 +70,7 @@ export async function setQueueStatusById(
 
 export async function deleteQueueRow(
   ctx: MutationCtx,
-  row: Doc<'coop_ingest_queue'>,
+  row: Doc<'ingest_queue'>,
 ): Promise<void> {
   await bumpCounter(ctx, queueCountKey(row.status), -1);
   await ctx.db.delete(row._id);
@@ -77,29 +78,37 @@ export async function deleteQueueRow(
 
 export type QueueOutcome = 'queued' | 'known' | 'duplicate';
 
-/** `known` means `catalog` already holds the row, `duplicate` means the queue
- * already carries unfinished work for it. Both callers that add EANs, the paste
- * and the fill sweep, want exactly this decision. */
+/** `known` means `catalog` already holds the row for this store, `duplicate`
+ * means the queue already carries unfinished work for it. Both callers that add
+ * EANs, the paste and the fill sweep, want exactly this decision.
+ *
+ * Scoped to one store throughout. A barcode Coop already sells is still work
+ * for the ICA lane, and roughly a third of the two ranges overlap, so a check
+ * that ignored the store would silently drop every shared product. */
 export async function queueEanIfMissing(
   ctx: MutationCtx,
+  store: StoreSlug,
   ean: string,
   source: string,
   now: number,
+  sourceId?: string,
 ): Promise<QueueOutcome> {
   const held = await ctx.db
     .query('catalog')
-    .withIndex('by_ean_store', (q) => q.eq('ean', ean).eq('store', 'coop'))
+    .withIndex('by_ean_store', (q) => q.eq('ean', ean).eq('store', store))
     .first();
   if (held) return 'known';
 
   const existing = await ctx.db
-    .query('coop_ingest_queue')
-    .withIndex('by_ean', (q) => q.eq('ean', ean))
+    .query('ingest_queue')
+    .withIndex('by_store_ean', (q) => q.eq('store', store).eq('ean', ean))
     .take(QUEUE_DEDUP_SCAN);
   if (existing.some((row) => row.status !== 'done')) return 'duplicate';
 
   await insertQueueRow(ctx, {
     ean,
+    store,
+    sourceId,
     status: 'pending',
     attempts: 0,
     source,
@@ -154,23 +163,39 @@ export async function writePaused(
 }
 
 /** `null` means the sweep is at the start of a fresh pass. It wraps back to
- * null on the last page, so the worklist cycles forever. */
-export async function readFillCursor(ctx: QueryCtx): Promise<string | null> {
-  return (await readSettings(ctx))?.fillCursor ?? null;
+ * null on the last page, so the worklist cycles forever.
+ *
+ * One cursor per store. The sweep walks `eans` filtered to a single store, so
+ * a shared cursor would be read against the wrong range the moment a second
+ * chain existed and each sweep would resume wherever the other one stopped. */
+export async function readFillCursor(
+  ctx: QueryCtx,
+  store: StoreSlug,
+): Promise<string | null> {
+  return (await readSettings(ctx))?.fillCursors?.[store] ?? null;
 }
 
 export async function writeFillCursor(
   ctx: MutationCtx,
+  store: StoreSlug,
   cursor: string | null,
 ): Promise<void> {
-  await patchSettings(ctx, { fillCursor: cursor ?? undefined });
+  const current: Partial<Record<StoreSlug, string>> =
+    (await readSettings(ctx))?.fillCursors ?? {};
+  const next = { ...current };
+  if (cursor === null) delete next[store];
+  else next[store] = cursor;
+  await patchSettings(ctx, { fillCursors: next });
 }
 
-export async function readFillStats(ctx: QueryCtx): Promise<FillStats> {
+export async function readFillStats(
+  ctx: QueryCtx,
+  store: StoreSlug,
+): Promise<FillStats> {
   const settings = await readSettings(ctx);
   return {
     eansKnown: await readCounter(ctx, EANS_COUNT_KEY),
-    cursorAtEnd: (settings?.fillCursor ?? null) === null,
+    cursorAtEnd: (settings?.fillCursors?.[store] ?? null) === null,
   };
 }
 

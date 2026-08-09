@@ -139,7 +139,7 @@ describe('the drain, when the fetch fails', () => {
 
   async function rows(t: ReturnType<typeof convexTest>) {
     return await t.run(
-      async (ctx) => await ctx.db.query('coop_ingest_queue').take(50),
+      async (ctx) => await ctx.db.query('ingest_queue').take(50),
     );
   }
 
@@ -148,7 +148,10 @@ describe('the drain, when the fetch fails', () => {
     vi.stubEnv('COOP_EXTERNAL_API_KEY', 'test-key');
     respondWith({}, { status: 403 });
     await t.mutation(internal.ingest.enqueueEans, {
-      eans: ['7300000000000', '7300000000001', '7300000000002'],
+      store: 'coop',
+      rows: ['7300000000000', '7300000000001', '7300000000002'].map((ean) => ({
+        ean,
+      })),
       source: 'census',
     });
 
@@ -162,6 +165,7 @@ describe('the drain, when the fetch fails', () => {
     // single row failed is not an errored run, and anything watching only
     // `status: 'error'` will not see this at all.
     const summary = await t.action(internal.ingest.processQueue, {
+      store: 'coop',
       batches: 1,
     });
     expect(summary).toMatchObject({ claimed: 3, added: 0, failed: 3 });
@@ -183,19 +187,22 @@ describe('the drain, when the fetch fails', () => {
     vi.stubEnv('COOP_EXTERNAL_API_KEY', 'test-key');
     respondWith({}, { status: 403 });
     await t.mutation(internal.ingest.enqueueEans, {
-      eans: ['7300000000000'],
+      store: 'coop',
+      rows: ['7300000000000'].map((ean) => ({ ean })),
       source: 'census',
     });
 
-    await t.action(internal.ingest.processQueue, { batches: 1 });
+    await t.action(internal.ingest.processQueue, { store: 'coop', batches: 1 });
     expect(await queueStats(t)).toMatchObject({ failed: 1 });
 
-    expect(await t.mutation(internal.ingest.requeueFailed, {})).toEqual({
+    expect(
+      await t.mutation(internal.ingest.requeueFailed, { store: 'coop' }),
+    ).toEqual({
       requeued: 1,
     });
     expect(await queueStats(t)).toMatchObject({ pending: 1, failed: 0 });
 
-    await t.action(internal.ingest.processQueue, { batches: 1 });
+    await t.action(internal.ingest.processQueue, { store: 'coop', batches: 1 });
 
     // Nothing caps this. Under manual operation the human pressing Requeue is
     // the cap; the moment anything is scheduled, an uncapped retry against a
@@ -212,17 +219,16 @@ describe('the drain, when a product is missing', () => {
     vi.stubEnv('COOP_EXTERNAL_API_KEY', 'test-key');
     respondWith(itemsBody([{ ean: '7300000000000', name: 'Mjölk' }]));
     await t.mutation(internal.ingest.enqueueEans, {
-      eans: ['7300000000000', '7300000000001'],
+      store: 'coop',
+      rows: ['7300000000000', '7300000000001'].map((ean) => ({ ean })),
       source: 'census',
     });
 
-    await t.action(internal.ingest.processQueue, { batches: 1 });
+    await t.action(internal.ingest.processQueue, { store: 'coop', batches: 1 });
 
     const byEan = new Map(
       (
-        await t.run(
-          async (ctx) => await ctx.db.query('coop_ingest_queue').take(50),
-        )
+        await t.run(async (ctx) => await ctx.db.query('ingest_queue').take(50))
       ).map((row) => [row.ean, row]),
     );
     expect(byEan.get('7300000000000')!.status).toBe('done');
@@ -233,14 +239,14 @@ describe('the drain, when a product is missing', () => {
     // item that was merely out of stock is never looked at again. Correct
     // while nothing re-fetches at all; it needs a re-check policy the day a
     // refresh path exists. See DECISIONS.md.
-    expect(await t.mutation(internal.ingest.requeueFailed, {})).toEqual({
+    expect(
+      await t.mutation(internal.ingest.requeueFailed, { store: 'coop' }),
+    ).toEqual({
       requeued: 0,
     });
     expect(
       (
-        await t.run(
-          async (ctx) => await ctx.db.query('coop_ingest_queue').take(50),
-        )
+        await t.run(async (ctx) => await ctx.db.query('ingest_queue').take(50))
       ).find((row) => row.ean === '7300000000001')!.status,
     ).toBe('skipped');
   });
@@ -248,7 +254,8 @@ describe('the drain, when a product is missing', () => {
   test('the dedup lookahead is what bounds a re-queue, not the removal path', async () => {
     const t = convexTest(schema, modules);
     await t.mutation(internal.ingest.enqueueEans, {
-      eans: ['7300000000000'],
+      store: 'coop',
+      rows: ['7300000000000'].map((ean) => ({ ean })),
       source: 'census',
     });
     // Pinned because `removeQueueRows` used to share this constant and

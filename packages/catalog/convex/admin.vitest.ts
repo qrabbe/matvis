@@ -47,6 +47,7 @@ const PUBLIC_ADMIN_FUNCTIONS = [
   'queueRows',
   'rebuildCounters',
   'removeQueueRows',
+  'repairNetContent',
   'requeueFailed',
   'runHistory',
   'runs',
@@ -175,10 +176,16 @@ describe('the queue console', () => {
     const t = convexTest(schema, modules);
     const token = await signIn(t);
     await t.mutation(internal.ingest.enqueueEans, {
-      eans: ['7300000000000', '7300000000001', '7300000000002'],
+      store: 'coop',
+      rows: ['7300000000000', '7300000000001', '7300000000002'].map((ean) => ({
+        ean,
+      })),
       source: 'census',
     });
-    const claimed = await t.mutation(internal.ingest.claimBatch, { limit: 10 });
+    const claimed = await t.mutation(internal.ingest.claimBatch, {
+      store: 'coop',
+      limit: 10,
+    });
     await t.mutation(internal.ingest.markResults, {
       results: claimed.map((row) => ({
         id: row.id,
@@ -270,7 +277,8 @@ describe('the counter repair', () => {
     const t = convexTest(schema, modules);
     const token = await signIn(t);
     await t.mutation(internal.ingest.enqueueEans, {
-      eans: ['7300000000000', '7300000000001'],
+      store: 'coop',
+      rows: ['7300000000000', '7300000000001'].map((ean) => ({ ean })),
       source: 'census',
     });
 

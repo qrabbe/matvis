@@ -29,6 +29,7 @@ import {
   sessionLiveByHash,
   sha256Hex,
 } from './model/admin';
+import { storeValidator } from './model/fields';
 import {
   DEFAULT_FILL_BATCHES,
   DEFAULT_QUEUE_BATCHES,
@@ -61,6 +62,12 @@ import { readCounter, CATALOG_COUNT_KEY } from './model/counters';
 import { SEARCH_STATS_SAMPLE, tallySearchEvents } from './model/search';
 
 const NOT_SIGNED_IN = 'Not signed in';
+
+/** Which lane an admin call means when it names no store. Coop is the only
+ * chain the console was built around and the only one with history, so leaving
+ * it implicit keeps every existing caller working while the argument opens the
+ * surface to the rest. */
+const DEFAULT_LANE = 'coop' as const;
 
 async function sessionIsValid(
   ctx: QueryCtx | MutationCtx,
@@ -264,8 +271,11 @@ export const signOutEverywhere = adminMutation({
   },
 });
 
+/** `store` selects which lane's fill progress is reported. Everything else on
+ * this panel is whole-catalog, including the queue counts, so the argument is
+ * optional and the busiest lane is the default. */
 export const overview = adminQuery({
-  args: {},
+  args: { store: v.optional(storeValidator) },
   returns: v.object({
     catalogTotal: v.number(),
     paused: v.boolean(),
@@ -273,11 +283,11 @@ export const overview = adminQuery({
     fill: fillStatsValidator,
     freshness: freshnessValidator,
   }),
-  handler: async (ctx) => ({
+  handler: async (ctx, { store }) => ({
     catalogTotal: await readCounter(ctx, CATALOG_COUNT_KEY),
     paused: await readPaused(ctx),
     queue: await readQueueStats(ctx),
-    fill: await readFillStats(ctx),
+    fill: await readFillStats(ctx, store ?? DEFAULT_LANE),
     freshness: await readFreshness(ctx),
   }),
 });
@@ -361,6 +371,7 @@ export const runHistory = adminQuery({
 export const queueRows = adminQuery({
   args: {
     status: queueStatusValidator,
+    store: v.optional(storeValidator),
     cursor: v.optional(v.union(v.string(), v.null())),
   },
   returns: v.object({
@@ -368,10 +379,12 @@ export const queueRows = adminQuery({
     continueCursor: v.string(),
     isDone: v.boolean(),
   }),
-  handler: async (ctx, { status, cursor }) => {
+  handler: async (ctx, { status, store, cursor }) => {
     const page = await ctx.db
-      .query('coop_ingest_queue')
-      .withIndex('by_status', (q) => q.eq('status', status))
+      .query('ingest_queue')
+      .withIndex('by_store_status', (q) =>
+        q.eq('store', store ?? DEFAULT_LANE).eq('status', status),
+      )
       .order('desc')
       .paginate({ cursor: cursor ?? null, numItems: QUEUE_PAGE_SIZE });
     return {
@@ -379,6 +392,7 @@ export const queueRows = adminQuery({
         _id: row._id,
         _creationTime: row._creationTime,
         ean: row.ean,
+        store: row.store,
         status: row.status,
         attempts: row.attempts,
         lastError: row.lastError,
@@ -393,11 +407,12 @@ export const queueRows = adminQuery({
 });
 
 export const startDrain = adminMutation({
-  args: { batches: v.optional(v.number()) },
+  args: { store: v.optional(storeValidator), batches: v.optional(v.number()) },
   returns: v.object({ batches: v.number() }),
-  handler: async (ctx, { batches }) => {
+  handler: async (ctx, { store, batches }) => {
     const bounded = boundedBatches(batches ?? DEFAULT_QUEUE_BATCHES);
     await ctx.scheduler.runAfter(0, internal.ingest.processQueue, {
+      store: store ?? DEFAULT_LANE,
       batches: bounded,
     });
     return { batches: bounded };
@@ -405,11 +420,12 @@ export const startDrain = adminMutation({
 });
 
 export const startFill = adminMutation({
-  args: { batches: v.optional(v.number()) },
+  args: { store: v.optional(storeValidator), batches: v.optional(v.number()) },
   returns: v.object({ batches: v.number() }),
-  handler: async (ctx, { batches }) => {
+  handler: async (ctx, { store, batches }) => {
     const bounded = boundedBatches(batches ?? DEFAULT_FILL_BATCHES);
     await ctx.scheduler.runAfter(0, internal.ingest.fillMissing, {
+      store: store ?? DEFAULT_LANE,
       batches: bounded,
     });
     return { batches: bounded };
@@ -431,24 +447,33 @@ export const setPaused = adminMutation({
 });
 
 export const requeueFailed = adminAction({
-  args: { limit: v.optional(v.number()) },
+  args: { store: v.optional(storeValidator), limit: v.optional(v.number()) },
   returns: v.object({ requeued: v.number() }),
-  handler: async (ctx, { limit }): Promise<{ requeued: number }> =>
-    await ctx.runMutation(internal.ingest.requeueFailed, { limit }),
+  handler: async (ctx, { store, limit }): Promise<{ requeued: number }> =>
+    await ctx.runMutation(internal.ingest.requeueFailed, {
+      store: store ?? DEFAULT_LANE,
+      limit,
+    }),
 });
 
 export const clearDoneRows = adminAction({
-  args: { limit: v.optional(v.number()) },
+  args: { store: v.optional(storeValidator), limit: v.optional(v.number()) },
   returns: v.object({ deleted: v.number() }),
-  handler: async (ctx, { limit }): Promise<{ deleted: number }> =>
-    await ctx.runMutation(internal.ingest.clearDoneRows, { limit }),
+  handler: async (ctx, { store, limit }): Promise<{ deleted: number }> =>
+    await ctx.runMutation(internal.ingest.clearDoneRows, {
+      store: store ?? DEFAULT_LANE,
+      limit,
+    }),
 });
 
 export const removeQueueRows = adminAction({
-  args: { ean: v.string() },
+  args: { store: v.optional(storeValidator), ean: v.string() },
   returns: v.object({ deleted: v.number() }),
-  handler: async (ctx, { ean }): Promise<{ deleted: number }> =>
-    await ctx.runMutation(internal.ingest.removeQueueRows, { ean }),
+  handler: async (ctx, { store, ean }): Promise<{ deleted: number }> =>
+    await ctx.runMutation(internal.ingest.removeQueueRows, {
+      store: store ?? DEFAULT_LANE,
+      ean,
+    }),
 });
 
 /** The repair for the counters the overview renders. Refuses unless ingest is
@@ -479,28 +504,94 @@ export const rebuildCounters = adminAction({
   },
 });
 
+/** One or many EANs into one store's lane. `eans` is the console paste and
+ * `rows` is the loader's form, which additionally carries the store's own
+ * product id where an EAN cannot address the source on its own.
+ *
+ * Enqueuing is all this does. The barcodes land in `eans` and, where the
+ * catalog has no row for them yet, in the queue. Turning them into products is
+ * the drain, either from the console or scheduled here by the fill sweep. */
 export const enqueueEans = adminAction({
-  args: { eans: v.array(v.string()) },
+  args: {
+    store: v.optional(storeValidator),
+    eans: v.optional(v.array(v.string())),
+    rows: v.optional(
+      v.array(v.object({ ean: v.string(), sourceId: v.optional(v.string()) })),
+    ),
+  },
   returns: v.object({
     queued: v.number(),
     known: v.number(),
     duplicate: v.number(),
   }),
-  handler: async (ctx, { eans }) => {
-    if (eans.length > ENQUEUE_PASTE_MAX) {
+  handler: async (ctx, { store, eans, rows }) => {
+    const all = rows ?? (eans ?? []).map((ean) => ({ ean }));
+    if (all.length > ENQUEUE_PASTE_MAX) {
       throw new Error(
-        `At most ${ENQUEUE_PASTE_MAX} EANs per paste, got ${eans.length}`,
+        `At most ${ENQUEUE_PASTE_MAX} EANs per paste, got ${all.length}`,
       );
     }
     const totals = { queued: 0, known: 0, duplicate: 0 };
-    for (let i = 0; i < eans.length; i += ENQUEUE_CHUNK) {
+    for (let i = 0; i < all.length; i += ENQUEUE_CHUNK) {
       const result: typeof totals = await ctx.runMutation(
         internal.ingest.enqueueEans,
-        { eans: eans.slice(i, i + ENQUEUE_CHUNK), source: 'manual' },
+        {
+          store: store ?? DEFAULT_LANE,
+          rows: all.slice(i, i + ENQUEUE_CHUNK),
+          source: 'manual',
+        },
       );
       totals.queued += result.queued;
       totals.known += result.known;
       totals.duplicate += result.duplicate;
+    }
+    return totals;
+  },
+});
+
+/** The door for replaying legacy size fields out of a pre-migration snapshot.
+ * One-off repair work rather than a console button, so it lives here only
+ * because the snapshot is on someone's laptop and an internal mutation cannot
+ * be reached from there. See ../MIGRATION-canonical-units.md. */
+export const repairNetContent = adminAction({
+  args: {
+    rows: v.array(
+      v.object({
+        ean: v.string(),
+        store: storeValidator,
+        packageSize: v.optional(v.number()),
+        packageSizeUnit: v.optional(v.string()),
+        salesUnit: v.optional(v.string()),
+      }),
+    ),
+  },
+  returns: v.object({
+    patched: v.number(),
+    skipped: v.number(),
+    stillUnresolved: v.number(),
+    absent: v.number(),
+  }),
+  handler: async (ctx, { rows }) => {
+    if (rows.length > ENQUEUE_PASTE_MAX) {
+      throw new Error(
+        `At most ${ENQUEUE_PASTE_MAX} rows per call, got ${rows.length}`,
+      );
+    }
+    const totals = {
+      patched: 0,
+      skipped: 0,
+      stillUnresolved: 0,
+      absent: 0,
+    };
+    for (let i = 0; i < rows.length; i += ENQUEUE_CHUNK) {
+      const result: typeof totals = await ctx.runMutation(
+        internal.backfill.repairNetContent,
+        { rows: rows.slice(i, i + ENQUEUE_CHUNK) },
+      );
+      totals.patched += result.patched;
+      totals.skipped += result.skipped;
+      totals.stillUnresolved += result.stillUnresolved;
+      totals.absent += result.absent;
     }
     return totals;
   },

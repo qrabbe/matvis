@@ -1,4 +1,6 @@
+import type { StoreSlug } from '@matvis/shared';
 import { v, type Infer } from 'convex/values';
+import { storeValidator } from './fields';
 
 export { ENQUEUE_PASTE_MAX, QUEUE_MAINTENANCE_LIMIT } from '../../src/limits';
 
@@ -23,6 +25,22 @@ export const QUEUE_STATUSES: readonly QueueStatus[] = [
 
 export const COOP_BATCH_SIZE = 500;
 
+/** How many EANs one drain batch claims, per store, because the chains do not
+ * cost the same per product. Coop resolves up to 500 barcodes in a single
+ * request. ICA publishes no batch endpoint at all, so a batch of n is n
+ * separate page fetches and has to stay small enough to finish inside one
+ * action. */
+const BATCH_SIZE_BY_STORE: Partial<Record<StoreSlug, number>> = {
+  coop: COOP_BATCH_SIZE,
+  ica: 25,
+};
+
+const DEFAULT_BATCH_SIZE = 50;
+
+export function batchSizeFor(store: StoreSlug): number {
+  return BATCH_SIZE_BY_STORE[store] ?? DEFAULT_BATCH_SIZE;
+}
+
 export const DEFAULT_QUEUE_BATCHES = 4;
 
 /** The fill sweep walks `eans` a page at a time and enqueues whatever `catalog`
@@ -46,9 +64,10 @@ export const QUEUE_DEDUP_SCAN = 8;
 export const MAX_ERROR_LENGTH = 500;
 
 export const queueRowValidator = v.object({
-  _id: v.id('coop_ingest_queue'),
+  _id: v.id('ingest_queue'),
   _creationTime: v.number(),
   ean: v.string(),
+  store: storeValidator,
   status: queueStatusValidator,
   attempts: v.number(),
   lastError: v.optional(v.string()),

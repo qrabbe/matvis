@@ -3,6 +3,7 @@ import { internalAction, internalMutation } from './_generated/server';
 import { internal } from './_generated/api';
 import { STORES } from '@matvis/shared';
 import { QUEUE_STATUSES } from './model/ingest';
+import { storeValidator } from './model/fields';
 import { netContentFrom, soldByFrom } from './model/project';
 import {
   catalogStoreKey,
@@ -22,12 +23,12 @@ const RECOUNT_QUEUE_PAGE = 1000;
 export const RECOUNT_CATALOG_PAGE = 500;
 
 const countedTableValidator = v.union(
-  v.literal('coop_ingest_queue'),
+  v.literal('ingest_queue'),
   v.literal('catalog'),
   v.literal('eans'),
 );
 
-type CountedTable = 'coop_ingest_queue' | 'catalog' | 'eans';
+type CountedTable = 'ingest_queue' | 'catalog' | 'eans';
 
 /** One row against one coverage field. Nested fields are spelled out rather
  * than reached by path, so a rename breaks the build instead of quietly
@@ -73,7 +74,7 @@ export const recountPage = internalMutation({
   }),
   handler: async (ctx, { table, cursor }) => {
     const numItems =
-      table === 'coop_ingest_queue' ? RECOUNT_QUEUE_PAGE : RECOUNT_CATALOG_PAGE;
+      table === 'ingest_queue' ? RECOUNT_QUEUE_PAGE : RECOUNT_CATALOG_PAGE;
     const page = await ctx.db.query(table).paginate({ cursor, numItems });
 
     const counts: Record<string, number> = {};
@@ -221,6 +222,75 @@ export const normalizeUnits = internalAction({
   },
 });
 
+/** Repairs rows the unit migration emptied because `UNIT_BY_SOURCE` had no
+ * entry for their spelling.
+ *
+ * `normalizeUnitsPage` drops the three legacy fields whether or not the unit
+ * resolved, and its re-run guard is "does this row still carry legacy fields".
+ * Together that means a row whose unit was unknown cannot be repaired in place:
+ * the evidence needed to retry went with the rewrite. Adding the spelling and
+ * re-running, which MIGRATION-canonical-units.md used to advise, reaches
+ * nothing.
+ *
+ * So the legacy values come back in from the pre-migration snapshot and are
+ * re-resolved here, through the same lookup a fetch would use, rather than a
+ * caller computing the answer and this trusting it.
+ *
+ * Only fills a gap. A row that already carries `netContent` is left alone, so
+ * this can be replayed over the whole snapshot without undoing good data. */
+export const repairNetContent = internalMutation({
+  args: {
+    rows: v.array(
+      v.object({
+        ean: v.string(),
+        store: storeValidator,
+        packageSize: v.optional(v.number()),
+        packageSizeUnit: v.optional(v.string()),
+        salesUnit: v.optional(v.string()),
+      }),
+    ),
+  },
+  returns: v.object({
+    patched: v.number(),
+    skipped: v.number(),
+    stillUnresolved: v.number(),
+    absent: v.number(),
+  }),
+  handler: async (ctx, { rows }) => {
+    const totals = { patched: 0, skipped: 0, stillUnresolved: 0, absent: 0 };
+
+    for (const row of rows) {
+      const held = await ctx.db
+        .query('catalog')
+        .withIndex('by_ean_store', (q) =>
+          q.eq('ean', row.ean).eq('store', row.store),
+        )
+        .first();
+      if (!held) {
+        totals.absent += 1;
+        continue;
+      }
+      if (held.netContent !== undefined) {
+        totals.skipped += 1;
+        continue;
+      }
+
+      const netContent = netContentFrom(row.packageSize, row.packageSizeUnit);
+      if (netContent === undefined) {
+        totals.stillUnresolved += 1;
+        continue;
+      }
+
+      await ctx.db.patch(held._id, {
+        netContent,
+        soldBy: held.soldBy ?? soldByFrom(row.salesUnit),
+      });
+      totals.patched += 1;
+    }
+    return totals;
+  },
+});
+
 export const writeCounters = internalMutation({
   args: { counts: v.record(v.string(), v.number()) },
   returns: v.null(),
@@ -262,7 +332,7 @@ export const rebuildCounters = internalAction({
     }
 
     const tables: CountedTable[] = [
-      ...(doQueue ? (['coop_ingest_queue'] as const) : []),
+      ...(doQueue ? (['ingest_queue'] as const) : []),
       ...(doCatalog ? (['catalog', 'eans'] as const) : []),
     ];
 
