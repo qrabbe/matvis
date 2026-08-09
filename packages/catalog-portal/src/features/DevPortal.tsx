@@ -126,11 +126,27 @@ export function DevPortal() {
               </Text>
               <CodeBlock text={EXAMPLE_ROW} />
             </Stack>
+          </Stack>
+        </Card.Content>
+      </Card.Root>
+
+      <Card.Root>
+        <Card.Header>
+          <Card.Title>Not an allergen source</Card.Title>
+        </Card.Header>
+        <Card.Content>
+          <Stack direction="column" gap="md">
             <Text variant="body-md">
-              <strong>Price is deliberately absent.</strong> It is time-varying
-              and store-specific, so it belongs to its own contract rather than
-              to the description of a product. Package size and sales unit stay,
-              being product facts.
+              Allergens appear in the catalog only as prose inside{' '}
+              <Code>food.ingredients</Code>. The structured allergen field some
+              sources offer is not ingested at all, so the absence of an
+              allergen in this data never means the product is free of it, and
+              nothing derived from it may be presented as allergen coverage.
+            </Text>
+            <Text variant="body-md">
+              This is a policy rather than a coverage figure. It does not change
+              if coverage improves, which is why it has a heading of its own
+              instead of a line in the field list.
             </Text>
           </Stack>
         </Card.Content>
@@ -138,39 +154,35 @@ export function DevPortal() {
 
       <Card.Root>
         <Card.Header>
-          <Card.Title>
-            <Stack direction="row" gap="sm" align="center">
-              <span>Reading a product</span>
-              <Code>item.food</Code>
-            </Stack>
-          </Card.Title>
+          <Card.Title>Decisions the shape does not show</Card.Title>
         </Card.Header>
         <Card.Content>
           <Stack direction="column" gap="md">
             <Text variant="body-md">
-              One optional nested block rather than eight sibling optionals,
-              because a large part of the catalog is not food at all —
-              toothbrushes, magazines and detergent. Check{' '}
-              <Code>item.food</Code> once and render either the full card or the
-              simple one. Its presence IS the &ldquo;this is a consumable&rdquo;
-              signal — there is no <Code>kind</Code> classifier, because
-              deriving one needs a per-store category mapping that is wrong at
-              the edges.
+              <strong>Price is deliberately absent.</strong> It is time-varying
+              and store-specific, so it belongs to its own contract rather than
+              to the description of a product. Net content and{' '}
+              <Code>soldBy</Code> stay, being product facts. There is no field
+              to hang this on, which is exactly why it is written here.
             </Text>
             <Text variant="body-md">
-              <strong>Not an allergen source.</strong> Allergens appear in the
-              catalog only as prose inside <Code>food.ingredients</Code>. The
-              structured allergen field some sources offer is not ingested at
-              all, so no field here means &ldquo;contains no allergens&rdquo;
-              and nothing here may be presented as allergen coverage. This is a
-              policy, not a coverage figure: it does not change if coverage
-              improves.
+              <strong>
+                There is no <Code>kind</Code> classifier.
+              </strong>{' '}
+              Deriving one would need a per-store category mapping that is wrong
+              at the edges, so <Code>food</Code> being present is the signal
+              instead. The field note says what the rule is; this says why there
+              is no better one.
             </Text>
             <Text variant="body-md">
-              <Code>food.nutrition</Code> uses fixed slots so a consumer never
-              needs a nutrient vocabulary of its own. Nutrients outside them
-              (vitamins, minerals) are dropped rather than passed through, and
-              adding a slot later is a compatible change.
+              <strong>
+                Scaling to a package is a comparison, not a conversion.
+              </strong>{' '}
+              <Code>netContent.unit</Code> and{' '}
+              <Code>food.nutrition.basisUnit</Code> share one vocabulary, so
+              multiply only when they are equal. When they differ the product
+              genuinely is not scalable without a density nobody has, and the
+              honest answer is to skip it rather than approximate.
             </Text>
           </Stack>
         </Card.Content>

@@ -87,10 +87,12 @@ export type CatalogNutrition = z.infer<typeof CatalogNutrition>;
 export const CatalogFood = z
   .object({
     ingredients: z.string().optional().meta({
-      description: 'Ingredient list as printed on the package, free prose.',
+      description:
+        'Ingredient list as printed on the package, free prose. NOT AN ALLERGEN SOURCE: allergens appear in the catalog only as prose inside this string, never as structured data, so its absence does not mean "contains no allergens" and nothing derived from it may be presented as allergen coverage.',
     }),
     nutrition: CatalogNutrition.optional().meta({
-      description: 'Fixed nutrient slots, stated per basisQuantity basisUnit.',
+      description:
+        'Fixed nutrient slots, stated per basisQuantity basisUnit. The slots are the whole vocabulary: nutrients outside them, such as vitamins and minerals, are dropped rather than passed through, so a consumer never needs a nutrient vocabulary of its own. Adding a slot later is a compatible change.',
     }),
   })
   .meta({ id: 'CatalogFood' });
@@ -142,7 +144,7 @@ export const CatalogItem = z.object({
 
   food: CatalogFood.optional().meta({
     description:
-      'Present only for consumable products, absent entirely for a toothbrush. Its presence IS the "this is food" signal; there is no kind classifier.',
+      'Present only for consumable products, absent entirely for a toothbrush. Its presence IS the "this is food" signal; there is no kind classifier. One optional nested block rather than several sibling optionals, so a consumer checks it once and renders either the full card or the simple one.',
   }),
 
   fetchedAt: z.number().optional().meta({
