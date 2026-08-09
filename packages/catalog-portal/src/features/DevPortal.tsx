@@ -19,6 +19,7 @@ import {
   signature,
   typeExpression,
   type Model,
+  type ModelField,
   type Operation,
 } from '../lib/contract';
 import { argInputs, buildArgs, type ArgInput } from '../lib/tryIt';
@@ -35,6 +36,35 @@ const OPERATION_NOTES: Record<string, string> = {
   stats:
     'Cheap totals for a header — the maintained catalog count, plus which chains actually have rows.',
 };
+
+/** Hand-written, and the one thing on this page that is. The field list above
+ * is generated, so this exists to show the nesting in a real payload rather
+ * than to restate the shape. */
+const EXAMPLE_ROW = `{
+  "ean": "7311312009203",
+  "name": "Sås Tikka Masala",
+  "store": "coop",
+  "brand": "Santa Maria",
+  "imageUrl": "https://res.cloudinary.com/.../f_auto,q_auto/tikka.jpg",
+  "netContent": { "value": 360, "unit": "g" },
+  "packageSizeText": "360g",
+  "soldBy": "piece",
+  "categoryPath": ["Skafferi", "Mat & Sås", "Indiskt"],
+  "countryOfOrigin": "Sverige",
+  "labels": ["Nyckelhålet"],
+  "food": {
+    "ingredients": "Vatten, tomatpuré, grädde, lök, ...",
+    "nutrition": {
+      "basisQuantity": 100,
+      "basisUnit": "g",
+      "energyKcal": 109,
+      "fatG": 7.4,
+      "proteinG": 1.6,
+      "saltG": 0.9
+    }
+  },
+  "fetchedAt": 1754697600000
+}`;
 
 export function DevPortal() {
   const deploymentUrl = useConvex().url;
@@ -88,6 +118,14 @@ export function DevPortal() {
             {MODELS.map((model) => (
               <ModelSection key={model.name} model={model} />
             ))}
+            <Stack direction="column" gap="xs">
+              <Text variant="heading-sm">A worked row</Text>
+              <Text variant="body-md">
+                Everything optional is present here. Most rows carry a fraction
+                of it.
+              </Text>
+              <CodeBlock text={EXAMPLE_ROW} />
+            </Stack>
             <Text variant="body-md">
               <strong>Price is deliberately absent.</strong> It is time-varying
               and store-specific, so it belongs to its own contract rather than
@@ -329,13 +367,39 @@ function ModelSection({ model }: { model: Model }) {
   return (
     <Stack direction="column" gap="xs">
       <Text variant="heading-sm">{model.name}</Text>
-      {model.fields.map((field) => (
-        <Row
-          key={field.name}
-          name={`${field.name}${field.required ? '' : '?'}`}
-          type={field.type}
-          note={field.note}
-        />
+      <FieldList fields={model.fields} depth={0} />
+    </Stack>
+  );
+}
+
+const INDENT_PX = 18;
+
+/** Renders a block inside the field that carries it. The indent and the rule
+ * are the whole point: a nested block drawn as a sibling section makes the
+ * reader match a type name against something further down the page. */
+function FieldList({ fields, depth }: { fields: ModelField[]; depth: number }) {
+  return (
+    <Stack direction="column" gap="xs">
+      {fields.map((field) => (
+        <Stack key={field.name} direction="column" gap="xs">
+          <Row
+            name={`${field.name}${field.required ? '' : '?'}`}
+            type={field.type}
+            note={field.note}
+          />
+          {field.fields && (
+            <div
+              style={{
+                marginLeft: INDENT_PX,
+                paddingLeft: INDENT_PX,
+                borderLeft:
+                  '1px solid var(--wpds-color-stroke-surface, #403a3a)',
+              }}
+            >
+              <FieldList fields={field.fields} depth={depth + 1} />
+            </div>
+          )}
+        </Stack>
       ))}
     </Stack>
   );
