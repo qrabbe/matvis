@@ -12,6 +12,7 @@ import {
   Text,
 } from '@wordpress/ui';
 import { CopyButton, ErrorNotice, InlineSpinner, JsonView } from '@matvis/ui';
+import { MAX_EANS_PER_LOOKUP } from '@matvis/shared';
 import {
   MODELS,
   OPERATIONS,
@@ -183,6 +184,62 @@ export function DevPortal() {
               multiply only when they are equal. When they differ the product
               genuinely is not scalable without a density nobody has, and the
               honest answer is to skip it rather than approximate.
+            </Text>
+          </Stack>
+        </Card.Content>
+      </Card.Root>
+
+      <Card.Root>
+        <Card.Header>
+          <Card.Title>
+            <Stack direction="row" gap="sm" align="center">
+              <span>How</span>
+              <Code>search</Code>
+              <span>actually matches</span>
+            </Stack>
+          </Card.Title>
+        </Card.Header>
+        <Card.Content>
+          <Stack direction="column" gap="md">
+            <Text variant="body-md">
+              One argument, three different mechanisms. Which one runs is
+              decided by the shape of <Code>q</Code> alone.
+            </Text>
+            <Stack direction="column" gap="sm">
+              <SearchMode
+                when="empty or omitted"
+                how="Plain table scan, no index."
+                order="Newest first"
+              />
+              <SearchMode
+                when="digit-only, 6 or more characters"
+                how="Prefix range over the by_ean_store index. Exact or starts-with, and nothing else."
+                order="EAN ascending"
+              />
+              <SearchMode
+                when="anything else"
+                how="Full-text search index on name."
+                order="Relevance"
+              />
+            </Stack>
+            <Text variant="body-md">
+              <strong>Ordering is not stable across the three.</strong> One more
+              keystroke can flip a list from newest-first to relevance-ordered,
+              so do not build UI that assumes a stable sort or tries to re-sort
+              the results by another field. This portal's own catalog table
+              dropped its column sorting for exactly this reason.
+            </Text>
+            <Text variant="body-md">
+              A digit query returns <strong>no fuzzy matches at all.</strong>{' '}
+              That is a correctness decision, not an optimisation: a text index
+              over barcodes would match a one-digit typo onto a different real
+              product, which is worse than returning nothing.
+            </Text>
+            <Text variant="body-md">
+              <Code>getManyByEan</Code> takes at most{' '}
+              <Code>{String(MAX_EANS_PER_LOOKUP)}</Code> EANs and the server
+              throws above that rather than truncating, so a caller can never
+              silently get a partial answer.
             </Text>
           </Stack>
         </Card.Content>
@@ -372,6 +429,27 @@ function ArgField({
         onValueChange={(next) => onChange(next)}
       />
     </div>
+  );
+}
+
+function SearchMode({
+  when,
+  how,
+  order,
+}: {
+  when: string;
+  how: string;
+  order: string;
+}) {
+  return (
+    <Stack direction="column" gap="xs">
+      <Stack direction="row" gap="sm" align="baseline" wrap="wrap">
+        <Code>q</Code>
+        <Text variant="body-sm">{when}</Text>
+        <Badge intent="none">{order}</Badge>
+      </Stack>
+      <Text variant="body-sm">{how}</Text>
+    </Stack>
   );
 }
 
