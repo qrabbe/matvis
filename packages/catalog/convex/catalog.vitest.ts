@@ -171,17 +171,17 @@ describe('fetchedAt', () => {
   });
 });
 
-describe('stats', () => {
+describe('health', () => {
   function countFor(
-    stats: { stores: { store: string; count: number }[] },
+    health: { stores: { store: string; count: number }[] },
     store: string,
   ): number | undefined {
-    return stats.stores.find((row) => row.store === store)?.count;
+    return health.stores.find((row) => row.store === store)?.count;
   }
 
   test('counts through the maintained counter and breaks the total down by store', async () => {
     const t = convexTest(schema, modules);
-    const empty = await t.query(api.catalog.stats, {});
+    const empty = await t.query(api.catalog.health, {});
     expect(empty.total).toBe(0);
     // Every chain is reported, so an empty one is visible as empty rather
     // than missing.
@@ -193,7 +193,7 @@ describe('stats', () => {
       { ean: '7310865085734', name: 'Smör', store: 'coop' },
       { ean: '7310865085733', name: 'Mellanmjölk 1,5%', store: 'ica' },
     ]);
-    const seeded = await t.query(api.catalog.stats, {});
+    const seeded = await t.query(api.catalog.health, {});
     expect(seeded.total).toBe(3);
     expect(countFor(seeded, 'coop')).toBe(2);
     expect(countFor(seeded, 'ica')).toBe(1);
@@ -203,13 +203,11 @@ describe('stats', () => {
     await seed(t, [
       { ean: '7310865085733', name: 'Mellanmjölk 3%', store: 'coop' },
     ]);
-    const replaced = await t.query(api.catalog.stats, {});
+    const replaced = await t.query(api.catalog.health, {});
     expect(replaced.total).toBe(3);
     expect(countFor(replaced, 'coop')).toBe(2);
   });
-});
 
-describe('health', () => {
   test('publishes counts, freshness and coverage, and withholds the pipeline', async () => {
     const t = convexTest(schema, modules);
     await seed(t, [

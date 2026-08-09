@@ -8,7 +8,7 @@ import {
   catalogStoreKey,
   CATALOG_COUNT_KEY,
 } from './model/counters';
-import { readCoverage, readFreshness } from './model/ops';
+import { readCoverage, readFreshness } from './model/metrics';
 
 const catalogItem = catalogDocValidator;
 
@@ -105,7 +105,17 @@ export const getManyByEan = query({
  * way until someone runs a refresh by hand. Telling a consumer how stale the
  * data may be is both honest and the single most useful thing on this page.
  * Publishing it only while it flatters us is the one option worse than either
- * publishing it or not. */
+ * publishing it or not.
+ *
+ * **Store totals come from counters** rather than a `by_store` index, which is
+ * what keeps `catalog` down to one plain index plus the name search. Every
+ * store is returned, including the ones sitting at zero: filtering them out
+ * hides that the other chains exist and are empty, which is a different claim
+ * from them not existing at all.
+ *
+ * This is the only published read of those totals. It absorbed a `stats` query
+ * that returned `total` and `stores` and nothing else, which was these same two
+ * fields computed by the same code. */
 export const health = query({
   args: {},
   returns: v.object({
@@ -145,28 +155,4 @@ export const health = query({
       },
     };
   },
-});
-
-/** Store totals come from counters rather than a `by_store` index, which is
- * what keeps `catalog` down to one plain index plus the name search.
- *
- * Every store is returned, including the ones sitting at zero. Filtering them
- * out hides that the other chains exist and are empty, which is a different
- * claim from them not existing at all, and store coverage is the first thing a
- * consumer wants to know. */
-export const stats = query({
-  args: {},
-  returns: v.object({
-    total: v.number(),
-    stores: v.array(v.object({ store: storeValidator, count: v.number() })),
-  }),
-  handler: async (ctx) => ({
-    total: await readCounter(ctx, CATALOG_COUNT_KEY),
-    stores: await Promise.all(
-      STORES.map(async (store) => ({
-        store,
-        count: await readCounter(ctx, catalogStoreKey(store)),
-      })),
-    ),
-  }),
 });

@@ -21,21 +21,17 @@ type SelectItem = NonNullable<
 >[number];
 
 const STATUS_ITEMS: SelectItem[] = [
-  { label: 'Failed', value: 'failed' },
   { label: 'Pending', value: 'pending' },
   { label: 'Processing', value: 'processing' },
   { label: 'Skipped', value: 'skipped' },
-  { label: 'Done', value: 'done' },
 ];
 
 export function QueuePanel({ token }: { token: string }) {
-  const [status, setStatus] = useState<QueueStatus>('failed');
+  const [status, setStatus] = useState<QueueStatus>('pending');
   const [cursor, setCursor] = useState<string | null>(null);
   const [removeText, setRemoveText] = useState('');
 
   const page = useQuery(adminApi.admin.queueRows, { token, status, cursor });
-  const requeueFailed = useAction(adminApi.admin.requeueFailed);
-  const clearDoneRows = useAction(adminApi.admin.clearDoneRows);
   const removeQueueRows = useAction(adminApi.admin.removeQueueRows);
   const { state, run } = useAdminTask();
 
@@ -61,40 +57,18 @@ export function QueuePanel({ token }: { token: string }) {
                 items={STATUS_ITEMS}
                 value={selection}
                 onValueChange={(item) =>
-                  selectStatus((item?.value as QueueStatus) ?? 'failed')
+                  selectStatus((item?.value as QueueStatus) ?? 'pending')
                 }
               />
             </div>
-            <Button
-              variant="outline"
-              tone="neutral"
-              onClick={() =>
-                run(async () => {
-                  const result = await requeueFailed({ token });
-                  return `Requeued ${result.requeued} failed row(s).`;
-                })
-              }
-            >
-              Requeue failed
-            </Button>
-            <Button
-              variant="outline"
-              tone="neutral"
-              onClick={() =>
-                run(async () => {
-                  const result = await clearDoneRows({ token });
-                  return `Deleted ${result.deleted} done row(s).`;
-                })
-              }
-            >
-              Clear done
-            </Button>
           </Stack>
 
           <Text variant="body-sm">
-            Requeue and clear act on at most{' '}
-            {QUEUE_MAINTENANCE_LIMIT.toLocaleString()} rows per press and report
-            what they did, so a deeper queue takes more than one.
+            The queue holds only work and memos. A row whose product was stored
+            is deleted, and one whose fetch failed is back under Pending with
+            the error on it, waiting for the next run. Skipped means the store
+            returned nothing for that barcode, which is remembered so the sweep
+            does not queue it again.
           </Text>
 
           {page === undefined ? (
@@ -139,7 +113,7 @@ export function QueuePanel({ token }: { token: string }) {
             <div style={{ flex: '1 1 240px' }}>
               <InputControl
                 label="Remove rows"
-                description="Every queue row for one EAN."
+                description={`Every queue row for one EAN, up to ${QUEUE_MAINTENANCE_LIMIT.toLocaleString()}. The way to stop a barcode that fails forever, since failures requeue themselves.`}
                 placeholder="7311312009203"
                 value={removeText}
                 onValueChange={(value) => setRemoveText(value)}

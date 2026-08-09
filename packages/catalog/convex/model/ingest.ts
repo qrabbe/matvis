@@ -4,12 +4,23 @@ import { storeValidator } from './fields';
 
 export { ENQUEUE_PASTE_MAX, QUEUE_MAINTENANCE_LIMIT } from '../../src/limits';
 
+/** Three states, and every one of them is either work or a memo.
+ *
+ * There is no `done`. A row whose product reached the catalog is deleted,
+ * because the catalog row is the record and a second copy of "this worked" is
+ * just a table that grows until someone empties it by hand.
+ *
+ * There is no `failed` either. A failed fetch goes back to `pending` carrying
+ * its error and its attempt count, so the next run retries it without anyone
+ * pressing anything.
+ *
+ * `skipped` is the one terminal state, and it is a memo rather than an outcome:
+ * the store returned no item for this EAN. It has to persist, or the fill sweep
+ * re-queues every barcode the store does not stock on every pass, forever. */
 export const queueStatusValidator = v.union(
   v.literal('pending'),
   v.literal('processing'),
-  v.literal('done'),
   v.literal('skipped'),
-  v.literal('failed'),
 );
 
 export type QueueStatus = Infer<typeof queueStatusValidator>;
@@ -18,10 +29,20 @@ export type QueueStatus = Infer<typeof queueStatusValidator>;
 export const QUEUE_STATUSES: readonly QueueStatus[] = [
   'pending',
   'processing',
-  'done',
   'skipped',
-  'failed',
 ];
+
+/** What a lane reports for one claimed row. Deliberately not the queue status:
+ * an outcome is what happened during the fetch, a status is where the row sits
+ * afterwards, and only `skipped` is spelled the same in both. `stored` deletes
+ * the row and `failed` returns it to `pending`. */
+export const fetchOutcomeValidator = v.union(
+  v.literal('stored'),
+  v.literal('skipped'),
+  v.literal('failed'),
+);
+
+export type FetchOutcome = Infer<typeof fetchOutcomeValidator>;
 
 export const COOP_BATCH_SIZE = 500;
 
@@ -41,25 +62,23 @@ export function batchSizeFor(store: StoreSlug): number {
   return BATCH_SIZE_BY_STORE[store] ?? DEFAULT_BATCH_SIZE;
 }
 
-export const DEFAULT_QUEUE_BATCHES = 4;
-
 /** The fill sweep walks `eans` a page at a time and enqueues whatever `catalog`
  * is missing, so a full pass is spread across runs rather than rescanning the
  * whole table every tick. */
 export const FILL_PAGE_SIZE = 500;
 
-export const DEFAULT_FILL_BATCHES = 4;
+/** One number for one press. A run is a sweep followed by a fetch chain, and
+ * this is how many rounds each half gets before it stops on its own. */
+export const DEFAULT_RUN_BATCHES = 4;
 
 export const STALE_CLAIM_MS = 30 * 60 * 1000;
 
 export const ENQUEUE_CHUNK = 200;
 
-/** Ceiling on the batches a single console press may schedule, for both drain
- * and fill. Chains that reschedule themselves are stopped by pause, this only
- * bounds the opening request. */
+/** Ceiling on the batches a single console press may schedule. Chains that
+ * reschedule themselves are stopped by pause, this only bounds the opening
+ * request. */
 export const MAX_RUN_BATCHES = 30;
-
-export const QUEUE_DEDUP_SCAN = 8;
 
 export const MAX_ERROR_LENGTH = 500;
 
@@ -79,9 +98,7 @@ export const queueRowValidator = v.object({
 export const queueStatsValidator = v.object({
   pending: v.number(),
   processing: v.number(),
-  done: v.number(),
   skipped: v.number(),
-  failed: v.number(),
 });
 
 export type QueueStats = Infer<typeof queueStatsValidator>;

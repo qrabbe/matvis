@@ -13,12 +13,12 @@ deliberate _only while runs are started by hand_.
 ### A failed fetch does not fail the run
 
 The most surprising one, and it was found by writing the test rather than by
-reading. The `catch` in `drainOneBatch` is **inside** the run body, so a batch
+reading. The `catch` in `fetchOneBatch` is **inside** the run body, so a batch
 in which every row failed settles as `status: 'ok'` with a summary carrying
 `failed: N`. A run in which nothing succeeded is not an errored run.
 
 Anything watching for `status: 'error'` will therefore never see the most
-common real failure. That is not a defect in the drain — the run genuinely did
+common real failure. That is not a defect in the fetch — the run genuinely did
 complete and record what happened — but it is a trap for whatever eventually
 watches runs, and the distinction has to be built in from the start:
 
@@ -26,10 +26,28 @@ watches runs, and the distinction has to be built in from the start:
 - `status: 'ok'` with `failed` climbing — the run worked, the source did not.
 - `status: 'ok'` with `added: 0` and nothing claimed — there was no work.
 
-### One bad response fails the whole batch
+### The queue holds only work and memos
+
+**Decided.** There is no `done` status and no `failed` status. Three states:
+`pending`, `processing`, `skipped`.
+
+A row whose product reached the catalog is **deleted**. The catalog row is the
+record that the fetch happened, and a second row saying so is a table that grows
+until someone empties it by hand — which is exactly what the old **Clear done**
+button was for.
+
+A row whose fetch failed goes back to **`pending`**, keeping its error and its
+bumped `attempts`. The next run claims it again. That is what retired the
+**Requeue failed** button: a failure that needs a human to notice it before it
+is retried is a failure that waits as long as the human does.
+
+`skipped` is the one terminal state, and it is a memo rather than an outcome.
+See below.
+
+### One bad response fails the whole batch, and stops the chain
 
 **Accepted.** The catch marks all up to `COOP_BATCH_SIZE` (500) claimed rows
-`failed` with the same error text.
+failed with the same error text, and they all return to `pending`.
 
 It looks harsh, and the alternative is worse. Coop throttles with `403` over a
 rolling window, so the overwhelmingly common cause of a thrown fetch is a
@@ -38,14 +56,25 @@ per-row retry would answer one refused request with up to 500 more, against the
 limit that just refused it. The correct response to a throttle is fewer
 requests.
 
-Nothing is lost: the rows sit in `failed` and one **Requeue failed** press
-returns them to `pending`.
+**Which is why a thrown batch also stops the chain.** `fetchOneBatch` does not
+reschedule the remaining batches when the lane threw. Once failures return
+themselves to `pending`, a chain that carried on would re-claim the same
+barcodes and put the same request back to the API that just refused it. The
+rows wait in the queue and the next run picks them up. A per-row failure — one
+product's upsert threw while the request itself succeeded — does not stop the
+chain.
 
 ### A missing product is skipped, and never retried
 
 **Accepted today, needs revisiting with any refresh path.** An EAN Coop returns
-nothing for is recorded `skipped` with `not stocked by Coop`. `requeueFailed`
-only reaches `failed`, so `skipped` is terminal.
+nothing for is recorded `skipped` with `not stocked by Coop`, and nothing moves
+it out of that state.
+
+The memo is load-bearing, not incidental. `queueEanIfMissing` treats any
+existing queue row as a duplicate, so the `skipped` row is what stops the fill
+sweep re-queueing every unstocked barcode on every pass and the fetch
+re-requesting all of them. Deleting skipped rows the way stored ones are
+deleted would put the pipeline in a loop.
 
 The census README says the assortment is live stock and an item out of stock
 everywhere is invisible, so some of those absences are temporary. Right now
@@ -55,13 +84,20 @@ ambiguity delisting runs into below.
 
 ### `attempts` increments and nothing caps it
 
-**Blocker for automation.** There is no dead-letter state. A permanently failing
-EAN is requeued by hand forever, and `attempts` just climbs.
+**Blocker for automation, and more so than before.** There is no dead-letter
+state. A permanently failing EAN now requeues itself forever and `attempts`
+just climbs.
 
-While runs are manual this is fine, because the human pressing Requeue _is_ the
-cap. Schedule anything and it becomes an uncapped retry loop pointed at someone
-else's API. A cap, or a dead-letter status, is a precondition for turning
-anything on.
+The old behaviour parked it in `failed` and waited for a human to press
+Requeue, so the human was the cap. That cap is gone by design: the whole point
+of retry-on-next-run is that nobody has to notice. What is left is **Remove
+rows**, which is deliberate rather than accidental and is the only way to take
+a poison barcode out of the lane.
+
+While runs are manual this holds, because a run only happens when someone
+presses Run. Schedule anything and it becomes an uncapped retry loop pointed at
+someone else's API. A cap, or a dead-letter status, is a precondition for
+turning anything on.
 
 ### No retry or backoff of any kind
 
@@ -79,7 +115,7 @@ one function that needs the key.
 
 ### A dead worker's claim comes back after 30 minutes
 
-**Accepted.** `claimBatch` resets `processing` rows older than `STALE_CLAIM_MS`
+**Accepted.** `claimPendingEans` resets `processing` rows older than `STALE_CLAIM_MS`
 back to `pending`. Already covered by a test before this pass.
 
 ### What is not covered here
@@ -147,5 +183,5 @@ corrupts every number the console and the site header now show, and the drift is
 invisible until someone runs the counter rebuild.
 
 So any future delete goes through a single guarded helper that decrements all
-three, the way every queue write already goes through `model/ops.ts`. Not
+three, the way every queue write already goes through `model/queue.ts`. Not
 optional, and not something to remember at the call site.

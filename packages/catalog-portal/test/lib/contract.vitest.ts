@@ -80,7 +80,6 @@ describe('operations', () => {
       'getManyByEan',
       'health',
       'search',
-      'stats',
     ]);
     expect(OPERATIONS.every((op) => op.functionType === 'Query')).toBe(true);
   });
@@ -91,7 +90,6 @@ describe('operations', () => {
       'catalog.getManyByEan({ eans })',
       'catalog.health()',
       'catalog.search({ q?, paginationOpts })',
-      'catalog.stats()',
     ]);
   });
 
@@ -102,6 +100,6 @@ describe('operations', () => {
     expect(typeExpression(byName('search').returns)).toContain(
       'page: CatalogItem[]',
     );
-    expect(typeExpression(byName('stats').returns)).toContain('total: number');
+    expect(typeExpression(byName('health').returns)).toContain('total: number');
   });
 });

@@ -31,8 +31,7 @@ import {
 } from './model/admin';
 import { storeValidator } from './model/fields';
 import {
-  DEFAULT_FILL_BATCHES,
-  DEFAULT_QUEUE_BATCHES,
+  DEFAULT_RUN_BATCHES,
   ENQUEUE_CHUNK,
   ENQUEUE_PASTE_MAX,
   MAX_RUN_BATCHES,
@@ -49,15 +48,13 @@ import {
   runSummaryValidator,
 } from './model/ingest';
 import {
-  readCoverage,
   readFillStats,
-  readFreshness,
   readPaused,
   readQueueStats,
-  readRecentRuns,
-  readRunHistory,
   writePaused,
-} from './model/ops';
+} from './model/queue';
+import { readCoverage, readFreshness } from './model/metrics';
+import { readRecentRuns, readRunHistory } from './model/runs';
 import { readCounter, CATALOG_COUNT_KEY } from './model/counters';
 import { SEARCH_STATS_SAMPLE, tallySearchEvents } from './model/search';
 
@@ -137,7 +134,7 @@ function adminAction<
     returns: def.returns,
     handler: async (ctx, args): Promise<Infer<Returns>> => {
       const { token, ...rest } = args as ObjectType<Args> & { token: string };
-      const live: boolean = await ctx.runQuery(internal.admin.sessionIsLive, {
+      const live: boolean = await ctx.runQuery(internal.admin.isSessionLive, {
         tokenHash: await sha256Hex(token),
       });
       if (!live) throw new Error(NOT_SIGNED_IN);
@@ -148,57 +145,56 @@ function adminAction<
 
 /** The action-side door onto the same check: `adminAction` has no `ctx.db`, so
  * it hashes the token itself and asks through here. */
-export const sessionIsLive = internalQuery({
+export const isSessionLive = internalQuery({
   args: { tokenHash: v.string() },
   returns: v.boolean(),
   handler: async (ctx, { tokenHash }) =>
     await sessionLiveByHash(ctx, tokenHash),
 });
 
-export const signInGate = internalQuery({
-  args: {},
-  returns: v.object({ lockedUntil: v.union(v.number(), v.null()) }),
-  handler: async (ctx) => {
+/** The whole database side of a sign-in attempt, in one transaction: read the
+ * lockout, then either open the session or count the failure.
+ *
+ * One function rather than the gate, the failure recorder and the session
+ * opener it used to be. Those three were only ever called in sequence by
+ * `signIn`, and splitting them meant a successful sign-in paid for three round
+ * trips out of the action to do one indivisible thing.
+ *
+ * A locked attempt returns without counting, so a caller hammering a locked
+ * console cannot extend its own lockout. */
+export const resolveSignIn = internalMutation({
+  args: {
+    matched: v.boolean(),
+    tokenHash: v.string(),
+    expiresAt: v.number(),
+  },
+  returns: v.union(v.literal('ok'), v.literal('wrong'), v.literal('locked')),
+  handler: async (ctx, { matched, tokenHash, expiresAt }) => {
+    const now = Date.now();
     const guard = await ctx.db.query('admin_signin_guard').first();
+
     const lockedUntil = guard?.lockedUntil ?? null;
-    return {
-      lockedUntil:
-        lockedUntil !== null && lockedUntil > Date.now() ? lockedUntil : null,
-    };
-  },
-});
+    if (lockedUntil !== null && lockedUntil > now) return 'locked';
 
-export const recordSignInFailure = internalMutation({
-  args: {},
-  returns: v.null(),
-  handler: async (ctx) => {
-    const now = Date.now();
-    const guard = await ctx.db.query('admin_signin_guard').first();
-    if (!guard) {
-      await ctx.db.insert('admin_signin_guard', {
-        failures: 1,
-        windowStartedAt: now,
+    if (!matched) {
+      if (!guard) {
+        await ctx.db.insert('admin_signin_guard', {
+          failures: 1,
+          windowStartedAt: now,
+        });
+        return 'wrong';
+      }
+      const stale = guard.windowStartedAt <= now - SIGNIN_WINDOW_MS;
+      const failures = stale ? 1 : guard.failures + 1;
+      await ctx.db.patch(guard._id, {
+        failures,
+        windowStartedAt: stale ? now : guard.windowStartedAt,
+        lockedUntil:
+          failures >= SIGNIN_FAILURE_LIMIT ? now + SIGNIN_WINDOW_MS : undefined,
       });
-      return null;
+      return 'wrong';
     }
-    const stale = guard.windowStartedAt <= now - SIGNIN_WINDOW_MS;
-    const failures = stale ? 1 : guard.failures + 1;
-    await ctx.db.patch(guard._id, {
-      failures,
-      windowStartedAt: stale ? now : guard.windowStartedAt,
-      lockedUntil:
-        failures >= SIGNIN_FAILURE_LIMIT ? now + SIGNIN_WINDOW_MS : undefined,
-    });
-    return null;
-  },
-});
 
-export const openSession = internalMutation({
-  args: { tokenHash: v.string(), expiresAt: v.number() },
-  returns: v.null(),
-  handler: async (ctx, { tokenHash, expiresAt }) => {
-    const now = Date.now();
-    const guard = await ctx.db.query('admin_signin_guard').first();
     if (guard) {
       await ctx.db.patch(guard._id, {
         failures: 0,
@@ -217,40 +213,45 @@ export const openSession = internalMutation({
       createdAt: now,
       expiresAt,
     });
-    return null;
+    return 'ok';
   },
 });
 
+/** The only function in this file that is not behind a session, because it is
+ * what issues the token the rest check.
+ *
+ * Must stay an action: `crypto.getRandomValues` is seeded inside a mutation,
+ * which would make every token guessable. The token is generated before the
+ * outcome is known so the whole attempt is one round trip; on a refusal it is
+ * simply discarded, never stored and never returned. */
 export const signIn = action({
   args: { password: v.string() },
   returns: v.object({ token: v.string(), expiresAt: v.number() }),
   handler: async (ctx, { password }) => {
-    const gate: { lockedUntil: number | null } = await ctx.runQuery(
-      internal.admin.signInGate,
-      {},
-    );
-    if (gate.lockedUntil !== null) {
-      await delay(SIGNIN_FAILURE_DELAY_MS);
-      throw new Error(
-        'Too many failed sign-ins. The console is locked for up to an hour.',
-      );
-    }
     const expected = process.env.CATALOG_ADMIN_PASSWORD;
     if (!expected) {
       throw new Error('CATALOG_ADMIN_PASSWORD env var is not set');
     }
-    if (!(await secretsMatch(password, expected))) {
-      await delay(SIGNIN_FAILURE_DELAY_MS);
-      await ctx.runMutation(internal.admin.recordSignInFailure, {});
-      throw new Error('Wrong password');
-    }
 
     const token = generateSessionToken();
     const expiresAt = Date.now() + SESSION_TTL_MS;
-    await ctx.runMutation(internal.admin.openSession, {
-      tokenHash: await sha256Hex(token),
-      expiresAt,
-    });
+    const outcome: 'ok' | 'wrong' | 'locked' = await ctx.runMutation(
+      internal.admin.resolveSignIn,
+      {
+        matched: await secretsMatch(password, expected),
+        tokenHash: await sha256Hex(token),
+        expiresAt,
+      },
+    );
+
+    if (outcome !== 'ok') {
+      await delay(SIGNIN_FAILURE_DELAY_MS);
+      throw new Error(
+        outcome === 'locked'
+          ? 'Too many failed sign-ins. The console is locked for up to an hour.'
+          : 'Wrong password',
+      );
+    }
     return { token, expiresAt };
   },
 });
@@ -406,12 +407,20 @@ export const queueRows = adminQuery({
   },
 });
 
-export const startDrain = adminMutation({
+/** The one button. A run is a sweep of the known EANs followed by a fetch of
+ * whatever is queued, and the sweep hands over to the fetch itself, so pressing
+ * this once does both.
+ *
+ * They used to be two buttons because the sweep only chained into the fetch
+ * when it had queued something, which left a manual paste sitting in the queue
+ * until someone pressed the other one. The sweep now always hands over, and the
+ * second button had nothing left to do. */
+export const startRun = adminMutation({
   args: { store: v.optional(storeValidator), batches: v.optional(v.number()) },
   returns: v.object({ batches: v.number() }),
   handler: async (ctx, { store, batches }) => {
-    const bounded = boundedBatches(batches ?? DEFAULT_QUEUE_BATCHES);
-    await ctx.scheduler.runAfter(0, internal.ingest.processQueue, {
+    const bounded = clampBatches(batches ?? DEFAULT_RUN_BATCHES);
+    await ctx.scheduler.runAfter(0, internal.ingest.queueMissingEans, {
       store: store ?? DEFAULT_LANE,
       batches: bounded,
     });
@@ -419,24 +428,19 @@ export const startDrain = adminMutation({
   },
 });
 
-export const startFill = adminMutation({
-  args: { store: v.optional(storeValidator), batches: v.optional(v.number()) },
-  returns: v.object({ batches: v.number() }),
-  handler: async (ctx, { store, batches }) => {
-    const bounded = boundedBatches(batches ?? DEFAULT_FILL_BATCHES);
-    await ctx.scheduler.runAfter(0, internal.ingest.fillMissing, {
-      store: store ?? DEFAULT_LANE,
-      batches: bounded,
-    });
-    return { batches: bounded };
-  },
-});
-
-function boundedBatches(batches: number): number {
+function clampBatches(batches: number): number {
   if (!Number.isFinite(batches)) return 1;
   return Math.min(Math.max(Math.floor(batches), 1), MAX_RUN_BATCHES);
 }
 
+/** The stop button, not a lock. There is one operator and nothing here guards
+ * against a second one.
+ *
+ * What it is for: a run chain reschedules itself, so once a run is going this
+ * is the only thing that can stop it. A fetch reads it between batches and a
+ * sweep between pages, so a stop lands within one of those and the run settles
+ * as `paused` keeping whatever it got through. It is also the precondition
+ * `rebuildCounters` refuses without. */
 export const setPaused = adminMutation({
   args: { paused: v.boolean() },
   returns: v.null(),
@@ -446,26 +450,9 @@ export const setPaused = adminMutation({
   },
 });
 
-export const requeueFailed = adminAction({
-  args: { store: v.optional(storeValidator), limit: v.optional(v.number()) },
-  returns: v.object({ requeued: v.number() }),
-  handler: async (ctx, { store, limit }): Promise<{ requeued: number }> =>
-    await ctx.runMutation(internal.ingest.requeueFailed, {
-      store: store ?? DEFAULT_LANE,
-      limit,
-    }),
-});
-
-export const clearDoneRows = adminAction({
-  args: { store: v.optional(storeValidator), limit: v.optional(v.number()) },
-  returns: v.object({ deleted: v.number() }),
-  handler: async (ctx, { store, limit }): Promise<{ deleted: number }> =>
-    await ctx.runMutation(internal.ingest.clearDoneRows, {
-      store: store ?? DEFAULT_LANE,
-      limit,
-    }),
-});
-
+/** The queue's only manual lever, now that a stored row deletes itself and a
+ * failed one requeues itself. It is how a barcode that fails forever stops
+ * being retried. */
 export const removeQueueRows = adminAction({
   args: { store: v.optional(storeValidator), ean: v.string() },
   returns: v.object({ deleted: v.number() }),
@@ -494,7 +481,7 @@ export const rebuildCounters = adminAction({
     catalog: Record<string, number> | null;
     pages: number;
   }> => {
-    const paused: boolean = await ctx.runQuery(internal.ops.isPaused, {});
+    const paused: boolean = await ctx.runQuery(internal.runLog.isPaused, {});
     if (!paused) {
       throw new Error('Pause ingest before rebuilding the counters');
     }

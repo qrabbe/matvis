@@ -4,8 +4,7 @@ import { Button, Card, InputControl, Stack, Text } from '@wordpress/ui';
 import { adminApi } from '../../lib/adminApi';
 import { TaskResult, useAdminTask } from './task';
 
-const DEFAULT_DRAIN_BATCHES = 4;
-const DEFAULT_FILL_BATCHES = 8;
+const DEFAULT_BATCHES = 4;
 
 export function RunControls({
   token,
@@ -14,14 +13,10 @@ export function RunControls({
   token: string;
   paused: boolean;
 }) {
-  const startDrain = useMutation(adminApi.admin.startDrain);
-  const startFill = useMutation(adminApi.admin.startFill);
+  const startRun = useMutation(adminApi.admin.startRun);
   const setPaused = useMutation(adminApi.admin.setPaused);
 
-  const [drainBatches, setDrainBatches] = useState(
-    String(DEFAULT_DRAIN_BATCHES),
-  );
-  const [fillBatches, setFillBatches] = useState(String(DEFAULT_FILL_BATCHES));
+  const [batches, setBatches] = useState(String(DEFAULT_BATCHES));
   const { state, run } = useAdminTask();
 
   return (
@@ -33,61 +28,45 @@ export function RunControls({
         <Stack direction="column" gap="lg">
           <Stack direction="column" gap="sm">
             <Text variant="body-sm">
-              Fill walks the known EANs and queues whatever the catalog has no
-              row for. Drain fetches what is queued. New barcodes come from the
+              One run walks the known EANs, queues whatever the catalog has no
+              row for, then fetches what is queued. New barcodes come from the
               local census script, not from here.
+            </Text>
+            <Text variant="body-sm">
+              Rows that fail go back in the queue with the error on them, so the
+              next run picks them up. Nothing needs requeueing by hand, and a
+              row whose product was stored leaves the queue for good.
             </Text>
           </Stack>
 
           <Stack direction="row" gap="md" align="end" wrap="wrap">
             <div style={{ flex: '0 1 140px' }}>
               <InputControl
-                label="Drain batches"
+                label="Batches"
                 type="number"
-                value={drainBatches}
-                onValueChange={(value) => setDrainBatches(value)}
+                value={batches}
+                onValueChange={(value) => setBatches(value)}
               />
             </div>
             <Button
               onClick={() =>
                 run(async () => {
-                  const result = await startDrain({
+                  const result = await startRun({
                     token,
-                    batches: Number(drainBatches),
+                    batches: Number(batches),
                   });
-                  return `Drain scheduled for ${result.batches} batch(es).`;
+                  return `Run scheduled for ${result.batches} batch(es).`;
                 })
               }
             >
-              Drain queue
-            </Button>
-            <div style={{ flex: '0 1 140px' }}>
-              <InputControl
-                label="Fill batches"
-                type="number"
-                value={fillBatches}
-                onValueChange={(value) => setFillBatches(value)}
-              />
-            </div>
-            <Button
-              onClick={() =>
-                run(async () => {
-                  const result = await startFill({
-                    token,
-                    batches: Number(fillBatches),
-                  });
-                  return `Fill sweep scheduled for ${result.batches} batch(es).`;
-                })
-              }
-            >
-              Fill missing
+              Run
             </Button>
           </Stack>
 
           <Stack direction="column" gap="sm">
             <Text variant="body-sm">
-              Pause is re-read between batches, so a running drain stops within
-              one batch and a running fill stops within one page. It is the only
+              Pause is re-read between batches, so a running fetch stops within
+              one batch and a running sweep within one page. It is the only
               thing that can stop a chain that schedules itself. A run stopped
               this way is logged as paused and keeps what it got through.
             </Text>

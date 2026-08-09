@@ -15,6 +15,7 @@ import {
   EANS_COUNT_KEY,
 } from './counters';
 import type { CoopProduct } from '../coop/sanitize';
+import { netContentFromName, type IcaProduct } from '../ica/parse';
 
 /** What a projector produces. `fetchedAt` is excluded because a projection is a
  * pure function of a payload and the time it arrived is not in the payload:
@@ -242,6 +243,46 @@ export const projectCoop: Projector<CoopProduct> = (doc) => {
   };
 };
 
+/** ICA's page yields most of the contract directly, so this is mostly a
+ * rename. Three fields are absent rather than derived, and each for a reason
+ * worth keeping written down:
+ *
+ * `netContent` is read out of the product name because ICA publishes no size
+ * field on the public page. It is on the store scoped ecommerce API as
+ * `packSizeDescription`, along with `countryOfOrigin` and `labels`, but that
+ * API answers five calls before a WAF challenge locks it out for minutes, so it
+ * cannot carry a 34 437 product load. See `netContentFromName`.
+ *
+ * `soldBy` is left absent rather than guessed at `piece`. ICA states it
+ * nowhere, and a wrong `weight`/`piece` on a loose item is worse than none.
+ *
+ * `imageUrl` needs no rewriting. ICA already serves a sized webp, which is the
+ * whole of what `webImageUrl` exists to do for Coop's TIFF originals. */
+export const projectIca: Projector<IcaProduct> = (doc) => {
+  if (!doc.ean || !doc.name) return null;
+
+  return {
+    ean: doc.ean,
+    name: doc.name,
+
+    brand: text(doc.brand),
+    imageUrl: text(doc.imageUrl),
+    netContent: netContentFromName(doc.name),
+    packageSizeText: undefined,
+    soldBy: undefined,
+    categoryPath: doc.categoryPath,
+
+    description: text(doc.description),
+    countryOfOrigin: undefined,
+    labels: undefined,
+
+    food:
+      doc.ingredients || doc.nutrition
+        ? { ingredients: doc.ingredients, nutrition: doc.nutrition }
+        : undefined,
+  };
+};
+
 export function project(
   store: StoreSlug,
   doc: CoopProduct,
@@ -249,6 +290,14 @@ export function project(
   const projected = projectCoop(doc);
   if (!projected) return null;
   return { ...projected, store };
+}
+
+/** The ICA half of `project`. Separate rather than an overload because the two
+ * take unrelated payloads and share nothing but the return type. */
+export function projectIcaProduct(doc: IcaProduct): CleanFields | null {
+  const projected = projectIca(doc);
+  if (!projected) return null;
+  return { ...projected, store: 'ica' };
 }
 
 /** Replaces rather than patches: a projection is a total function of one source

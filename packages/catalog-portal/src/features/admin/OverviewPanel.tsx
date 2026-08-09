@@ -17,7 +17,7 @@ export function OverviewPanel({
   const { queue, fill, freshness } = overview;
   // The per-store breakdown is the same public query the site header reads,
   // rather than a second copy of the same counters behind the session gate.
-  const stats = useQuery(api.catalog.stats, {});
+  const health = useQuery(api.catalog.health, {});
   const rebuildCounters = useAction(adminApi.admin.rebuildCounters);
   const { state, run } = useAdminTask();
 
@@ -44,11 +44,11 @@ export function OverviewPanel({
               Rows per store. A chain at zero is one nothing has been ingested
               for yet, not one that does not exist.
             </Text>
-            {stats === undefined ? (
+            {health === undefined ? (
               <SkeletonList label="Loading store counts…" rows={2} />
             ) : (
               <Stack direction="row" gap="xl" wrap="wrap">
-                {[...stats.stores]
+                {[...health.stores]
                   .sort((a, b) => b.count - a.count)
                   .map((row) => (
                     <Stat
@@ -60,12 +60,21 @@ export function OverviewPanel({
               </Stack>
             )}
           </Stack>
-          <Stack direction="row" gap="xl" wrap="wrap">
-            <Stat label="Pending" value={formatCount(queue.pending)} />
-            <Stat label="Processing" value={formatCount(queue.processing)} />
-            <Stat label="Done" value={formatCount(queue.done)} />
-            <Stat label="Skipped" value={formatCount(queue.skipped)} />
-            <Stat label="Failed" value={formatCount(queue.failed)} />
+          <Stack direction="column" gap="sm">
+            <Text variant="body-sm">
+              What the queue is holding. There is no done count and no failed
+              count: a stored row leaves the queue, and a failed one goes back
+              to pending for the next run.
+            </Text>
+            <Stack direction="row" gap="xl" wrap="wrap">
+              <Stat label="Pending" value={formatCount(queue.pending)} />
+              <Stat label="Processing" value={formatCount(queue.processing)} />
+              <Stat
+                label="Skipped"
+                value={formatCount(queue.skipped)}
+                note="barcodes the store returned nothing for, remembered so the sweep does not queue them again"
+              />
+            </Stack>
           </Stack>
           <Stack direction="row" gap="xl" wrap="wrap">
             <Stat

@@ -33,7 +33,7 @@ describe('argInputs', () => {
   });
 
   it('asks for nothing when the operation takes nothing', () => {
-    expect(argInputs(byName('stats'))).toEqual([]);
+    expect(argInputs(byName('health'))).toEqual([]);
   });
 });
 

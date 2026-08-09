@@ -67,7 +67,6 @@ describe('DevPortal', () => {
       'catalog.getByEan({ ean })',
       'catalog.getManyByEan({ eans })',
       'catalog.search({ q?, paginationOpts })',
-      'catalog.stats()',
     ]) {
       expect(screen.getByText(signature)).toBeInTheDocument();
     }

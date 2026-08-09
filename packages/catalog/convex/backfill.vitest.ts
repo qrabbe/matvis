@@ -11,7 +11,8 @@ import {
   EANS_COUNT_KEY,
 } from './model/counters';
 import { rememberEan, upsertClean } from './model/project';
-import { readCoverage, readFillStats, readQueueStats } from './model/ops';
+import { readFillStats, readQueueStats } from './model/queue';
+import { readCoverage } from './model/metrics';
 import type { QueueStatus } from './model/ingest';
 
 const modules = import.meta.glob('./**/*.ts');
@@ -71,8 +72,8 @@ describe('rebuildCounters', () => {
       { status: 'pending' },
       { status: 'pending' },
       { status: 'processing' },
-      { status: 'done' },
-      { status: 'done' },
+      { status: 'skipped' },
+      { status: 'skipped' },
     ]);
     await seedCatalog(t, 5);
 
@@ -80,9 +81,7 @@ describe('rebuildCounters', () => {
     expect(result.queue).toEqual({
       pending: 3,
       processing: 1,
-      done: 2,
-      skipped: 0,
-      failed: 0,
+      skipped: 2,
     });
     expect(result.catalog).toMatchObject({ total: 5, eans: 5, coop: 5 });
     expect(result.pages).toBe(3);
@@ -90,9 +89,7 @@ describe('rebuildCounters', () => {
     expect(await queueStats(t)).toEqual({
       pending: 3,
       processing: 1,
-      done: 2,
-      skipped: 0,
-      failed: 0,
+      skipped: 2,
     });
     expect(await fillStats(t)).toMatchObject({
       eansKnown: 5,
@@ -107,7 +104,10 @@ describe('rebuildCounters', () => {
       { status: 'pending' },
     ]);
 
-    await t.mutation(internal.ingest.claimBatch, { store: 'coop', limit: 1 });
+    await t.mutation(internal.ingest.claimPendingEans, {
+      store: 'coop',
+      limit: 1,
+    });
     expect(await queueStats(t)).toMatchObject({
       pending: -1,
       processing: 1,
@@ -123,14 +123,14 @@ describe('rebuildCounters', () => {
   test('a status with no rows recounts to an explicit zero', async () => {
     const t = convexTest(schema, modules);
     await seedQueue(t, [{ status: 'pending' }]);
-    await t.mutation(internal.backfill.writeCounters, {
-      counts: { [queueCountKey('failed')]: 7 },
+    await t.mutation(internal.backfill.saveCounters, {
+      counts: { [queueCountKey('skipped')]: 7 },
     });
 
     await t.action(internal.backfill.rebuildCounters, { scope: 'queue' });
     expect(await queueStats(t)).toMatchObject({
       pending: 1,
-      failed: 0,
+      skipped: 0,
     });
   });
 

@@ -5,22 +5,24 @@ import { cronJobs } from 'convex/server';
  * turn scheduled ingest on. Times are UTC and staggered off the hour. */
 const crons = cronJobs();
 
-// Fill: queue whatever `eans` knows about that `catalog` has no row for.
+// A whole run: sweep `eans` for what `catalog` has no row for, then fetch it.
+// The sweep hands over to the fetch itself, so this one job is the pair.
 //
 // crons.cron(
-//   'coop fill sweep',
+//   'coop ingest run',
 //   '15 3 * * *',
-//   internal.ingest.fillMissing,
-//   {},
+//   internal.ingest.queueMissingEans,
+//   { store: 'coop' },
 // );
 
-// The queue's heartbeat, for rows the fill sweep did not drain itself.
+// The queue's heartbeat, for rows already queued when no sweep is due. Also
+// what retries every failure, since a failed row sits in `pending`.
 //
 // crons.interval(
 //   'coop ingest queue',
 //   { hours: 1 },
-//   internal.ingest.processQueue,
-//   {},
+//   internal.ingest.fetchQueuedEans,
+//   { store: 'coop' },
 // );
 
 export default crons;

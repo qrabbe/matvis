@@ -64,8 +64,11 @@ type CountPage = {
 };
 
 /** One page of one table, tallied into counter keys. Each table derives its own
- * keys, so the paging, the cursor and the return shape are written once. */
-export const recountPage = internalMutation({
+ * keys, so the paging, the cursor and the return shape are written once.
+ *
+ * Separate from `rebuildCounters` because the action drives the cursor and
+ * cannot read the database itself. */
+export const countTablePage = internalMutation({
   args: { table: countedTableValidator, cursor: v.union(v.string(), v.null()) },
   returns: v.object({
     counts: v.record(v.string(), v.number()),
@@ -291,7 +294,10 @@ export const repairNetContent = internalMutation({
   },
 });
 
-export const writeCounters = internalMutation({
+/** The write half of the rebuild, not a second way to rebuild. Every page is
+ * tallied first and the totals land here in one call, because the action doing
+ * the tallying cannot write. */
+export const saveCounters = internalMutation({
   args: { counts: v.record(v.string(), v.number()) },
   returns: v.null(),
   handler: async (ctx, { counts }) => {
@@ -341,7 +347,7 @@ export const rebuildCounters = internalAction({
       let cursor: string | null = null;
       for (;;) {
         const page: CountPage = await ctx.runMutation(
-          internal.backfill.recountPage,
+          internal.backfill.countTablePage,
           { table, cursor },
         );
         for (const [key, value] of Object.entries(page.counts)) {
@@ -356,7 +362,7 @@ export const rebuildCounters = internalAction({
     // Stamped just before the write, so the timestamp means "these counts are
     // as of here" rather than "a recount started at some point".
     if (doCatalog) totals[COVERAGE_MEASURED_AT_KEY] = Date.now();
-    await ctx.runMutation(internal.backfill.writeCounters, { counts: totals });
+    await ctx.runMutation(internal.backfill.saveCounters, { counts: totals });
 
     let queue: Record<string, number> | null = null;
     if (doQueue) {

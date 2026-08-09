@@ -14,12 +14,12 @@ import {
 } from './lib/route';
 import { api } from './lib/convexApi';
 
-type Stats = { total: number; stores: { store: StoreSlug; count: number }[] };
+type Totals = { total: number; stores: { store: StoreSlug; count: number }[] };
 
 /** The header has room for one line, so the empty chains are dropped here even
  * though the query reports them. The console is where the zeros are worth
  * seeing. */
-function summarise({ total, stores }: Stats): string {
+function summarise({ total, stores }: Totals): string {
   const stocked = stores
     .filter((row) => row.count > 0)
     .sort((a, b) => b.count - a.count)
@@ -29,7 +29,7 @@ function summarise({ total, stores }: Stats): string {
 }
 
 export function App() {
-  const stats = useQuery(api.catalog.stats, {});
+  const health = useQuery(api.catalog.health, {});
   const route = useRoute();
   const ean = eanFromPath(route);
   const admin = isAdminPath(route);
@@ -48,7 +48,7 @@ export function App() {
             Matvis Catalog
           </Text>
           <Text variant="body-md">
-            {stats ? summarise(stats) : 'Product database'}
+            {health ? summarise(health) : 'Product database'}
           </Text>
         </Stack>
         {!admin && (

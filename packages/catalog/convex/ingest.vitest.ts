@@ -5,12 +5,8 @@ import { internal } from './_generated/api';
 import type { Doc } from './_generated/dataModel';
 import schema from './schema';
 import { rememberEan, upsertClean } from './model/project';
-import { insertQueueRow, readQueueStats, writePaused } from './model/ops';
-import {
-  COOP_BATCH_SIZE,
-  QUEUE_DEDUP_SCAN,
-  STALE_CLAIM_MS,
-} from './model/ingest';
+import { insertQueueRow, readQueueStats, writePaused } from './model/queue';
+import { COOP_BATCH_SIZE, STALE_CLAIM_MS } from './model/ingest';
 
 const modules = import.meta.glob('./**/*.ts');
 
@@ -83,14 +79,14 @@ describe('two stores, one barcode', () => {
 
     // Claiming one lane leaves the other untouched, and carries the source id
     // the ICA fetch needs to address the page.
-    const ica = await t.mutation(internal.ingest.claimBatch, {
+    const ica = await t.mutation(internal.ingest.claimPendingEans, {
       store: 'ica',
       limit: 10,
     });
     expect(ica).toHaveLength(1);
     expect(ica[0].sourceId).toBe('2009660');
 
-    const coop = await t.mutation(internal.ingest.claimBatch, {
+    const coop = await t.mutation(internal.ingest.claimPendingEans, {
       store: 'coop',
       limit: 10,
     });
@@ -115,14 +111,14 @@ describe('two stores, one barcode', () => {
       await rememberEan(ctx, 'ica', '7300000000001', '2009661');
     });
 
-    const ica = await t.mutation(internal.ingest.fillMissingPage, {
+    const ica = await t.mutation(internal.ingest.queueMissingPage, {
       store: 'ica',
     });
     expect(ica).toMatchObject({ scanned: 2, queued: 2 });
     expect((await queueRows(t)).every((row) => row.store === 'ica')).toBe(true);
 
     // The ICA pass wrapping must not move Coop's cursor.
-    const coop = await t.mutation(internal.ingest.fillMissingPage, {
+    const coop = await t.mutation(internal.ingest.queueMissingPage, {
       store: 'coop',
     });
     expect(coop).toMatchObject({ scanned: 1, queued: 1 });
@@ -199,12 +195,12 @@ describe('enqueue', () => {
   });
 });
 
-describe('claimBatch', () => {
+describe('claimPendingEans', () => {
   test('a claim is exclusive, so a second claimer gets nothing', async () => {
     const t = convexTest(schema, modules);
     await enqueueEans(t, 2);
 
-    const first = await t.mutation(internal.ingest.claimBatch, {
+    const first = await t.mutation(internal.ingest.claimPendingEans, {
       store: 'coop',
       limit: 10,
     });
@@ -214,17 +210,17 @@ describe('claimBatch', () => {
       processing: 2,
     });
 
-    const second = await t.mutation(internal.ingest.claimBatch, {
+    const second = await t.mutation(internal.ingest.claimPendingEans, {
       store: 'coop',
       limit: 10,
     });
     expect(second).toEqual([]);
   });
 
-  test('claiming stamps the attempt and settling releases the row', async () => {
+  test('a stored row leaves the queue rather than parking in it', async () => {
     const t = convexTest(schema, modules);
     await enqueueEans(t, 1);
-    const [claimed] = await t.mutation(internal.ingest.claimBatch, {
+    const [claimed] = await t.mutation(internal.ingest.claimPendingEans, {
       store: 'coop',
       limit: 10,
     });
@@ -234,58 +230,62 @@ describe('claimBatch', () => {
     expect(inFlight.attempts).toBe(1);
     expect(inFlight.claimedAt).toBeDefined();
 
-    await t.mutation(internal.ingest.markResults, {
-      results: [{ id: claimed.id, status: 'done' }],
+    await t.mutation(internal.ingest.settleClaimedRows, {
+      results: [{ id: claimed.id, outcome: 'stored' }],
     });
-    const settled = (await queueRows(t))[0];
-    expect(settled.status).toBe('done');
-    expect(settled.claimedAt).toBeUndefined();
-    expect(settled.processedAt).toBeDefined();
+    expect(await queueRows(t)).toEqual([]);
     expect(await queueStats(t)).toMatchObject({
+      pending: 0,
       processing: 0,
-      done: 1,
+      skipped: 0,
     });
   });
 
-  test('a failure keeps its error and a later success clears it', async () => {
+  /** The whole reason there is no requeue button. A failure is not terminal and
+   * nobody has to notice it for the row to be tried again. */
+  test('a failure goes back to pending with its error, and the next claim takes it', async () => {
     const t = convexTest(schema, modules);
     await enqueueEans(t, 1);
-    const [first] = await t.mutation(internal.ingest.claimBatch, {
+    const [first] = await t.mutation(internal.ingest.claimPendingEans, {
       store: 'coop',
       limit: 10,
     });
-    await t.mutation(internal.ingest.markResults, {
-      results: [{ id: first.id, status: 'failed', error: 'Coop by-id failed' }],
+    await t.mutation(internal.ingest.settleClaimedRows, {
+      results: [
+        { id: first.id, outcome: 'failed', error: 'Coop by-id failed' },
+      ],
     });
-    expect((await queueRows(t))[0].lastError).toBe('Coop by-id failed');
 
-    await t.mutation(internal.ingest.requeueFailed, { store: 'coop' });
     const requeued = (await queueRows(t))[0];
     expect(requeued.status).toBe('pending');
-    expect(requeued.lastError).toBeUndefined();
+    expect(requeued.lastError).toBe('Coop by-id failed');
+    expect(requeued.claimedAt).toBeUndefined();
+    expect(await queueStats(t)).toMatchObject({ pending: 1, processing: 0 });
 
-    const [second] = await t.mutation(internal.ingest.claimBatch, {
+    // No requeue step in between: the row was already claimable again.
+    const [second] = await t.mutation(internal.ingest.claimPendingEans, {
       store: 'coop',
       limit: 10,
     });
-    await t.mutation(internal.ingest.markResults, {
-      results: [{ id: second.id, status: 'done' }],
+    expect(second.id).toBe(first.id);
+    expect((await queueRows(t))[0].attempts).toBe(2);
+
+    await t.mutation(internal.ingest.settleClaimedRows, {
+      results: [{ id: second.id, outcome: 'stored' }],
     });
-    const done = (await queueRows(t))[0];
-    expect(done.lastError).toBeUndefined();
-    expect(done.attempts).toBe(2);
+    expect(await queueRows(t)).toEqual([]);
   });
 
   test('a claim a dead worker left behind is reclaimed once it goes stale', async () => {
     const t = convexTest(schema, modules);
     await enqueueEans(t, 1);
-    const [claimed] = await t.mutation(internal.ingest.claimBatch, {
+    const [claimed] = await t.mutation(internal.ingest.claimPendingEans, {
       store: 'coop',
       limit: 10,
     });
 
     expect(
-      await t.mutation(internal.ingest.claimBatch, {
+      await t.mutation(internal.ingest.claimPendingEans, {
         store: 'coop',
         limit: 10,
       }),
@@ -297,7 +297,7 @@ describe('claimBatch', () => {
       });
     });
 
-    const reclaimed = await t.mutation(internal.ingest.claimBatch, {
+    const reclaimed = await t.mutation(internal.ingest.claimPendingEans, {
       store: 'coop',
       limit: 10,
     });
@@ -313,14 +313,14 @@ describe('claimBatch', () => {
     const t = convexTest(schema, modules);
     await enqueueEans(t, 5);
 
-    const first = await t.mutation(internal.ingest.claimBatch, {
+    const first = await t.mutation(internal.ingest.claimPendingEans, {
       store: 'coop',
       limit: 2,
     });
     expect(first).toHaveLength(2);
     expect(await queueStats(t)).toMatchObject({ pending: 3, processing: 2 });
 
-    const second = await t.mutation(internal.ingest.claimBatch, {
+    const second = await t.mutation(internal.ingest.claimPendingEans, {
       store: 'coop',
       limit: 10,
     });
@@ -329,31 +329,52 @@ describe('claimBatch', () => {
 });
 
 describe('queue maintenance', () => {
-  test('clearDoneRows deletes done rows and leaves skipped ones as the memo', async () => {
+  test('a settled batch keeps only the skipped memo', async () => {
     const t = convexTest(schema, modules);
     await enqueueEans(t, 2);
-    const claimed = await t.mutation(internal.ingest.claimBatch, {
+    const claimed = await t.mutation(internal.ingest.claimPendingEans, {
       store: 'coop',
       limit: 10,
     });
-    await t.mutation(internal.ingest.markResults, {
+    await t.mutation(internal.ingest.settleClaimedRows, {
       results: [
-        { id: claimed[0].id, status: 'done' },
-        { id: claimed[1].id, status: 'skipped', error: 'not stocked by Coop' },
+        { id: claimed[0].id, outcome: 'stored' },
+        { id: claimed[1].id, outcome: 'skipped', error: 'not stocked by Coop' },
+      ],
+    });
+
+    // Nothing was pressed. The stored row is gone and the memo is what is left.
+    const left = await queueRows(t);
+    expect(left.map((row) => row.status)).toEqual(['skipped']);
+    expect(await queueStats(t)).toMatchObject({
+      pending: 0,
+      processing: 0,
+      skipped: 1,
+    });
+  });
+
+  /** The memo has to survive, or the sweep queues every unstocked barcode again
+   * on the next pass and the drain re-fetches all of them. */
+  test('a skipped row stops the sweep queueing that barcode again', async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      await rememberEan(ctx, 'coop', '7300000000000');
+    });
+    await t.mutation(internal.ingest.queueMissingPage, { store: 'coop' });
+    const [claimed] = await t.mutation(internal.ingest.claimPendingEans, {
+      store: 'coop',
+      limit: 10,
+    });
+    await t.mutation(internal.ingest.settleClaimedRows, {
+      results: [
+        { id: claimed.id, outcome: 'skipped', error: 'not stocked by Coop' },
       ],
     });
 
     expect(
-      await t.mutation(internal.ingest.clearDoneRows, { store: 'coop' }),
-    ).toEqual({
-      deleted: 1,
-    });
-    const left = await queueRows(t);
-    expect(left.map((row) => row.status)).toEqual(['skipped']);
-    expect(await queueStats(t)).toMatchObject({
-      done: 0,
-      skipped: 1,
-    });
+      await t.mutation(internal.ingest.queueMissingPage, { store: 'coop' }),
+    ).toMatchObject({ scanned: 1, queued: 0 });
+    expect(await queueRows(t)).toHaveLength(1);
   });
 
   test('removeQueueRows drops every row for one EAN', async () => {
@@ -372,9 +393,9 @@ describe('queue maintenance', () => {
     });
   });
 
-  test('removeQueueRows is not bounded by the dedup lookahead', async () => {
+  test('removeQueueRows clears every duplicate row for one EAN', async () => {
     const t = convexTest(schema, modules);
-    const many = QUEUE_DEDUP_SCAN + 4;
+    const many = 12;
     // Straight inserts: `queueEanIfMissing` would dedup these down to one, and
     // the rows this has to cope with are exactly the ones that got past it.
     await t.run(async (ctx) => {
@@ -382,7 +403,7 @@ describe('queue maintenance', () => {
         await insertQueueRow(ctx, {
           ean: '7300000000000',
           store: 'coop',
-          status: 'failed',
+          status: 'pending',
           attempts: 1,
           source: 'census',
           enqueuedAt: Date.now(),
@@ -397,11 +418,11 @@ describe('queue maintenance', () => {
       }),
     ).toEqual({ deleted: many });
     expect(await queueRows(t)).toEqual([]);
-    expect(await queueStats(t)).toMatchObject({ failed: 0 });
+    expect(await queueStats(t)).toMatchObject({ pending: 0 });
   });
 });
 
-describe('fillMissing', () => {
+describe('queueMissingEans', () => {
   test('queues only the EANs catalog has no row for, and wraps its cursor', async () => {
     const t = convexTest(schema, modules);
     await t.run(async (ctx) => {
@@ -411,20 +432,20 @@ describe('fillMissing', () => {
       }
     });
 
-    const first = await t.mutation(internal.ingest.fillMissingPage, {
+    const first = await t.mutation(internal.ingest.queueMissingPage, {
       store: 'coop',
     });
     expect(first).toEqual({ scanned: 3, queued: 2, wrapped: true });
 
     const queued = await t.run(async (ctx) =>
-      (await ctx.db.query('ingest_queue').collect())
+      (await ctx.db.query('ingest_queue').take(50))
         .map((row) => row.ean)
         .sort(),
     );
     expect(queued).toEqual(['gap-one', 'gap-two']);
 
     // A second pass finds the same gaps already queued and adds nothing.
-    const second = await t.mutation(internal.ingest.fillMissingPage, {
+    const second = await t.mutation(internal.ingest.queueMissingPage, {
       store: 'coop',
     });
     expect(second).toMatchObject({ queued: 0, wrapped: true });
@@ -440,7 +461,7 @@ describe('fillMissing', () => {
     });
 
     expect(
-      await t.action(internal.ingest.fillMissing, {
+      await t.action(internal.ingest.queueMissingEans, {
         store: 'coop',
         batches: 4,
         pageSize: 1,
@@ -465,7 +486,7 @@ describe('fillMissing', () => {
     // One EAN per page, three rounds: the loop is what decides how far this
     // gets, which is why pause has to be readable from inside it.
     expect(
-      await t.action(internal.ingest.fillMissing, {
+      await t.action(internal.ingest.queueMissingEans, {
         store: 'coop',
         batches: 3,
         pageSize: 1,

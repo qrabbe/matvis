@@ -29,9 +29,14 @@ async function sessions(t: ReturnType<typeof convexTest>) {
   );
 }
 
+/** Wrong-password attempts, driven through the same door a real one uses. */
 async function recordFailures(t: ReturnType<typeof convexTest>, n: number) {
   for (let i = 0; i < n; i += 1) {
-    await t.mutation(internal.admin.recordSignInFailure, {});
+    await t.mutation(internal.admin.resolveSignIn, {
+      matched: false,
+      tokenHash: 'unused',
+      expiresAt: 0,
+    });
   }
 }
 
@@ -40,7 +45,6 @@ async function recordFailures(t: ReturnType<typeof convexTest>, n: number) {
  * has to ask whether the function is gated. `signIn` is the only bare
  * registration, because it is what issues the token the rest check. */
 const PUBLIC_ADMIN_FUNCTIONS = [
-  'clearDoneRows',
   'coverage',
   'enqueueEans',
   'overview',
@@ -48,15 +52,13 @@ const PUBLIC_ADMIN_FUNCTIONS = [
   'rebuildCounters',
   'removeQueueRows',
   'repairNetContent',
-  'requeueFailed',
   'runHistory',
   'runs',
   'searchStats',
   'setPaused',
   'signIn',
   'signOutEverywhere',
-  'startDrain',
-  'startFill',
+  'startRun',
 ];
 
 describe('the public surface', () => {
@@ -112,7 +114,7 @@ describe('the session gate', () => {
       t.mutation(api.admin.setPaused, { token: 'bogus', paused: true }),
     ).rejects.toThrow(/Not signed in/);
     await expect(
-      t.action(api.admin.clearDoneRows, { token: 'bogus' }),
+      t.action(api.admin.removeQueueRows, { token: 'bogus', ean: '73000000' }),
     ).rejects.toThrow(/Not signed in/);
 
     await t.mutation(api.admin.setPaused, { token, paused: true });
@@ -133,9 +135,9 @@ describe('the session gate', () => {
     await expect(
       t.mutation(api.admin.setPaused, { token, paused: true }),
     ).rejects.toThrow(/Not signed in/);
-    await expect(t.action(api.admin.clearDoneRows, { token })).rejects.toThrow(
-      /Not signed in/,
-    );
+    await expect(
+      t.action(api.admin.removeQueueRows, { token, ean: '73000000' }),
+    ).rejects.toThrow(/Not signed in/);
   });
 
   test('signing out everywhere revokes every session, including this one', async () => {
@@ -182,32 +184,34 @@ describe('the queue console', () => {
       })),
       source: 'census',
     });
-    const claimed = await t.mutation(internal.ingest.claimBatch, {
+    const claimed = await t.mutation(internal.ingest.claimPendingEans, {
       store: 'coop',
       limit: 10,
     });
-    await t.mutation(internal.ingest.markResults, {
+    await t.mutation(internal.ingest.settleClaimedRows, {
       results: claimed.map((row) => ({
         id: row.id,
-        status: 'failed' as const,
+        outcome: 'failed' as const,
         error: `no luck for ${row.ean}`,
       })),
     });
 
+    // Failures sit under Pending carrying their error, which is what the
+    // console shows now that there is no failed lane to filter to.
     const page = await t.query(api.admin.queueRows, {
       token,
-      status: 'failed',
+      status: 'pending',
     });
     expect(page).not.toBeNull();
     expect(page!.rows).toHaveLength(3);
     expect(page!.rows[0].lastError).toMatch(/^no luck for /);
     expect(page!.rows[0].ean).toBe('7300000000002');
 
-    const pending = await t.query(api.admin.queueRows, {
+    const skipped = await t.query(api.admin.queueRows, {
       token,
-      status: 'pending',
+      status: 'skipped',
     });
-    expect(pending!.rows).toEqual([]);
+    expect(skipped!.rows).toEqual([]);
   });
 });
 
@@ -305,15 +309,19 @@ describe('the counter repair', () => {
 });
 
 describe('the sign-in lockout', () => {
+  async function guardRow(t: ReturnType<typeof convexTest>) {
+    return await t.run(
+      async (ctx) => await ctx.db.query('admin_signin_guard').first(),
+    );
+  }
+
   test('locks the door on the guess after the limit, and clears after the window', async () => {
     const t = convexTest(schema, modules);
     await recordFailures(t, SIGNIN_FAILURE_LIMIT - 1);
-    expect(await t.query(internal.admin.signInGate, {})).toEqual({
-      lockedUntil: null,
-    });
+    expect((await guardRow(t))?.lockedUntil).toBeUndefined();
+
     await recordFailures(t, 1);
-    const gate = await t.query(internal.admin.signInGate, {});
-    expect(gate.lockedUntil).toBeGreaterThan(Date.now());
+    expect((await guardRow(t))?.lockedUntil).toBeGreaterThan(Date.now());
 
     await expect(
       t.action(api.admin.signIn, { password: PASSWORD }),
@@ -324,16 +332,24 @@ describe('the sign-in lockout', () => {
       const guard = await ctx.db.query('admin_signin_guard').first();
       await ctx.db.patch(guard!._id, { lockedUntil: Date.now() - 1 });
     });
-    expect(await t.query(internal.admin.signInGate, {})).toEqual({
-      lockedUntil: null,
-    });
     expect(await signIn(t)).toMatch(/^[0-9a-f]{64}$/);
 
-    const guard = await t.run(
-      async (ctx) => await ctx.db.query('admin_signin_guard').first(),
-    );
+    const guard = await guardRow(t);
     expect(guard?.failures).toBe(0);
     expect(guard?.lockedUntil).toBeUndefined();
+  });
+
+  /** A locked console does not extend its own lockout, so hammering it cannot
+   * keep the operator out past the window. */
+  test('an attempt while locked is refused without counting against the window', async () => {
+    const t = convexTest(schema, modules);
+    await recordFailures(t, SIGNIN_FAILURE_LIMIT);
+    const locked = await guardRow(t);
+
+    await recordFailures(t, 3);
+    const after = await guardRow(t);
+    expect(after?.failures).toBe(locked?.failures);
+    expect(after?.lockedUntil).toBe(locked?.lockedUntil);
   });
 
   test('failures spread wider than the window never add up to a lockout', async () => {
@@ -347,13 +363,9 @@ describe('the sign-in lockout', () => {
     });
 
     await recordFailures(t, 1);
-    const guard = await t.run(
-      async (ctx) => await ctx.db.query('admin_signin_guard').first(),
-    );
+    const guard = await guardRow(t);
     expect(guard?.failures).toBe(1);
-    expect(await t.query(internal.admin.signInGate, {})).toEqual({
-      lockedUntil: null,
-    });
+    expect(guard?.lockedUntil).toBeUndefined();
   });
 });
 

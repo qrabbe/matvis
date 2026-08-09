@@ -3,8 +3,8 @@ import { convexTest } from 'convex-test';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { internal } from './_generated/api';
 import schema from './schema';
-import { COOP_BATCH_SIZE, QUEUE_DEDUP_SCAN } from './model/ingest';
-import { readQueueStats } from './model/ops';
+import { COOP_BATCH_SIZE } from './model/ingest';
+import { readQueueStats } from './model/queue';
 
 const modules = import.meta.glob('./**/*.ts');
 
@@ -132,7 +132,7 @@ describe('fetchByEan', () => {
   });
 });
 
-describe('the drain, when the fetch fails', () => {
+describe('the fetch, when it fails', () => {
   async function queueStats(t: ReturnType<typeof convexTest>) {
     return await t.run(async (ctx) => await readQueueStats(ctx));
   }
@@ -140,6 +140,12 @@ describe('the drain, when the fetch fails', () => {
   async function rows(t: ReturnType<typeof convexTest>) {
     return await t.run(
       async (ctx) => await ctx.db.query('ingest_queue').take(50),
+    );
+  }
+
+  async function pendingChain(t: ReturnType<typeof convexTest>) {
+    return await t.run(
+      async (ctx) => await ctx.db.system.query('_scheduled_functions').take(10),
     );
   }
 
@@ -158,13 +164,13 @@ describe('the drain, when the fetch fails', () => {
     // Accepted, not a defect. A 403 is a statement about the caller, not about
     // any one row, so degrading to per-row retry would turn one refused
     // request into as many as the batch is wide, against the very limit that
-    // refused it. The rows are recoverable with one Requeue failed press.
+    // refused it.
     //
     // Note what the run does NOT do: the catch is inside the body, so the run
     // settles `ok` with a summary carrying the failures. A run in which every
     // single row failed is not an errored run, and anything watching only
     // `status: 'error'` will not see this at all.
-    const summary = await t.action(internal.ingest.processQueue, {
+    const summary = await t.action(internal.ingest.fetchQueuedEans, {
       store: 'coop',
       batches: 1,
     });
@@ -175,14 +181,20 @@ describe('the drain, when the fetch fails', () => {
     );
     expect(runs[0]!.status).toBe('ok');
 
+    // Back in the lane they came from, carrying why. No button in between.
     const failed = await rows(t);
     expect(failed).toHaveLength(3);
-    expect(failed.every((row) => row.status === 'failed')).toBe(true);
+    expect(failed.every((row) => row.status === 'pending')).toBe(true);
     expect(new Set(failed.map((row) => row.lastError)).size).toBe(1);
     expect(failed[0]!.lastError).toMatch(/403/);
+    expect(await queueStats(t)).toMatchObject({ pending: 3, processing: 0 });
   });
 
-  test('a failed batch is fully recoverable, and attempts keeps climbing', async () => {
+  /** The guard that makes retry-on-next-run safe. Every row is back in
+   * `pending`, so a chain that carried on would re-claim the same barcodes and
+   * put the same request back to the API that just refused it. The correct
+   * answer to a throttle is fewer requests. */
+  test('a thrown batch stops the chain instead of re-claiming the same rows', async () => {
     const t = convexTest(schema, modules);
     vi.stubEnv('COOP_EXTERNAL_API_KEY', 'test-key');
     respondWith({}, { status: 403 });
@@ -192,29 +204,69 @@ describe('the drain, when the fetch fails', () => {
       source: 'census',
     });
 
-    await t.action(internal.ingest.processQueue, { store: 'coop', batches: 1 });
-    expect(await queueStats(t)).toMatchObject({ failed: 1 });
-
-    expect(
-      await t.mutation(internal.ingest.requeueFailed, { store: 'coop' }),
-    ).toEqual({
-      requeued: 1,
+    // A full batch would normally reschedule: the claim returned exactly the
+    // limit and there are batches left.
+    await t.action(internal.ingest.fetchQueuedEans, {
+      store: 'coop',
+      batches: 5,
+      batchSize: 1,
     });
-    expect(await queueStats(t)).toMatchObject({ pending: 1, failed: 0 });
+    expect(await pendingChain(t)).toEqual([]);
+  });
 
-    await t.action(internal.ingest.processQueue, { store: 'coop', batches: 1 });
+  test('a batch that merely fails per row keeps the chain going', async () => {
+    const t = convexTest(schema, modules);
+    vi.stubEnv('COOP_EXTERNAL_API_KEY', 'test-key');
+    // The request succeeds; the row is simply not in the response, which is a
+    // skip rather than a thrown fetch.
+    respondWith(itemsBody([]));
+    await t.mutation(internal.ingest.enqueueEans, {
+      store: 'coop',
+      rows: ['7300000000000'].map((ean) => ({ ean })),
+      source: 'census',
+    });
 
-    // Nothing caps this. Under manual operation the human pressing Requeue is
-    // the cap; the moment anything is scheduled, an uncapped retry against a
-    // third party is a blocker rather than a wart.
+    await t.action(internal.ingest.fetchQueuedEans, {
+      store: 'coop',
+      batches: 5,
+      batchSize: 1,
+    });
+    expect(await pendingChain(t)).toHaveLength(1);
+  });
+
+  test('attempts keeps climbing across runs, and nothing caps it', async () => {
+    const t = convexTest(schema, modules);
+    vi.stubEnv('COOP_EXTERNAL_API_KEY', 'test-key');
+    respondWith({}, { status: 403 });
+    await t.mutation(internal.ingest.enqueueEans, {
+      store: 'coop',
+      rows: ['7300000000000'].map((ean) => ({ ean })),
+      source: 'census',
+    });
+
+    await t.action(internal.ingest.fetchQueuedEans, {
+      store: 'coop',
+      batches: 1,
+    });
+    expect(await queueStats(t)).toMatchObject({ pending: 1 });
+
+    // Straight back in with no requeue step, which is the point.
+    await t.action(internal.ingest.fetchQueuedEans, {
+      store: 'coop',
+      batches: 1,
+    });
+
+    // Nothing caps this. The row retries on every run until it succeeds or
+    // someone removes it, and a dead-letter state is a milestone 5 blocker
+    // rather than a wart. See DECISIONS.md.
     const [row] = await rows(t);
     expect(row!.attempts).toBe(2);
-    expect(row!.status).toBe('failed');
+    expect(row!.status).toBe('pending');
   });
 });
 
-describe('the drain, when a product is missing', () => {
-  test('an EAN Coop does not stock is skipped, and requeue does not touch it', async () => {
+describe('the fetch, when a product is missing', () => {
+  test('a stored EAN leaves the queue and an unstocked one stays as the memo', async () => {
     const t = convexTest(schema, modules);
     vi.stubEnv('COOP_EXTERNAL_API_KEY', 'test-key');
     respondWith(itemsBody([{ ean: '7300000000000', name: 'Mjölk' }]));
@@ -224,42 +276,21 @@ describe('the drain, when a product is missing', () => {
       source: 'census',
     });
 
-    await t.action(internal.ingest.processQueue, { store: 'coop', batches: 1 });
-
-    const byEan = new Map(
-      (
-        await t.run(async (ctx) => await ctx.db.query('ingest_queue').take(50))
-      ).map((row) => [row.ean, row]),
-    );
-    expect(byEan.get('7300000000000')!.status).toBe('done');
-    expect(byEan.get('7300000000001')!.status).toBe('skipped');
-    expect(byEan.get('7300000000001')!.lastError).toBe('not stocked by Coop');
-
-    // Skipped is terminal and `requeueFailed` only reaches `failed`, so an
-    // item that was merely out of stock is never looked at again. Correct
-    // while nothing re-fetches at all; it needs a re-check policy the day a
-    // refresh path exists. See DECISIONS.md.
-    expect(
-      await t.mutation(internal.ingest.requeueFailed, { store: 'coop' }),
-    ).toEqual({
-      requeued: 0,
-    });
-    expect(
-      (
-        await t.run(async (ctx) => await ctx.db.query('ingest_queue').take(50))
-      ).find((row) => row.ean === '7300000000001')!.status,
-    ).toBe('skipped');
-  });
-
-  test('the dedup lookahead is what bounds a re-queue, not the removal path', async () => {
-    const t = convexTest(schema, modules);
-    await t.mutation(internal.ingest.enqueueEans, {
+    await t.action(internal.ingest.fetchQueuedEans, {
       store: 'coop',
-      rows: ['7300000000000'].map((ean) => ({ ean })),
-      source: 'census',
+      batches: 1,
     });
-    // Pinned because `removeQueueRows` used to share this constant and
-    // promised completeness it could not deliver above eight rows.
-    expect(QUEUE_DEDUP_SCAN).toBe(8);
+
+    // Skipped is the one terminal state, so an item that was merely out of
+    // stock is never looked at again. Correct while nothing re-fetches at all;
+    // it needs a re-check policy the day a refresh path exists. See
+    // DECISIONS.md.
+    const left = await t.run(
+      async (ctx) => await ctx.db.query('ingest_queue').take(50),
+    );
+    expect(left).toHaveLength(1);
+    expect(left[0]!.ean).toBe('7300000000001');
+    expect(left[0]!.status).toBe('skipped');
+    expect(left[0]!.lastError).toBe('not stocked by Coop');
   });
 });

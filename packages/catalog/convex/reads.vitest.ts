@@ -10,7 +10,7 @@ import { RECOUNT_CATALOG_PAGE } from './backfill';
 import * as catalog from './catalog';
 import { CATALOG_COUNT_KEY, readCounter } from './model/counters';
 import { FRESHNESS_SAMPLE } from './model/ingest';
-import { readFreshness } from './model/ops';
+import { readFreshness } from './model/metrics';
 import { upsertClean } from './model/project';
 import schema from './schema';
 
@@ -113,7 +113,7 @@ describe('the maintained counters', () => {
   test('read a single row on by_key and never scan app_counters', async () => {
     const t = convexTest(schema, modules);
     await seed(t, eansUpTo(3));
-    await t.mutation(internal.backfill.writeCounters, {
+    await t.mutation(internal.backfill.saveCounters, {
       counts: { 'queue:pending': 1, 'queue:done': 2, 'catalog:ica': 3 },
     });
 
@@ -140,7 +140,7 @@ describe('readFreshness', () => {
         });
       }
     });
-    await t.mutation(internal.backfill.writeCounters, {
+    await t.mutation(internal.backfill.saveCounters, {
       counts: { catalog: FRESHNESS_SAMPLE + 50, 'catalog:verified': 0 },
     });
 
@@ -171,7 +171,10 @@ describe('rebuildCounters', () => {
     });
 
     const counts = await countMutation(t, (ctx) =>
-      handlerOf(backfill.recountPage)(ctx, { table: 'catalog', cursor: null }),
+      handlerOf(backfill.countTablePage)(ctx, {
+        table: 'catalog',
+        cursor: null,
+      }),
     );
     expect(counts.ranges).toEqual([
       { table: 'catalog', kind: 'scan', index: null },
