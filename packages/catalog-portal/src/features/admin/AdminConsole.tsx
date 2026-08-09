@@ -12,6 +12,7 @@ import { QueuePanel } from './QueuePanel';
 import { RunControls } from './RunControls';
 import { RunLogPanel } from './RunLogPanel';
 import { RunTrendPanel } from './RunTrendPanel';
+import { SearchPanel } from './SearchPanel';
 import { SignInPanel } from './SignInPanel';
 import { useAdminTask, TaskResult } from './task';
 
@@ -51,6 +52,7 @@ function SignedIn({ token }: { token: string }) {
         <CoveragePanel token={token} />
         <RunTrendPanel token={token} />
         <RunLogPanel token={token} />
+        <SearchPanel token={token} />
         <Stack direction="column" gap="sm">
           <Stack direction="row" gap="md" align="center" wrap="wrap">
             <Button
@@ -90,10 +92,11 @@ function ConsoleFrame({ children }: { children: ReactNode }) {
   return (
     <Stack direction="column" gap="lg">
       <Stack direction="column" gap="xs">
-        <Text variant="heading-lg">Ingest console</Text>
+        <Text variant="heading-lg">Catalog console</Text>
         <Text variant="body-sm">
-          Drives the Coop pipeline. Crons are off, so nothing runs here unless
-          someone starts it.
+          Drives the Coop pipeline and reports what the catalog holds, how fresh
+          it is and what people search for. Crons are off, so nothing runs here
+          unless someone starts it.
         </Text>
       </Stack>
       {children}

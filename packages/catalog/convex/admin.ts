@@ -58,6 +58,7 @@ import {
   writePaused,
 } from './model/ops';
 import { readCounter, CATALOG_COUNT_KEY } from './model/counters';
+import { SEARCH_STATS_SAMPLE, tallySearchEvents } from './model/search';
 
 const NOT_SIGNED_IN = 'Not signed in';
 
@@ -279,6 +280,51 @@ export const overview = adminQuery({
     fill: await readFillStats(ctx),
     freshness: await readFreshness(ctx),
   }),
+});
+
+/** Read-only. Nothing in this panel writes.
+ *
+ * A sample rather than an all-time rollup, and `oldestAt` is what keeps that
+ * honest: the console states the window next to the numbers, because a number
+ * without its window is a number that gets misremembered as all-time. */
+export const searchStats = adminQuery({
+  args: {},
+  returns: v.object({
+    sampled: v.number(),
+    visitors: v.number(),
+    zeroResults: v.number(),
+    oldestAt: v.union(v.number(), v.null()),
+    top: v.array(
+      v.object({
+        term: v.string(),
+        count: v.number(),
+        zeroResults: v.number(),
+        lastAt: v.number(),
+      }),
+    ),
+    recent: v.array(
+      v.object({
+        term: v.string(),
+        at: v.number(),
+        visitor: v.string(),
+        results: v.number(),
+      }),
+    ),
+  }),
+  handler: async (ctx) => {
+    const rows = await ctx.db
+      .query('search_events')
+      .order('desc')
+      .take(SEARCH_STATS_SAMPLE);
+    return tallySearchEvents(
+      rows.map((row) => ({
+        term: row.term,
+        visitor: row.visitor,
+        results: row.results,
+        at: row._creationTime,
+      })),
+    );
+  },
 });
 
 export const coverage = adminQuery({

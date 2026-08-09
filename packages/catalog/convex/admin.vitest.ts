@@ -5,6 +5,7 @@ import { api, internal } from './_generated/api';
 import * as admin from './admin';
 import schema from './schema';
 import { upsertClean } from './model/project';
+import { SEARCH_STATS_SAMPLE } from './model/search';
 import {
   SESSION_TTL_MS,
   SIGNIN_FAILURE_LIMIT,
@@ -49,6 +50,7 @@ const PUBLIC_ADMIN_FUNCTIONS = [
   'requeueFailed',
   'runHistory',
   'runs',
+  'searchStats',
   'setPaused',
   'signIn',
   'signOutEverywhere',
@@ -403,5 +405,92 @@ describe('the run trend', () => {
       added: 0,
       claimed: 0,
     });
+  });
+});
+
+describe('search stats', () => {
+  async function logSearches(
+    t: ReturnType<typeof convexTest>,
+    rows: { term: string; visitor?: string; results?: number }[],
+  ) {
+    for (const row of rows) {
+      await t.mutation(api.search.logSearch, {
+        term: row.term,
+        visitor: row.visitor ?? 'v1',
+        results: row.results ?? 3,
+      });
+    }
+  }
+
+  test('with no token it answers null, like every other adminQuery', async () => {
+    const t = convexTest(schema, modules);
+    expect(await t.query(api.admin.searchStats, { token: 'bogus' })).toBeNull();
+  });
+
+  test('repeated terms tally, and top comes back by count descending', async () => {
+    const t = convexTest(schema, modules);
+    const token = await signIn(t);
+    await logSearches(t, [
+      { term: 'kaffe' },
+      { term: 'kaffe' },
+      { term: 'mjölk' },
+      { term: 'kaffe' },
+      { term: 'ost', visitor: 'v2' },
+    ]);
+
+    const stats = await t.query(api.admin.searchStats, { token });
+    expect(stats!.sampled).toBe(5);
+    expect(stats!.visitors).toBe(2);
+    expect(stats!.top[0]).toMatchObject({ term: 'kaffe', count: 3 });
+    expect(stats!.top.map((row) => row.count)).toEqual([3, 1, 1]);
+  });
+
+  test('a term that never found anything is reported as such', async () => {
+    const t = convexTest(schema, modules);
+    const token = await signIn(t);
+    await logSearches(t, [
+      { term: 'quinoaflarn', results: 0 },
+      { term: 'quinoaflarn', results: 0 },
+      { term: 'mjölk', results: 4 },
+    ]);
+
+    const stats = await t.query(api.admin.searchStats, { token });
+    const dead = stats!.top.find((row) => row.term === 'quinoaflarn');
+    expect(dead).toMatchObject({ count: 2, zeroResults: 2 });
+    expect(stats!.zeroResults).toBe(2);
+
+    const alive = stats!.top.find((row) => row.term === 'mjölk');
+    expect(alive!.zeroResults).toBe(0);
+  });
+
+  test('past the sample cap it stays capped, with oldestAt on the newest end', async () => {
+    const t = convexTest(schema, modules);
+    const token = await signIn(t);
+    await logSearches(
+      t,
+      Array.from({ length: SEARCH_STATS_SAMPLE + 20 }, (_, n) => ({
+        term: `term-${n}`,
+      })),
+    );
+
+    const stats = await t.query(api.admin.searchStats, { token });
+    expect(stats!.sampled).toBe(SEARCH_STATS_SAMPLE);
+    // The window is the newest 500, so its oldest row is not the first ever
+    // written. Reading it as all-time is the mistake this field prevents.
+    const first = await t.run(
+      async (ctx) => await ctx.db.query('search_events').order('asc').take(1),
+    );
+    expect(stats!.oldestAt).toBeGreaterThan(first[0]!._creationTime);
+  });
+
+  test('the recent list truncates the visitor id rather than showing it whole', async () => {
+    const t = convexTest(schema, modules);
+    const token = await signIn(t);
+    await logSearches(t, [
+      { term: 'ost', visitor: 'abcdefghijklmnopqrstuvwxyz' },
+    ]);
+
+    const stats = await t.query(api.admin.searchStats, { token });
+    expect(stats!.recent[0]!.visitor).toBe('abcdefgh');
   });
 });
