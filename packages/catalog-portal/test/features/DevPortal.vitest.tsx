@@ -14,9 +14,24 @@ const backend = vi.hoisted(() => ({
   calls: [] as { reference: unknown; args: unknown }[],
   result: [] as unknown,
   error: null as string | null,
+  health: {
+    total: 3,
+    stores: [{ store: 'coop', count: 3 }],
+    freshness: {
+      verified: 1,
+      neverFetched: 2,
+      sampleSize: 3,
+      sampleWithinMonth: 1,
+    },
+    coverage: { measuredAt: null, fields: [] },
+  },
 }));
 
 vi.mock('convex/react', () => ({
+  // The health block reads `catalog.health` reactively. It is not what these
+  // tests are about, so it resolves to a fixed shape rather than undefined,
+  // which would leave the block in its skeleton state forever.
+  useQuery: () => backend.health,
   useConvex: () => ({
     url: backend.url,
     query: async (reference: unknown, args: unknown) => {

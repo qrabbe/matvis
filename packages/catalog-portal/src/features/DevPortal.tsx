@@ -1,5 +1,5 @@
 import { useState, type ComponentProps, type ReactNode } from 'react';
-import { useConvex } from 'convex/react';
+import { useConvex, useQuery } from 'convex/react';
 import { makeFunctionReference } from 'convex/server';
 import {
   Badge,
@@ -11,8 +11,14 @@ import {
   Stack,
   Text,
 } from '@wordpress/ui';
-import { CopyButton, ErrorNotice, InlineSpinner, JsonView } from '@matvis/ui';
-import { MAX_EANS_PER_LOOKUP } from '@matvis/shared';
+import {
+  CopyButton,
+  ErrorNotice,
+  InlineSpinner,
+  JsonView,
+  SkeletonList,
+} from '@matvis/ui';
+import { MAX_EANS_PER_LOOKUP, STORE_LABELS } from '@matvis/shared';
 import {
   MODELS,
   OPERATIONS,
@@ -24,6 +30,7 @@ import {
   type Operation,
 } from '../lib/contract';
 import { argInputs, buildArgs, type ArgInput } from '../lib/tryIt';
+import { api } from '../lib/convexApi';
 
 // Documents the clean, store-agnostic contract only. The `eans` worklist behind
 // it is not exposed here.
@@ -91,6 +98,8 @@ export function DevPortal() {
           </Stack>
         </Card.Content>
       </Card.Root>
+
+      <HealthBlock />
 
       <Card.Root>
         <Card.Header>
@@ -430,6 +439,104 @@ function ArgField({
       />
     </div>
   );
+}
+
+const COVERAGE_LABELS: Record<string, string> = {
+  brand: 'brand',
+  imageUrl: 'image',
+  netContent: 'net content',
+  categoryPath: 'category path',
+  countryOfOrigin: 'country of origin',
+  labels: 'labels',
+  food: 'food block',
+  foodIngredients: 'ingredients',
+  foodNutrition: 'nutrition',
+};
+
+/** Measured, not asserted. Everything here is read from the same counters the
+ * console reads, which is the point: the page used to state percentages from
+ * memory and they had gone stale twice over. */
+function HealthBlock() {
+  const health = useQuery(api.catalog.health, {});
+
+  return (
+    <Card.Root>
+      <Card.Header>
+        <Card.Title>What is actually in here</Card.Title>
+      </Card.Header>
+      <Card.Content>
+        {health === undefined ? (
+          <SkeletonList label="Loading catalog health…" rows={3} />
+        ) : (
+          <Stack direction="column" gap="lg">
+            <Text variant="body-md">
+              {`${health.total.toLocaleString()} products. Decide with these numbers rather than the prose below them.`}
+            </Text>
+
+            <Stack direction="column" gap="xs">
+              <Text variant="body-sm">
+                <strong>By chain.</strong> A chain at zero exists and has
+                nothing ingested yet.
+              </Text>
+              <Text variant="body-md">
+                {health.stores
+                  .filter((row) => row.count > 0)
+                  .sort((a, b) => b.count - a.count)
+                  .map(
+                    (row) =>
+                      `${STORE_LABELS[row.store]} ${row.count.toLocaleString()}`,
+                  )
+                  .join(' · ') || 'Nothing ingested yet.'}
+              </Text>
+            </Stack>
+
+            <Stack direction="column" gap="xs">
+              <Text variant="body-sm">
+                <strong>Freshness.</strong> Nothing runs on a schedule here, so
+                this is how stale the data may be. It is published whether or
+                not it flatters us.
+              </Text>
+              <Text variant="body-md">
+                {`${health.freshness.verified.toLocaleString()} rows have been checked against the source at least once; ${health.freshness.neverFetched.toLocaleString()} have not been re-read since the timestamp was introduced. Of the ${health.freshness.sampleSize.toLocaleString()} most recently added, ${health.freshness.sampleWithinMonth.toLocaleString()} were verified within the last month.`}
+              </Text>
+            </Stack>
+
+            <Stack direction="column" gap="xs">
+              <Text variant="body-sm">
+                <strong>Field coverage.</strong> Everything past{' '}
+                <Code>ean</Code>, <Code>name</Code> and <Code>store</Code> is
+                optional, so this is what you can expect to be there.
+              </Text>
+              {health.coverage.measuredAt === null ? (
+                <Text variant="body-md">Not measured yet.</Text>
+              ) : (
+                <>
+                  <Text variant="body-md">
+                    {health.coverage.fields
+                      .map(
+                        (row) =>
+                          `${COVERAGE_LABELS[row.field] ?? row.field} ${sharePercent(row.count, health.total)}`,
+                      )
+                      .join(' · ')}
+                  </Text>
+                  {/* A claim with a date ages honestly. A bare percentage
+                      does not, which is how the old numbers rotted. */}
+                  <Text variant="body-sm">
+                    {`Measured ${new Date(health.coverage.measuredAt).toLocaleDateString()}.`}
+                  </Text>
+                </>
+              )}
+            </Stack>
+          </Stack>
+        )}
+      </Card.Content>
+    </Card.Root>
+  );
+}
+
+function sharePercent(count: number, total: number): string {
+  if (total <= 0) return '—';
+  return `${((count / total) * 100).toFixed(0)}%`;
 }
 
 function SearchMode({

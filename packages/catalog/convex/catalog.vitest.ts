@@ -2,7 +2,7 @@
 import { MAX_EANS_PER_LOOKUP, STORES } from '@matvis/shared';
 import { convexTest } from 'convex-test';
 import { describe, expect, test } from 'vitest';
-import { api } from './_generated/api';
+import { api, internal } from './_generated/api';
 import schema from './schema';
 import { upsertClean } from './model/project';
 
@@ -206,5 +206,38 @@ describe('stats', () => {
     const replaced = await t.query(api.catalog.stats, {});
     expect(replaced.total).toBe(3);
     expect(countFor(replaced, 'coop')).toBe(2);
+  });
+});
+
+describe('health', () => {
+  test('publishes counts, freshness and coverage, and withholds the pipeline', async () => {
+    const t = convexTest(schema, modules);
+    await seed(t, [
+      { ean: '7310865085733', name: 'Mellanmjölk', store: 'coop' },
+      { ean: '7310865085734', name: 'Smör', store: 'coop' },
+    ]);
+    // Queue depth exists but must not reach the public shape.
+    await t.mutation(internal.ingest.enqueueEans, {
+      eans: ['7300000000009'],
+      source: 'census',
+    });
+
+    const health = await t.query(api.catalog.health, {});
+    expect(health.total).toBe(2);
+    expect(health.stores.find((row) => row.store === 'coop')!.count).toBe(2);
+    expect(health.freshness).toMatchObject({ verified: 2, neverFetched: 0 });
+    expect(health.coverage.measuredAt).toBeNull();
+
+    // The decision, pinned: operational numbers stay behind the session gate.
+    // Sorted, because the return validator normalizes key order.
+    expect(Object.keys(health).sort()).toEqual([
+      'coverage',
+      'freshness',
+      'stores',
+      'total',
+    ]);
+    const serialized = JSON.stringify(health);
+    expect(serialized).not.toContain('pending');
+    expect(serialized).not.toContain('cursor');
   });
 });

@@ -72,10 +72,13 @@ describe('models', () => {
 });
 
 describe('operations', () => {
-  it('lists the four public catalog queries', () => {
+  it('lists the public catalog queries, and only queries', () => {
+    // `search:logSearch` is deliberately absent: it is a write, and it lives
+    // outside the module the spec walks so the contract stays read-only.
     expect(OPERATIONS.map(operationName)).toEqual([
       'getByEan',
       'getManyByEan',
+      'health',
       'search',
       'stats',
     ]);
@@ -86,6 +89,7 @@ describe('operations', () => {
     expect(OPERATIONS.map(signature)).toEqual([
       'catalog.getByEan({ ean })',
       'catalog.getManyByEan({ eans })',
+      'catalog.health()',
       'catalog.search({ q?, paginationOpts })',
       'catalog.stats()',
     ]);

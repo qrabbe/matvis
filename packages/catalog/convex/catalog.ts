@@ -8,6 +8,7 @@ import {
   catalogStoreKey,
   CATALOG_COUNT_KEY,
 } from './model/counters';
+import { readCoverage, readFreshness } from './model/ops';
 
 const catalogItem = catalogDocValidator;
 
@@ -88,6 +89,61 @@ export const getManyByEan = query({
     }
     const rows = await Promise.all(unique.map((ean) => rowsForEan(ctx, ean)));
     return rows.flat();
+  },
+});
+
+/** What the catalog holds and how much of it you should trust, for an audience
+ * that will never see the admin console.
+ *
+ * **What is deliberately not here.** Queue depth, failure counts and the fill
+ * cursor are operational: they say what the pipeline is doing, not what the
+ * data is worth, and publishing them invites a consumer to build on the shape
+ * of our backlog. They stay behind the session gate.
+ *
+ * **Freshness is published even though it will sometimes read badly.** Nothing
+ * runs on a schedule, so `neverFetched` is most of the table and will stay that
+ * way until someone runs a refresh by hand. Telling a consumer how stale the
+ * data may be is both honest and the single most useful thing on this page.
+ * Publishing it only while it flatters us is the one option worse than either
+ * publishing it or not. */
+export const health = query({
+  args: {},
+  returns: v.object({
+    total: v.number(),
+    stores: v.array(v.object({ store: storeValidator, count: v.number() })),
+    freshness: v.object({
+      verified: v.number(),
+      neverFetched: v.number(),
+      sampleSize: v.number(),
+      sampleWithinMonth: v.number(),
+    }),
+    coverage: v.object({
+      measuredAt: v.union(v.number(), v.null()),
+      fields: v.array(v.object({ field: v.string(), count: v.number() })),
+    }),
+  }),
+  handler: async (ctx) => {
+    const freshness = await readFreshness(ctx);
+    const coverage = await readCoverage(ctx);
+    return {
+      total: await readCounter(ctx, CATALOG_COUNT_KEY),
+      stores: await Promise.all(
+        STORES.map(async (store) => ({
+          store,
+          count: await readCounter(ctx, catalogStoreKey(store)),
+        })),
+      ),
+      freshness: {
+        verified: freshness.verified,
+        neverFetched: freshness.never,
+        sampleSize: freshness.sample.size,
+        sampleWithinMonth: freshness.sample.week + freshness.sample.month,
+      },
+      coverage: {
+        measuredAt: coverage.measuredAt,
+        fields: coverage.fields,
+      },
+    };
   },
 });
 
