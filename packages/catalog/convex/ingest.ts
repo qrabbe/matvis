@@ -405,17 +405,23 @@ async function fetchOneBatch(
 
   await ctx.runMutation(internal.ingest.settleClaimedRows, { results });
 
+  const tally = (outcome: FetchResult['outcome']) =>
+    results.filter((result) => result.outcome === outcome).length;
+
+  // A batch where every row failed made no progress. Failed rows return to
+  // `pending` with their original creation time, so they stay the oldest on
+  // `by_store_status` and the next batch would claim the same barcodes again.
+  // A row that was stored or skipped left the lane for good, so any of those
+  // means the next batch sees new work.
   const remaining = (batches ?? DEFAULT_RUN_BATCHES) - 1;
-  if (!laneThrew && remaining > 0 && claimed.length === limit) {
+  const progressed = tally('failed') < claimed.length;
+  if (!laneThrew && progressed && remaining > 0 && claimed.length === limit) {
     await ctx.scheduler.runAfter(0, internal.ingest.fetchQueuedEans, {
       store,
       batches: remaining,
       batchSize,
     });
   }
-
-  const tally = (outcome: FetchResult['outcome']) =>
-    results.filter((result) => result.outcome === outcome).length;
 
   return {
     claimed: claimed.length,
