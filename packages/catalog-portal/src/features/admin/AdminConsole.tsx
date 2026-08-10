@@ -1,7 +1,9 @@
-import type { ReactNode } from 'react';
+import { useState, type ComponentProps, type ReactNode } from 'react';
 import { useQuery, useMutation } from 'convex/react';
-import { Button, Stack, Text } from '@wordpress/ui';
+import { Button, SelectControl, Stack, Text } from '@wordpress/ui';
 import { InlineSpinner } from '@matvis/ui';
+import { STORE_LABELS } from '@matvis/shared';
+import { INGEST_LANES, type IngestLane } from '@matvis/catalog';
 import { adminApi } from '../../lib/adminApi';
 import { clearAdminToken, useAdminToken } from '../../lib/adminSession';
 import { href } from '../../lib/route';
@@ -23,7 +25,11 @@ export function AdminConsole() {
 }
 
 function SignedIn({ token }: { token: string }) {
-  const overview = useQuery(adminApi.admin.overview, { token });
+  // The lane every panel below works in. It lives above the `overview` query
+  // because fill progress is per store, so the selection has to reach the query
+  // and not only the panel that renders it.
+  const [store, setStore] = useState<IngestLane>('coop');
+  const overview = useQuery(adminApi.admin.overview, { token, store });
   const signOutEverywhere = useMutation(adminApi.admin.signOutEverywhere);
   const { state, run } = useAdminTask();
 
@@ -45,10 +51,11 @@ function SignedIn({ token }: { token: string }) {
   return (
     <ConsoleFrame>
       <Stack direction="column" gap="xl">
-        <OverviewPanel overview={overview} token={token} />
-        <RunControls token={token} paused={overview.paused} />
-        <QueuePanel token={token} />
-        <EnqueuePanel token={token} />
+        <LanePicker store={store} onSelect={setStore} />
+        <OverviewPanel overview={overview} token={token} store={store} />
+        <RunControls token={token} store={store} paused={overview.paused} />
+        <QueuePanel token={token} store={store} />
+        <EnqueuePanel token={token} store={store} />
         <CoveragePanel token={token} />
         <RunTrendPanel token={token} />
         <RunLogPanel token={token} />
@@ -88,15 +95,58 @@ function SignedIn({ token }: { token: string }) {
   );
 }
 
+type SelectItem = NonNullable<
+  ComponentProps<typeof SelectControl>['items']
+>[number];
+
+/** Only the stores with a fetch lane, read from `INGEST_LANES` rather than
+ * `STORES`. Ten chains can appear on a receipt and two can be ingested. */
+const LANE_ITEMS: SelectItem[] = INGEST_LANES.map((store) => ({
+  label: STORE_LABELS[store],
+  value: store,
+}));
+
+function LanePicker({
+  store,
+  onSelect,
+}: {
+  store: IngestLane;
+  onSelect: (store: IngestLane) => void;
+}) {
+  const selection =
+    LANE_ITEMS.find((item) => item.value === store) ?? LANE_ITEMS[0]!;
+
+  return (
+    <Stack direction="column" gap="sm">
+      <div style={{ flex: '0 1 180px', maxWidth: 180 }}>
+        <SelectControl
+          label="Lane"
+          items={LANE_ITEMS}
+          value={selection}
+          onValueChange={(item) =>
+            onSelect((item?.value as IngestLane) ?? 'coop')
+          }
+        />
+      </div>
+      <Text variant="body-sm">
+        Which chain everything below acts on: fill progress, the queue list,
+        what Run drives and where a paste is queued. Only chains with an ingest
+        lane are listed, so the catalog can hold rows for a store this select
+        does not offer.
+      </Text>
+    </Stack>
+  );
+}
+
 function ConsoleFrame({ children }: { children: ReactNode }) {
   return (
     <Stack direction="column" gap="lg">
       <Stack direction="column" gap="xs">
         <Text variant="heading-lg">Catalog console</Text>
         <Text variant="body-sm">
-          Drives the Coop pipeline and reports what the catalog holds, how fresh
-          it is and what people search for. Crons are off, so nothing runs here
-          unless someone starts it.
+          Drives the ingest pipeline one lane at a time and reports what the
+          catalog holds, how fresh it is and what people search for. Crons are
+          off, so nothing runs here unless someone starts it.
         </Text>
       </Stack>
       {children}

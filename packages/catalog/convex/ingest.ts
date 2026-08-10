@@ -1,4 +1,5 @@
 import type { StoreSlug } from '@matvis/shared';
+import { isIngestLane, type IngestLane } from '../src/lanes';
 import { v, type Infer } from 'convex/values';
 import {
   internalAction,
@@ -363,7 +364,9 @@ const fetchIca: Lane = async (ctx, claimed) => {
   return results;
 };
 
-const LANES: Partial<Record<StoreSlug, Lane>> = {
+/** Keyed by `IngestLane` rather than `StoreSlug`, so the shared list the console
+ * offers and the lanes that exist here cannot drift apart in either direction. */
+const LANES: Record<IngestLane, Lane> = {
   coop: fetchCoop,
   ica: fetchIca,
 };
@@ -374,8 +377,8 @@ async function fetchOneBatch(
   batches: number | undefined,
   batchSize: number | undefined,
 ): Promise<FetchTotals> {
+  if (!isIngestLane(store)) throw new Error(`no ingest lane for ${store}`);
   const lane = LANES[store];
-  if (!lane) throw new Error(`no ingest lane for ${store}`);
 
   const ceiling = batchSizeFor(store);
   const limit = Math.min(batchSize ?? ceiling, ceiling);

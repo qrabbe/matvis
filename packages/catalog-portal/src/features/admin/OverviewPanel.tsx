@@ -2,6 +2,7 @@ import { useAction, useQuery } from 'convex/react';
 import { Badge, Button, Card, Stack, Text } from '@wordpress/ui';
 import { SkeletonList } from '@matvis/ui';
 import { STORE_LABELS } from '@matvis/shared';
+import { type IngestLane } from '@matvis/catalog';
 import { adminApi, type Overview } from '../../lib/adminApi';
 import { api } from '../../lib/convexApi';
 import { formatCount } from './format';
@@ -10,9 +11,13 @@ import { TaskResult, useAdminTask } from './task';
 export function OverviewPanel({
   overview,
   token,
+  store,
 }: {
   overview: Overview;
   token: string;
+  /** Only the fill sweep is per lane. Every other number on this panel is
+   * whole-table, which the copy below has to keep saying out loud. */
+  store: IngestLane;
 }) {
   const { queue, fill, freshness } = overview;
   // The per-store breakdown is the same public query the site header reads,
@@ -62,39 +67,65 @@ export function OverviewPanel({
           </Stack>
           <Stack direction="column" gap="sm">
             <Text variant="body-sm">
-              What the queue is holding. There is no done count and no failed
-              count: a stored row leaves the queue, and a failed one goes back
-              to pending for the next run.
+              What the queue is holding, across all lanes at once. The counters
+              are whole-table by design, so these three do not follow the lane
+              select and a done-looking queue list can sit under a five-figure
+              pending count that belongs to another chain.
+            </Text>
+            <Text variant="body-sm">
+              The per-lane numbers are in the run log and the trend below:
+              claimed, added, skipped and failed are recorded per run, and a run
+              drives one lane. That is where to look for whether this lane is
+              making progress. A run row does not name its lane, so read the log
+              against the press you just made rather than an hour later.
             </Text>
             <Stack direction="row" gap="xl" wrap="wrap">
-              <Stat label="Pending" value={formatCount(queue.pending)} />
-              <Stat label="Processing" value={formatCount(queue.processing)} />
+              <Stat
+                label="Pending"
+                value={formatCount(queue.pending)}
+                note="all lanes"
+              />
+              <Stat
+                label="Processing"
+                value={formatCount(queue.processing)}
+                note="all lanes"
+              />
               <Stat
                 label="Skipped"
                 value={formatCount(queue.skipped)}
-                note="barcodes the store returned nothing for, remembered so the sweep does not queue them again"
+                note="all lanes. Barcodes the store returned nothing for, remembered so the sweep does not queue them again"
               />
             </Stack>
+            <Text variant="body-sm">
+              There is no done count and no failed count: a stored row leaves
+              the queue, and a failed one goes back to pending for the next run.
+            </Text>
           </Stack>
-          <Stack direction="row" gap="xl" wrap="wrap">
-            <Stat
-              label="EANs known"
-              value={formatCount(fill.eansKnown)}
-              note="the target set the fill sweep works through"
-            />
-            <Stat
-              label="Fill sweep"
-              value={
-                fill.cursorAtEnd ? 'at the start of a fresh pass' : 'mid pass'
-              }
-              note="where the persisted cursor sits. A deployment that has never run a fill reads the same way, because both are a null cursor"
-            />
+          <Stack direction="column" gap="sm">
+            <Text variant="body-sm">
+              {`The fill sweep, for ${STORE_LABELS[store]} only. This pair is the one thing on this panel that follows the lane select.`}
+            </Text>
+            <Stack direction="row" gap="xl" wrap="wrap">
+              <Stat
+                label="EANs known"
+                value={formatCount(fill.eansKnown)}
+                note="the target set the fill sweep works through"
+              />
+              <Stat
+                label="Fill sweep"
+                value={
+                  fill.cursorAtEnd ? 'at the start of a fresh pass' : 'mid pass'
+                }
+                note="where the persisted cursor sits. A deployment that has never run a fill reads the same way, because both are a null cursor"
+              />
+            </Stack>
           </Stack>
 
           <Stack direction="column" gap="sm">
             <Text variant="body-sm">
-              How much of the catalog has ever been checked against Coop.
-              Nothing runs on a schedule, so this only moves when you move it.
+              How much of the catalog has ever been checked against the store it
+              came from, every lane counted together. Nothing runs on a
+              schedule, so this only moves when you move it.
             </Text>
             <Stack direction="row" gap="xl" wrap="wrap">
               <Stat

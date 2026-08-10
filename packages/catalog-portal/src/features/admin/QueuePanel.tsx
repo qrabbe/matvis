@@ -10,7 +10,8 @@ import {
   Text,
 } from '@wordpress/ui';
 import { SkeletonList } from '@matvis/ui';
-import { QUEUE_MAINTENANCE_LIMIT } from '@matvis/catalog';
+import { STORE_LABELS } from '@matvis/shared';
+import { QUEUE_MAINTENANCE_LIMIT, type IngestLane } from '@matvis/catalog';
 import { adminApi, type QueueRow, type QueueStatus } from '../../lib/adminApi';
 import { href, productPath } from '../../lib/route';
 import { formatAge } from './format';
@@ -26,12 +27,32 @@ const STATUS_ITEMS: SelectItem[] = [
   { label: 'Skipped', value: 'skipped' },
 ];
 
-export function QueuePanel({ token }: { token: string }) {
+export function QueuePanel({
+  token,
+  store,
+}: {
+  token: string;
+  store: IngestLane;
+}) {
   const [status, setStatus] = useState<QueueStatus>('pending');
   const [cursor, setCursor] = useState<string | null>(null);
   const [removeText, setRemoveText] = useState('');
 
-  const page = useQuery(adminApi.admin.queueRows, { token, status, cursor });
+  // A pagination cursor belongs to the lane it was handed out for. Switching
+  // lanes while holding one asks for the next page of a list nobody is looking
+  // at, so the selection resets it the way changing status does.
+  const [shownStore, setShownStore] = useState(store);
+  if (shownStore !== store) {
+    setShownStore(store);
+    setCursor(null);
+  }
+
+  const page = useQuery(adminApi.admin.queueRows, {
+    token,
+    status,
+    store,
+    cursor,
+  });
   const removeQueueRows = useAction(adminApi.admin.removeQueueRows);
   const { state, run } = useAdminTask();
 
@@ -46,7 +67,7 @@ export function QueuePanel({ token }: { token: string }) {
   return (
     <Card.Root>
       <Card.Header>
-        <Card.Title>Queue</Card.Title>
+        <Card.Title>{`Queue — ${STORE_LABELS[store]}`}</Card.Title>
       </Card.Header>
       <Card.Content>
         <Stack direction="column" gap="lg">
@@ -64,6 +85,10 @@ export function QueuePanel({ token }: { token: string }) {
           </Stack>
 
           <Text variant="body-sm">
+            {`This list is the ${STORE_LABELS[store]} lane only. The counts on the overview are whole-table, so the two disagree whenever another lane holds work.`}
+          </Text>
+
+          <Text variant="body-sm">
             The queue holds only work and memos. A row whose product was stored
             is deleted, and one whose fetch failed is back under Pending with
             the error on it, waiting for the next run. Skipped means the store
@@ -77,7 +102,7 @@ export function QueuePanel({ token }: { token: string }) {
             <EmptyState.Root>
               <EmptyState.Title>Nothing {status}</EmptyState.Title>
               <EmptyState.Description>
-                No queue rows are in this state.
+                {`No ${STORE_LABELS[store]} queue rows are in this state.`}
               </EmptyState.Description>
             </EmptyState.Root>
           ) : (
@@ -113,7 +138,7 @@ export function QueuePanel({ token }: { token: string }) {
             <div style={{ flex: '1 1 240px' }}>
               <InputControl
                 label="Remove rows"
-                description={`Every queue row for one EAN, up to ${QUEUE_MAINTENANCE_LIMIT.toLocaleString()}. The way to stop a barcode that fails forever, since failures requeue themselves.`}
+                description={`Every ${STORE_LABELS[store]} queue row for one EAN, up to ${QUEUE_MAINTENANCE_LIMIT.toLocaleString()}. The way to stop a barcode that fails forever, since failures requeue themselves.`}
                 placeholder="7311312009203"
                 value={removeText}
                 onValueChange={(value) => setRemoveText(value)}
@@ -127,10 +152,11 @@ export function QueuePanel({ token }: { token: string }) {
                 run(async () => {
                   const result = await removeQueueRows({
                     token,
+                    store,
                     ean: removeText.trim(),
                   });
                   setRemoveText('');
-                  return `Deleted ${result.deleted} queue row(s).`;
+                  return `Deleted ${result.deleted} ${STORE_LABELS[store]} queue row(s).`;
                 })
               }
             >

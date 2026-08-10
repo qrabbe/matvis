@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useMutation } from 'convex/react';
 import { Button, Card, InputControl, Stack, Text } from '@wordpress/ui';
+import { STORE_LABELS } from '@matvis/shared';
+import { type IngestLane } from '@matvis/catalog';
 import { adminApi } from '../../lib/adminApi';
 import { TaskResult, useAdminTask } from './task';
 
@@ -8,9 +10,11 @@ const DEFAULT_BATCHES = 4;
 
 export function RunControls({
   token,
+  store,
   paused,
 }: {
   token: string;
+  store: IngestLane;
   paused: boolean;
 }) {
   const startRun = useMutation(adminApi.admin.startRun);
@@ -28,9 +32,7 @@ export function RunControls({
         <Stack direction="column" gap="lg">
           <Stack direction="column" gap="sm">
             <Text variant="body-sm">
-              One run walks the known EANs, queues whatever the catalog has no
-              row for, then fetches what is queued. New barcodes come from the
-              local census script, not from here.
+              {`One run walks the ${STORE_LABELS[store]} lane's known EANs, queues whatever the catalog has no row for, then fetches what is queued. New barcodes come from the local census script, not from here.`}
             </Text>
             <Text variant="body-sm">
               Rows that fail go back in the queue with the error on them, so the
@@ -53,13 +55,14 @@ export function RunControls({
                 run(async () => {
                   const result = await startRun({
                     token,
+                    store,
                     batches: Number(batches),
                   });
-                  return `Run scheduled for ${result.batches} batch(es).`;
+                  return `${STORE_LABELS[store]} run scheduled for ${result.batches} batch(es).`;
                 })
               }
             >
-              Run
+              {`Run ${STORE_LABELS[store]}`}
             </Button>
           </Stack>
 
@@ -69,6 +72,10 @@ export function RunControls({
               one batch and a running sweep within one page. It is the only
               thing that can stop a chain that schedules itself. A run stopped
               this way is logged as paused and keeps what it got through.
+            </Text>
+            <Text variant="body-sm">
+              Pause is one flag for the deployment, not one per lane, so it
+              stops whichever run is going regardless of what this select says.
             </Text>
             <Stack direction="row" gap="md" align="center" wrap="wrap">
               <Button
