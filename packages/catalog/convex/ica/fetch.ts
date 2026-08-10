@@ -50,9 +50,15 @@ const fetchedPageValidator = v.object({
 export type IcaFetchedPage = Infer<typeof fetchedPageValidator>;
 
 /** A 404 means the id no longer resolves publicly, which is a real outcome and
- * not a failure: about 7% of the crawled range answers this way. It comes back
- * as an absent product so the lane can mark the row skipped rather than retry
- * it forever.
+ * not a failure. It comes back as an absent product so the lane can mark the
+ * row skipped rather than retry it forever.
+ *
+ * This arm is defensive rather than hot. The first live run measured zero 404s
+ * over 6 825 drained rows and zero over a 607 page sample that included every
+ * unlisted id in the census, because the census only records ids that answered
+ * when it crawled them. The old note here claimed about 7%, which was a rate
+ * over the seed range the crawl started from and never over the range this
+ * lane fetches. See DECISIONS.md.
  *
  * Anything else that goes wrong comes back as an error on this page alone. One
  * unparseable page, one 500 or one hung socket is a statement about that

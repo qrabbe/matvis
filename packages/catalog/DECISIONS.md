@@ -32,6 +32,120 @@ below and the entry criteria in the roadmap.
 
 ---
 
+## The first live ICA run, 2026-08-10
+
+**Decided: three of the five census predictions stand as written, one was wrong
+about which range it described, and one was never testable on this deployment.
+The numbers below replace the guesses, and where nothing was measured that is
+said rather than filled in.**
+
+Run against `dev:giant-yak-747`, batch size 25 and concurrency 5 untouched,
+crons off, every press started by hand. 34 437 EANs loaded, 6 825 drained
+through the lane, plus a 607 page sample fetched beside it with the same URL,
+headers, timeout and concurrency the lane uses.
+
+| Claim                                   | Predicted | Measured                                    |
+| --------------------------------------- | --------- | ------------------------------------------- |
+| product ids that 404                    | ~7%       | **0** of 6 825 drained and 0 of 607 sampled |
+| census names that resolve a size        | 19 456    | **19 456**, and 10 ambiguous                |
+| ids that fail with something not a 404  | ~50       | **0** of 7 432 requests                     |
+| EAN on the page differs from the census | 0         | **0**                                       |
+| range that overlaps Coop                | ~a third  | **not testable here**                       |
+
+### What the lane did
+
+6 825 rows claimed, 6 825 stored, 0 skipped, 0 failed. Not one of the four
+`skipped` memos was written, and the queue holds zero skipped rows. Each batch
+of 25 settled in 1.7 to 2.1 seconds. 27 612 rows are still pending, deliberately:
+the deliverable is this entry, not a drained queue, and the sample answers what
+the remaining rows would have.
+
+Field coverage over the 6 825: `imageUrl` and `categoryPath` on all but one,
+`brand` on 6 700, `netContent` on 3 837, nutrition on 1 936. The `netContent`
+share, 55.4%, sits where the whole-census name measurement says it should
+(19 456 of 34 437 is 56.5%) and where the sample put it (57.3%).
+
+### The 7% was a rate over a different range
+
+The census crawl started from 34 172 sitemap ids and kept the ones that
+answered. `ica-eans.csv` is therefore, by construction, the ids that resolved,
+so a 404 rate measured over the seeds says nothing about a load driven by the
+CSV. Zero over 7 432 live requests two days after the crawl.
+
+The `product: null` arm stays. It is right about what a 404 means and it is the
+only thing standing between a disappeared id and an infinite retry. It is now
+documented as defensive, which is what it is.
+
+### `data/ica/skip.txt` never supported the claim it was cited for
+
+The "~50 ids fail with something other than 404" prediction cited that file. It
+is not a list of poison ids. It is the first 50 lines of `ica-eans.csv` in EAN
+order, it contains EANs rather than product ids, and nothing in the repo reads
+it. All 50 were in the first 75 rows drained and all 50 stored.
+
+It is untracked, like everything under `packages/catalog/data`, so it is a local
+scratch file that outlived its purpose and got quoted as evidence. Left in place
+because deleting another operator's untracked file is not this step's business.
+
+### What ICA does when it refuses is still unknown
+
+7 432 requests at concurrency 5 produced 607 sampled `200`s and 6 825 lane
+successes, no 401, no 403, no 429, no 5xx, and no `x-amzn-waf-action` header on
+any response. The lane never had to exercise `CALLER_WIDE_STATUSES`.
+
+So the split in `ica/fetch.ts` — 401, 403 and 429 caller-wide, everything else
+per row — remains a reasoned guess and not a measurement. The nasty case the
+step went looking for, a `200` carrying a WAF challenge that parses to `null`
+and settles as `no public ICA page`, did not appear and cannot be ruled out from
+this run. It stays a known unknown rather than a confirmed shape.
+
+### The timeout is generous by a factor of about seventy
+
+p50 136 ms, p95 220 ms, slowest of 607 pages 544 ms, against a
+`REQUEST_TIMEOUT_MS` of 15 000. Nothing came close to it, so the question step 21
+opened — too low and healthy pages fail, too high and a hung socket eats the
+budget — is answered on the first half only. Leave it. The margin costs nothing
+while runs are started by hand, and the sample cannot say what a hung socket
+would do because it never met one.
+
+### The queue drains the interesting rows last
+
+`ica-eans.csv` is sorted with the 307 `listed=0` rows at the end, and those are
+the weight-priced in-store-barcode items most likely to have no public page.
+The loader preserves that order, `claimPendingEans` takes the oldest rows first,
+and a row that is re-enqueued gets a newer creation time and lands further back
+still. There is no way to reach the tail except to drain everything ahead of it.
+
+That is why the 404 and refusal questions were settled beside the lane rather
+than through it. Worth knowing before the next lane is loaded from a sorted
+file: whatever a census sorts to the bottom is what an operator will see last,
+which is the opposite of what a first run wants.
+
+All 307 unlisted ids answered `200` and parsed, so the tail was not hiding
+anything this time.
+
+### One press is mostly not a drain
+
+`admin.startRun` hands the same `batches` number to both halves of a run. At the
+console's ceiling of 30 that means the fill sweep walks 30 pages of 500 `eans`
+rows, 15 000 of them, before the first batch of 25 is fetched. On a lane whose
+queue is already loaded the sweep finds nothing on every one of those pages, and
+a 750 row press spends the larger part of 90 to 140 seconds re-scanning.
+
+Not changed here, because the sweep is what makes the one button correct and
+step 27 already decided against touching `model/queue.ts` this late. Recorded so
+the next person reading a slow press knows it is the sweep and not ICA.
+
+### Nothing diverged from the stubs, so no test changed
+
+Every live outcome was `stored`, which `ica-lane.vitest.ts` already covers. The
+step's rule was that a divergence becomes a test rather than a note. There was
+no divergence. The corrections above are all to prose and to one comment in
+`ica/fetch.ts`, because they are claims about ICA rather than about the lane,
+and a test that asserts ICA's 404 rate would be a test of the internet.
+
+---
+
 ## The failure paths, and which of them are acceptable
 
 Read off the code and pinned by `convex/failures.vitest.ts` for the Coop lane
