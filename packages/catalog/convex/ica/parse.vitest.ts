@@ -49,6 +49,17 @@ describe('parseIcaProduct', () => {
     );
   });
 
+  test('an empty sku falls back to the mpn rather than to nothing', () => {
+    // `meta` answers `''` for a `content=""` attribute, and `'' ?? mpn` is `''`,
+    // so the fallback the two tags exist for never ran on the one page shape
+    // that needs it.
+    const page = PAGE.replace(
+      '<meta itemprop="sku" content="7316562700078">',
+      '<meta itemprop="sku" content="">',
+    );
+    expect(parseIcaProduct(page)!.ean).toBe('7316562700078');
+  });
+
   test('refuses a page carrying no EAN or no name', () => {
     expect(parseIcaProduct('<html></html>')).toBeNull();
     expect(parseIcaProduct('<meta itemprop="sku" content="73165">')).toBeNull();

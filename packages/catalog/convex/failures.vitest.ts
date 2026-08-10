@@ -265,6 +265,46 @@ describe('the fetch, when it fails', () => {
   });
 });
 
+describe('the fetch, when the write refuses the item', () => {
+  test('an item that projects to nothing is not reported as stored', async () => {
+    const t = convexTest(schema, modules);
+    vi.stubEnv('COOP_EXTERNAL_API_KEY', 'test-key');
+    // Sanitizing keeps this item: it carries a string `ean`, which is the only
+    // bar the fetch holds it to. `project` is where it falls over, because a
+    // payload with no name has nothing to be a catalog row about. The near
+    // neighbour above is why this was missed - the two look like the same case
+    // and are settled at different boundaries.
+    respondWith(itemsBody([{ ean: '7300000000000' }]));
+    await t.mutation(internal.ingest.enqueueEans, {
+      store: 'coop',
+      rows: [{ ean: '7300000000000' }],
+      source: 'census',
+    });
+
+    const summary = await t.action(internal.ingest.fetchQueuedEans, {
+      store: 'coop',
+      batches: 1,
+    });
+    expect(summary).toMatchObject({ claimed: 1, added: 0, skipped: 1 });
+
+    // Reporting this `stored` deleted the queue row for a catalog row that was
+    // never written, so the fill sweep queued the barcode again on every pass
+    // and the lane refetched the same unusable item forever. The memo is
+    // deliberately not `not stocked by Coop`: Coop did return an item.
+    const left = await t.run(
+      async (ctx) => await ctx.db.query('ingest_queue').take(50),
+    );
+    expect(left).toHaveLength(1);
+    expect(left[0]).toMatchObject({
+      status: 'skipped',
+      lastError: 'Coop item projected to nothing (no name)',
+    });
+    expect(
+      await t.run(async (ctx) => await ctx.db.query('catalog').take(5)),
+    ).toEqual([]);
+  });
+});
+
 describe('the fetch, when a product is missing', () => {
   test('a stored EAN leaves the queue and an unstocked one stays as the memo', async () => {
     const t = convexTest(schema, modules);

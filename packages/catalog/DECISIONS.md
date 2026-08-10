@@ -6,7 +6,8 @@ Choices that are not visible in the code, because the code's answer is silence.
 
 ## The failure paths, and which of them are acceptable
 
-Read off the code and pinned by `convex/failures.vitest.ts`. Every behaviour
+Read off the code and pinned by `convex/failures.vitest.ts` for the Coop lane
+and `convex/ica-lane.vitest.ts` for the ICA one. Every behaviour
 below is deliberate as of this writing; the ones marked **blocker** are
 deliberate _only while runs are started by hand_.
 
@@ -44,7 +45,7 @@ is retried is a failure that waits as long as the human does.
 `skipped` is the one terminal state, and it is a memo rather than an outcome.
 See below.
 
-### One bad response fails the whole batch, and stops the chain
+### One bad response fails the whole Coop batch, and stops the chain
 
 **Accepted.** The catch marks all up to `COOP_BATCH_SIZE` (500) claimed rows
 failed with the same error text, and they all return to `pending`.
@@ -63,6 +64,41 @@ barcodes and put the same request back to the API that just refused it. The
 rows wait in the queue and the next run picks them up. A per-row failure — one
 product's upsert threw while the request itself succeeded — does not stop the
 chain.
+
+### A failed ICA page fails only itself
+
+**Decided, and deliberately the opposite of the rule above.** The reasoning
+behind the batch-wide rule is Coop's shape, not a house style: one request, so a
+refusal is a statement about the caller. An ICA batch is 25 requests, and a 500
+or a hung socket on one of them is a statement about one product page. Failing
+the other 24 with it is what kept the lane pinned on the same poison id, run
+after run, fetching nothing.
+
+So `fetchOne` catches per page and returns the error on that page alone, and
+only the statuses that really are about the caller — 401, 403, 429 — still throw
+out of `fetchByProductId` and take the batch and the chain with them. A page
+that answered badly is settled `failed`, so the row returns to `pending` and the
+next run retries it, because a 500 or a timeout is usually transient. A page
+that is permanently broken therefore retries forever, which is the uncapped
+`attempts` question above and is acceptable only because the failure now costs
+one row rather than the lane.
+
+Pinned by `convex/ica-lane.vitest.ts`.
+
+### A batch that made no progress stops the chain
+
+**Decided.** A thrown lane already stops the chain. This is the case where
+nothing threw and every row still failed anyway — 25 pages that all timed out,
+say. Those rows go back to `pending` carrying their original `enqueuedAt`, so
+they remain the oldest work on `by_store_status` and the next batch would claim
+the same barcodes and do the same thing again for as many batches as the run was
+given.
+
+Any row that was stored or skipped left the lane for good, so a batch with even
+one of those means the next batch sees new work and the chain continues. Only an
+entirely failed batch stops it. Note that this is a per-batch rule and not a
+retry cap: the next run still claims the same rows, which is the intended
+behaviour and the reason the stop is cheap to keep.
 
 ### A missing product is skipped, and never retried
 
