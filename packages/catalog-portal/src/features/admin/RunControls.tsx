@@ -2,11 +2,9 @@ import { useState } from 'react';
 import { useMutation } from 'convex/react';
 import { Button, Card, InputControl, Stack, Text } from '@wordpress/ui';
 import { STORE_LABELS } from '@matvis/shared';
-import { type IngestLane } from '@matvis/catalog';
+import { DEFAULT_RUN_BATCHES, type IngestLane } from '@matvis/catalog';
 import { adminApi } from '../../lib/adminApi';
 import { TaskResult, useAdminTask } from './task';
-
-const DEFAULT_BATCHES = 4;
 
 export function RunControls({
   token,
@@ -20,7 +18,7 @@ export function RunControls({
   const startRun = useMutation(adminApi.admin.startRun);
   const setPaused = useMutation(adminApi.admin.setPaused);
 
-  const [batches, setBatches] = useState(String(DEFAULT_BATCHES));
+  const [batches, setBatches] = useState(String(DEFAULT_RUN_BATCHES));
   const { state, run } = useAdminTask();
 
   return (

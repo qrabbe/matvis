@@ -1,5 +1,5 @@
 import { useState, type ComponentProps } from 'react';
-import { useAction, useQuery } from 'convex/react';
+import { useMutation, useQuery } from 'convex/react';
 import {
   Button,
   Card,
@@ -53,7 +53,7 @@ export function QueuePanel({
     store,
     cursor,
   });
-  const removeQueueRows = useAction(adminApi.admin.removeQueueRows);
+  const removeQueueRows = useMutation(adminApi.admin.removeQueueRows);
   const { state, run } = useAdminTask();
 
   const selection =

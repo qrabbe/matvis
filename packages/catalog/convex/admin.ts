@@ -51,6 +51,7 @@ import {
   readFillStats,
   readPaused,
   readQueueStats,
+  removeQueueRowsFor,
   writePaused,
 } from './model/queue';
 import { readCoverage, readFreshness } from './model/metrics';
@@ -453,14 +454,11 @@ export const setPaused = adminMutation({
 /** The queue's only manual lever, now that a stored row deletes itself and a
  * failed one requeues itself. It is how a barcode that fails forever stops
  * being retried. */
-export const removeQueueRows = adminAction({
+export const removeQueueRows = adminMutation({
   args: { store: v.optional(storeValidator), ean: v.string() },
   returns: v.object({ deleted: v.number() }),
-  handler: async (ctx, { store, ean }): Promise<{ deleted: number }> =>
-    await ctx.runMutation(internal.ingest.removeQueueRows, {
-      store: store ?? DEFAULT_LANE,
-      ean,
-    }),
+  handler: async (ctx, { store, ean }) =>
+    await removeQueueRowsFor(ctx, store ?? DEFAULT_LANE, ean),
 });
 
 /** The repair for the counters the overview renders. Refuses unless ingest is

@@ -3,6 +3,7 @@ import type { MutationCtx, QueryCtx } from '../_generated/server';
 import type { Doc, Id } from '../_generated/dataModel';
 import type { WithoutSystemFields } from 'convex/server';
 import {
+  QUEUE_MAINTENANCE_LIMIT,
   QUEUE_STATUSES,
   type FillStats,
   type QueueStats,
@@ -46,6 +47,25 @@ export async function deleteQueueRow(
 ): Promise<void> {
   await bumpCounter(ctx, queueCountKey(row.status), -1);
   await ctx.db.delete(row._id);
+}
+
+/** Every queue row for one barcode in one lane, gone. Bounded by the
+ * maintenance limit, which is the number the console quotes.
+ *
+ * Per store, because the same barcode legitimately sits in two lanes at once.
+ * Both the internal mutation the scripts call and the admin one the console
+ * calls come through here. */
+export async function removeQueueRowsFor(
+  ctx: MutationCtx,
+  store: StoreSlug,
+  ean: string,
+): Promise<{ deleted: number }> {
+  const rows = await ctx.db
+    .query('ingest_queue')
+    .withIndex('by_store_ean', (q) => q.eq('store', store).eq('ean', ean))
+    .take(QUEUE_MAINTENANCE_LIMIT);
+  for (const row of rows) await deleteQueueRow(ctx, row);
+  return { deleted: rows.length };
 }
 
 export type QueueOutcome = 'queued' | 'known' | 'duplicate';
@@ -93,15 +113,16 @@ export async function queueEanIfMissing(
   return 'queued';
 }
 
+/** Keyed by status name, not by position, so reordering the status list or
+ * adding one to it cannot put a count under the wrong label. */
 export async function readQueueStats(ctx: QueryCtx): Promise<QueueStats> {
-  const counts = await Promise.all(
-    QUEUE_STATUSES.map((status) => readCounter(ctx, queueCountKey(status))),
+  const counts = {} as Record<QueueStatus, number>;
+  await Promise.all(
+    QUEUE_STATUSES.map(async (status) => {
+      counts[status] = await readCounter(ctx, queueCountKey(status));
+    }),
   );
-  return {
-    pending: counts[0]!,
-    processing: counts[1]!,
-    skipped: counts[2]!,
-  };
+  return counts;
 }
 
 /** One row, read once. Every setting on it is reached through here so a handler

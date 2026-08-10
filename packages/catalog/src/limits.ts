@@ -11,6 +11,10 @@
  * they pasted. */
 export const ENQUEUE_PASTE_MAX = 20000;
 
-/** Rows one press of requeue, clear-done or remove touches. Each reports what
- * it did, so a full queue takes more than one press. */
+/** Rows one press of remove rows touches. It reports what it did, so a full
+ * queue takes more than one press. */
 export const QUEUE_MAINTENANCE_LIMIT = 1000;
+
+/** One number for one press. A run is a sweep followed by a fetch chain, and
+ * this is how many rounds each half gets before it stops on its own. */
+export const DEFAULT_RUN_BATCHES = 4;

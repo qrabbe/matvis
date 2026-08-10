@@ -114,7 +114,10 @@ describe('the session gate', () => {
       t.mutation(api.admin.setPaused, { token: 'bogus', paused: true }),
     ).rejects.toThrow(/Not signed in/);
     await expect(
-      t.action(api.admin.removeQueueRows, { token: 'bogus', ean: '73000000' }),
+      t.mutation(api.admin.removeQueueRows, {
+        token: 'bogus',
+        ean: '73000000',
+      }),
     ).rejects.toThrow(/Not signed in/);
 
     await t.mutation(api.admin.setPaused, { token, paused: true });
@@ -136,7 +139,7 @@ describe('the session gate', () => {
       t.mutation(api.admin.setPaused, { token, paused: true }),
     ).rejects.toThrow(/Not signed in/);
     await expect(
-      t.action(api.admin.removeQueueRows, { token, ean: '73000000' }),
+      t.mutation(api.admin.removeQueueRows, { token, ean: '73000000' }),
     ).rejects.toThrow(/Not signed in/);
   });
 

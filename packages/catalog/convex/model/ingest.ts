@@ -2,7 +2,11 @@ import type { StoreSlug } from '@matvis/shared';
 import { v, type Infer } from 'convex/values';
 import { storeValidator } from './fields';
 
-export { ENQUEUE_PASTE_MAX, QUEUE_MAINTENANCE_LIMIT } from '../../src/limits';
+export {
+  DEFAULT_RUN_BATCHES,
+  ENQUEUE_PASTE_MAX,
+  QUEUE_MAINTENANCE_LIMIT,
+} from '../../src/limits';
 
 /** Three states, and every one of them is either work or a memo.
  *
@@ -25,7 +29,8 @@ export const queueStatusValidator = v.union(
 
 export type QueueStatus = Infer<typeof queueStatusValidator>;
 
-/** The iteration order the counter keys are read back in. */
+/** Every status there is, for the callers that walk all of them. Order carries
+ * no meaning: each reader keys by the status name. */
 export const QUEUE_STATUSES: readonly QueueStatus[] = [
   'pending',
   'processing',
@@ -66,10 +71,6 @@ export function batchSizeFor(store: StoreSlug): number {
  * is missing, so a full pass is spread across runs rather than rescanning the
  * whole table every tick. */
 export const FILL_PAGE_SIZE = 500;
-
-/** One number for one press. A run is a sweep followed by a fetch chain, and
- * this is how many rounds each half gets before it stops on its own. */
-export const DEFAULT_RUN_BATCHES = 4;
 
 export const STALE_CLAIM_MS = 30 * 60 * 1000;
 

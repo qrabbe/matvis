@@ -18,8 +18,10 @@ const MIN_EAN_QUERY_DIGITS = 6;
  * longer EAN that starts with the term. */
 const EAN_PREFIX_CEILING = '￿';
 
+const EAN_QUERY_PATTERN = new RegExp(`^\\d{${MIN_EAN_QUERY_DIGITS},}$`);
+
 function looksLikeEan(term: string): boolean {
-  return new RegExp(`^\\d{${MIN_EAN_QUERY_DIGITS},}$`).test(term);
+  return EAN_QUERY_PATTERN.test(term);
 }
 
 export const search = query({

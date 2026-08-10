@@ -14,7 +14,6 @@ import {
   COOP_BATCH_SIZE,
   DEFAULT_RUN_BATCHES,
   FILL_PAGE_SIZE,
-  QUEUE_MAINTENANCE_LIMIT,
   STALE_CLAIM_MS,
   batchSizeFor,
   errorText,
@@ -24,6 +23,7 @@ import {
   deleteQueueRow,
   queueEanIfMissing,
   readFillCursor,
+  removeQueueRowsFor,
   setQueueStatus,
   writeFillCursor,
 } from './model/queue';
@@ -187,14 +187,8 @@ export const settleClaimedRows = internalMutation({
 export const removeQueueRows = internalMutation({
   args: { store: storeValidator, ean: v.string() },
   returns: v.object({ deleted: v.number() }),
-  handler: async (ctx, { store, ean }) => {
-    const rows = await ctx.db
-      .query('ingest_queue')
-      .withIndex('by_store_ean', (q) => q.eq('store', store).eq('ean', ean))
-      .take(QUEUE_MAINTENANCE_LIMIT);
-    for (const row of rows) await deleteQueueRow(ctx, row);
-    return { deleted: rows.length };
-  },
+  handler: async (ctx, { store, ean }) =>
+    await removeQueueRowsFor(ctx, store, ean),
 });
 
 type FetchTotals = {
