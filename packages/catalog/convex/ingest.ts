@@ -7,7 +7,7 @@ import {
 } from './_generated/server';
 import { internal } from './_generated/api';
 import { sanitizeCoopProduct } from './coop/sanitize';
-import type { IcaProduct } from './ica/parse';
+import type { IcaFetchedPage } from './ica/fetch';
 import { storeValidator } from './model/fields';
 import {
   COOP_BATCH_SIZE,
@@ -252,7 +252,14 @@ const fetchCoop: Lane = async (ctx, claimed) => {
  * A row with no `sourceId` is skipped rather than failed: an ICA page is
  * addressed by product id and an EAN alone cannot reach one, so retrying would
  * never succeed. That only happens to a barcode enqueued by hand without an id,
- * because the census supplies one for every row it loads. */
+ * because the census supplies one for every row it loads.
+ *
+ * A page that answered badly fails only its own row. Coop's rule that one bad
+ * response fails the whole batch is reasoned from Coop's shape, where the batch
+ * is a single request and a refusal is about the caller; here the batch is 25
+ * requests and a 500 is about one page. Only the statuses that really are about
+ * the caller — 401, 403, 429 — still throw out of `fetchByProductId` and take
+ * the batch and the chain with them. */
 const fetchIca: Lane = async (ctx, claimed) => {
   const results: FetchResult[] = [];
   const addressable = claimed.filter((row) => row.sourceId !== undefined);
@@ -268,15 +275,31 @@ const fetchIca: Lane = async (ctx, claimed) => {
   }
   if (addressable.length === 0) return results;
 
-  const fetched: { sourceId: string; product: IcaProduct | null }[] =
-    await ctx.runAction(internal.ica.fetch.fetchByProductId, {
-      sourceIds: addressable.map((row) => row.sourceId!),
-    });
-  const byId = new Map(fetched.map((one) => [one.sourceId, one.product]));
+  const fetched: IcaFetchedPage[] = await ctx.runAction(
+    internal.ica.fetch.fetchByProductId,
+    { sourceIds: addressable.map((row) => row.sourceId!) },
+  );
+  // The whole entry, not just the product: mapping to `one.product` here threw
+  // the error away before the lane could tell "no page" from "page did not
+  // answer".
+  const byId = new Map(fetched.map((one) => [one.sourceId, one]));
 
   for (const row of addressable) {
-    const product = byId.get(row.sourceId!) ?? null;
-    if (!product) {
+    const entry = byId.get(row.sourceId!);
+    // `failed` rather than `skipped`, so the row returns to `pending` and the
+    // next run retries it: a 500 or a timeout is usually transient. A page that
+    // is permanently broken retries forever, which is the uncapped `attempts`
+    // question and is acceptable only because the failure now costs one row
+    // instead of the lane.
+    if (entry === undefined || entry.error !== undefined) {
+      results.push({
+        id: row.id,
+        outcome: 'failed',
+        error: entry?.error ?? 'ICA returned no result for this product id',
+      });
+      continue;
+    }
+    if (entry.product === null) {
       results.push({
         id: row.id,
         outcome: 'skipped',
@@ -286,7 +309,7 @@ const fetchIca: Lane = async (ctx, claimed) => {
     }
     try {
       await ctx.runMutation(internal.products.upsertIcaByEan, {
-        data: product,
+        data: entry.product,
       });
       results.push({ id: row.id, outcome: 'stored' });
     } catch (error) {
