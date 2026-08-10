@@ -45,7 +45,7 @@ New systems follow the same pair.
 | [`connector`](packages/connector)               | **The receipt connector.** A standalone service that links a store account and syncs purchases into normalized data which gets exposed through an API.                                                                 | ✅ Live |
 | [`connector-portal`](packages/connector-portal) | **The connector's web UI.** A link/setup flow (BankID QR, connection status) plus a "for developers" portal documenting the API and the versioned `Receipt` contract. Talks only to the connector's Convex deployment. | ✅ Live |
 | [`app`](packages/app)                           | **The Matvis user app.** The consumer-facing frontend for nutrition, pantry and charts, read-only over both deployments. Onboarding is the API token pasted in. Pantry and Nutrition wait on receipt-line matching.    | ✅ Live |
-| [`catalog`](packages/catalog)                   | **Product-data mirror.** A database that hosts GTIN/EAN, product, nutrition, price data, focusing on swedish grocery store items. Coop ingest and the clean-table projector run; more sources land later.              | ✅ Live |
+| [`catalog`](packages/catalog)                   | **Product-data mirror.** A database that hosts GTIN/EAN, product, nutrition, price data, focusing on swedish grocery store items. Coop and ICA ingest and the clean-table projector run; more chains land later.       | ✅ Live |
 | [`catalog-portal`](packages/catalog-portal)     | **The catalog's web UI.** A search box + table over the clean, EAN-keyed catalog table, plus a "for developers" tab documenting the read API and the versioned `CatalogItem` contract. No auth — public read-only.     | ✅ Live |
 | [`landing`](packages/landing)                   | **The distributor page.** A static landing page (no build) served at the site root, with a card linking to each of the three frontends.                                                                                | ✅ Live |
 
@@ -183,15 +183,20 @@ frontend against production's backend.
 
 ### Seeding the catalog's production data
 
-Coop payloads are **not** stored. A product is projected into `catalog` at fetch time and
-the API response is discarded, so there is no raw table to replay: changing a projector
-means refetching through Coop's rate limit, not rebuilding locally.
+Source payloads are **not** stored, on either chain. A product is projected into `catalog`
+at fetch time and the Coop response or the ICA page is discarded, so there is no raw table
+to replay: changing a projector means refetching through the source's rate limit, not
+rebuilding locally.
 
 Two tables carry the pipeline. `eans` is a flat worklist of every barcode we have heard
 of per chain, and `catalog` holds the projected products. The difference between them is
-the work left to do, which is what [`ingest.fillMissing`](packages/catalog/convex/ingest.ts)
-walks: it pages `eans`, queues whatever `catalog` has no row for, and persists its cursor
-in `ingest_settings` so successive runs continue the pass rather than rescanning.
+the work left to do, which is what
+[`ingest.queueMissingEans`](packages/catalog/convex/ingest.ts) walks — the action, over the
+paged [`queueMissingPage`](packages/catalog/convex/ingest.ts) mutation: it pages `eans`,
+queues whatever `catalog` has no row for, and persists its cursor in `ingest_settings` so
+successive runs continue the pass rather than rescanning. It then hands over to the fetch
+unconditionally, because a sweep that queued nothing is exactly the case where the queue
+already holds the work.
 
 A fresh production deployment starts empty. The simplest fill is a snapshot copy from the
 dev deployment — from `packages/catalog` (where `--prod` resolves to `matvis-catalogue`'s

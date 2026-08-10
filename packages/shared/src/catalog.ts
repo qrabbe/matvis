@@ -115,7 +115,7 @@ export const CatalogItem = z.object({
   }),
   netContent: CatalogQuantity.optional().meta({
     description:
-      'Net content in canonical units, resolved at ingest. This is the field to do arithmetic with. Scaling nutrition to a package is only valid when netContent.unit === food.nutrition.basisUnit; when they differ the product genuinely is not scalable and must not be approximated. Absent when the source stated no size, or a unit that did not resolve.',
+      'Net content in canonical units, resolved at ingest. This is the field to do arithmetic with. Scaling nutrition to a package is only valid when netContent.unit === food.nutrition.basisUnit; when they differ the product genuinely is not scalable and must not be approximated. Absent when the source stated no size, or a unit that did not resolve. Some sources declare net content and some do not: where the source declares none it is derived from the product name, and only when the name states exactly one size, since a name like "Inlagd Sill 400g varav sill 210g" is genuinely ambiguous. A derived value has no packageSizeText beside it, which is the way to tell the two apart today.',
   }),
   packageSizeText: z.string().optional().meta({
     description:

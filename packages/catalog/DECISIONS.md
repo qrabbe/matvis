@@ -4,6 +4,34 @@ Choices that are not visible in the code, because the code's answer is silence.
 
 ---
 
+## Releases
+
+**Decided: a git tag, and nothing else.** There is no CHANGELOG and the
+workspace root stays at `version: 0.0.0` — it is private and never published, so
+a number there would be a number nobody reads. The tag is the cheapest marker
+that is still a real one: it names a commit, and `git describe` answers what a
+deployment is.
+
+### v0.0.1 — the ICA lane
+
+Tagged on the commit that closes the end-to-end run against the live source.
+What it contains:
+
+- A second ingest lane. ICA products are fetched one page per product, parsed
+  out of the page microdata, and written to the same `(EAN, store)` catalog.
+- The lane split that made a fan-out lane safe: a bad page fails its own row,
+  and only 401, 403 and 429 still take the batch and the chain.
+- A chain guard for the batch where nothing progressed.
+- Reads of the writer's answer on both lanes, so a write that stored nothing
+  stops reporting `stored`.
+- ICA reachable from the admin console, on the same run, queue and log surfaces
+  as Coop.
+
+Still deliberately absent: any scheduled run. See the two **blocker** entries
+below and the entry criteria in the roadmap.
+
+---
+
 ## The failure paths, and which of them are acceptable
 
 Read off the code and pinned by `convex/failures.vitest.ts` for the Coop lane
@@ -85,6 +113,65 @@ one row rather than the lane.
 
 Pinned by `convex/ica-lane.vitest.ts`.
 
+### A 404 from ICA is an outcome, not a failure
+
+**Decided.** `fetchByProductId` answers `{ product: null }` for a 404 rather
+than an error, and the lane settles that row `skipped` with
+`no public ICA page for this product`. It is the ICA twin of Coop's
+`not stocked by Coop`: the source answered, and the answer is that the product
+is not there.
+
+Treating it as a failure would be wrong in both directions. The row would return
+to `pending` and be re-requested on every run forever, and the run summary would
+carry a `failed` count that says the crawl is broken when it is working exactly
+as intended.
+
+The rate is low but not zero, and it is not evenly spread. The census opened
+34 479 pages and every one of them rendered, so a row loaded from the worklist
+almost never 404s. The 404s live in the ids the census could not see: sampling
+300 real product ids from one store's assortment found 18 absent from the census
+CSV, and 7 of those 18 answer 404 on the public site because they exist only
+inside that store. See `data/ica/README.md`. So the memo is mostly a statement
+about hand-enqueued or store-scoped ids, and it will get more common if
+discovery ever widens past the public crawl.
+
+### An ICA row is addressed by `sourceId`, not by its EAN
+
+**Decided, and it is why `sourceId` is on two tables.** A Coop row is fetched by
+barcode, so the EAN is both the key and the address. An ICA page is reached at
+`/produkt/{id}` and nothing on ICA resolves an EAN to that id, so an EAN alone
+cannot fetch anything.
+
+That is the reason `eans` and `ingest_queue` both carry `sourceId`, and the
+reason forwarding it from `fetchIca` into `upsertIcaByEan` is load-bearing
+rather than tidy: `rememberEan` is what records a barcode as addressable, and a
+row written without it is permanently un-refetchable the day a refresh path
+exists.
+
+It is also why a claimed row with no `sourceId` settles **`skipped`** with
+`no ICA product id for this EAN` rather than `failed`. `failed` means "try
+again", and there is nothing to try — retrying would fail identically forever.
+Only a barcode enqueued by hand can be in that state, because the census supplies
+an id for every row it loads.
+
+### A write that stored nothing settles `skipped`, not `stored`
+
+**Decided, on both lanes.** `upsertCoopByEan` and `upsertIcaByEan` return
+`{ stored }`, and the lanes read it instead of taking the absence of a throw as
+success.
+
+The bug this closes was live on Coop. `project()` returns `null` for a payload
+with no `ean` **or no `name`**, and sanitizing only drops undeclared keys, so a
+Coop item with a barcode and no name wrote nothing, reported `stored`, and had
+its queue row deleted — leaving no catalog row for the fill sweep to find, which
+queued it again on the next pass. The same loop as the EAN-mismatch case below,
+on the busier lane, with no memo to explain it.
+
+The memos are deliberately distinct — `Coop item projected to nothing (no name)`
+and `ICA page projected to nothing (no ean or no name)` — rather than reusing
+`not stocked by Coop`. The source did return something; it was unusable, and the
+console shows this text to whoever has to tell those two apart.
+
 ### A batch that made no progress stops the chain
 
 **Decided.** A thrown lane already stops the chain. This is the case where
@@ -96,8 +183,16 @@ given.
 
 Any row that was stored or skipped left the lane for good, so a batch with even
 one of those means the next batch sees new work and the chain continues. Only an
-entirely failed batch stops it. Note that this is a per-batch rule and not a
-retry cap: the next run still claims the same rows, which is the intended
+entirely failed batch stops it.
+
+**The predicate is "not everything failed", not "something was stored", and the
+difference is the trap.** A batch of 25 pure skips — every id 404, every row
+missing its `sourceId` — stored nothing at all and still made progress, because
+all 25 rows are terminal and gone from `by_store_status`. Stopping there would
+halt a drain that is working perfectly through a stretch of absent products.
+Progress means the queue moved, not that the catalog grew.
+
+Note that this is a per-batch rule and not a retry cap: the next run still claims the same rows, which is the intended
 behaviour and the reason the stop is cheap to keep.
 
 ### A missing product is skipped, and never retried
@@ -129,6 +224,13 @@ Requeue, so the human was the cap. That cap is gone by design: the whole point
 of retry-on-next-run is that nobody has to notice. What is left is **Remove
 rows**, which is deliberate rather than accidental and is the only way to take
 a poison barcode out of the lane.
+
+The per-page ICA split above narrows the blast radius without lifting the
+blocker. A poison row used to pin its whole batch, so the uncapped retry burned
+25 requests a pass; now it burns one and the other 24 make progress. That is why
+this stayed deferred rather than becoming urgent — it went from a lane-wide
+stall to a single row retrying forever, which is a slow leak rather than a halt.
+It is still uncapped.
 
 While runs are manual this holds, because a run only happens when someone
 presses Run. Schedule anything and it becomes an uncapped retry loop pointed at
