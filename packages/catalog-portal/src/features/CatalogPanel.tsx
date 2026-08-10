@@ -117,16 +117,25 @@ const DEFAULT_VIEW: View = {
   fields: ['ean', 'packageSizeText', 'store', 'date'],
 };
 
+/** Long enough to sit out the gap between two keystrokes of even a slow typist,
+ * short enough that a finished typist reads it as waiting rather than as stuck.
+ * Every crossing is a new subscription and a fresh first page, and it throws
+ * away whatever Load more had already fetched. */
+const SEARCH_DELAY_MS = 1000;
+
 export function CatalogPanel() {
-  const [q, setQ] = useState('');
-  const debouncedQ = useDebounced(q, 250);
+  const [typedTerm, setTypedTerm] = useState('');
+  const { searchedTerm, waiting, searchNow } = useSettledTerm(
+    typedTerm,
+    SEARCH_DELAY_MS,
+  );
   const page = usePaginatedQuery(
     api.catalog.search,
-    { q: debouncedQ || undefined },
+    { q: searchedTerm || undefined },
     { initialNumItems: 10 },
   );
   const [view, setView] = useState<View>(DEFAULT_VIEW);
-  useSearchLog(debouncedQ, page.status, page.results.length);
+  useSearchLog(searchedTerm, page.status, page.results.length);
 
   // Still needed for the `paginationInfo` DataViews requires, and for hiding
   // columns. With every field's sorting off it has nothing left to reorder.
@@ -146,8 +155,12 @@ export function CatalogPanel() {
           <InputControl
             label="Search"
             placeholder="Search by name or EAN…"
-            value={q}
-            onValueChange={(value) => setQ(value)}
+            description={waiting ? waitingHint(typedTerm) : undefined}
+            value={typedTerm}
+            onValueChange={(value) => setTypedTerm(value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') searchNow();
+            }}
           />
           <DataViews
             data={data}
@@ -220,11 +233,29 @@ function useSearchLog(term: string, status: string, resultCount: number): void {
   }, [term, status, resultCount, logSearch]);
 }
 
-function useDebounced<T>(value: T, ms: number): T {
-  const [v, setV] = useState(value);
+function waitingHint(typedTerm: string): string {
+  return typedTerm === ''
+    ? 'Clearing the search in a moment. Press Enter to clear it now.'
+    : `Searching for “${typedTerm}” in a moment. Press Enter to search now.`;
+}
+
+/** Holds the typed term back until the typing stops, and lets Enter skip the
+ * wait so the delay only ever costs someone still deciding. */
+function useSettledTerm(
+  typedTerm: string,
+  delayMs: number,
+): { searchedTerm: string; waiting: boolean; searchNow: () => void } {
+  const [searchedTerm, setSearchedTerm] = useState(typedTerm);
+
   useEffect(() => {
-    const t = setTimeout(() => setV(value), ms);
-    return () => clearTimeout(t);
-  }, [value, ms]);
-  return v;
+    if (typedTerm === searchedTerm) return;
+    const timer = setTimeout(() => setSearchedTerm(typedTerm), delayMs);
+    return () => clearTimeout(timer);
+  }, [typedTerm, searchedTerm, delayMs]);
+
+  return {
+    searchedTerm,
+    waiting: typedTerm !== searchedTerm,
+    searchNow: () => setSearchedTerm(typedTerm),
+  };
 }
