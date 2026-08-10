@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { useQuery } from 'convex/react';
-import { Badge, Button, Card, EmptyState, Stack, Text } from '@wordpress/ui';
+import { Badge, Card, EmptyState, Stack, Tabs, Text } from '@wordpress/ui';
 import {
   STORE_LABELS,
   type CatalogNutrition,
@@ -28,14 +28,17 @@ function soldByLabel(soldBy: SoldBy): string {
 
 export function ProductDetail({ ean }: { ean: string }) {
   const rows = useQuery(api.catalog.getByEan, { ean });
-  const [storeIndex, setStoreIndex] = useState(0);
+  // Kept as a store slug rather than a row index: the route swaps `ean` under a
+  // mounted component, so a position selected on one product would carry over
+  // and address a different store on the next one.
+  const [pickedStore, setPickedStore] = useState<string | null>(null);
 
   if (rows === undefined) {
     return <SkeletonList label="Loading product…" rows={4} rowHeight={32} />;
   }
 
-  const item = rows[storeIndex] ?? rows[0];
-  if (!item) {
+  const first = rows[0];
+  if (!first) {
     return (
       <Stack direction="column" gap="lg">
         <BackLink />
@@ -49,29 +52,55 @@ export function ProductDetail({ ean }: { ean: string }) {
     );
   }
 
+  if (rows.length === 1) {
+    return (
+      <Stack direction="column" gap="lg">
+        <BackLink />
+        <StoreCards item={first} />
+      </Stack>
+    );
+  }
+
+  const shownStore = rows.some((row) => row.store === pickedStore)
+    ? pickedStore
+    : first.store;
+
   return (
     <Stack direction="column" gap="lg">
       <BackLink />
-      {rows.length > 1 && (
+      <Tabs.Root
+        value={shownStore}
+        onValueChange={(value) => setPickedStore(String(value))}
+      >
         <Stack direction="row" gap="sm" wrap="wrap" align="center">
           <Text variant="body-sm">Sourced from:</Text>
-          {rows.map((row, index) => (
-            <Button
-              key={row._id}
-              size="small"
-              variant={index === storeIndex ? 'solid' : 'outline'}
-              tone="neutral"
-              onClick={() => setStoreIndex(index)}
-            >
-              {storeLabel(row.store)}
-            </Button>
-          ))}
+          <Tabs.List>
+            {rows.map((row) => (
+              <Tabs.Tab key={row._id} value={row.store}>
+                {storeLabel(row.store)}
+              </Tabs.Tab>
+            ))}
+          </Tabs.List>
         </Stack>
-      )}
+        {rows.map((row) => (
+          <Tabs.Panel key={row._id} value={row.store}>
+            <Stack direction="column" gap="lg" style={{ paddingTop: 20 }}>
+              <StoreCards item={row} />
+            </Stack>
+          </Tabs.Panel>
+        ))}
+      </Tabs.Root>
+    </Stack>
+  );
+}
+
+function StoreCards({ item }: { item: CatalogRow }) {
+  return (
+    <>
       <ProductCard item={item} />
       {item.food && <FoodCard food={item.food} />}
       <ProvenanceCard item={item} />
-    </Stack>
+    </>
   );
 }
 
