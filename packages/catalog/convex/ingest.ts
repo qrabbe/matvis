@@ -236,10 +236,25 @@ const fetchCoop: Lane = async (ctx, claimed) => {
       continue;
     }
     try {
-      await ctx.runMutation(internal.products.upsertCoopByEan, {
-        data: sanitizeCoopProduct(item),
-      });
-      results.push({ id: row.id, outcome: 'stored' });
+      // The writer's answer, not just the absence of a throw. `project` returns
+      // null for a payload with no name, which sanitizing does not guarantee,
+      // and reporting that as `stored` deleted the queue row for a catalog row
+      // that was never written, so the fill sweep queued it again every pass.
+      const { stored } = await ctx.runMutation(
+        internal.products.upsertCoopByEan,
+        { data: sanitizeCoopProduct(item) },
+      );
+      results.push(
+        stored
+          ? { id: row.id, outcome: 'stored' }
+          : {
+              id: row.id,
+              outcome: 'skipped',
+              // Deliberately not `not stocked by Coop`. Coop did return an
+              // item; it was unusable. The console shows this text.
+              error: 'Coop item projected to nothing (no name)',
+            },
+      );
     } catch (error) {
       results.push({ id: row.id, outcome: 'failed', error: errorText(error) });
     }
@@ -308,9 +323,38 @@ const fetchIca: Lane = async (ctx, claimed) => {
       continue;
     }
     try {
-      await ctx.runMutation(internal.products.upsertIcaByEan, {
-        data: entry.product,
-      });
+      // `sourceId` rides along so `rememberEan` records the parsed EAN as
+      // addressable. Without it an ICA row has no way back to the page it came
+      // from, and ICA pages are reachable only by product id.
+      const { stored } = await ctx.runMutation(
+        internal.products.upsertIcaByEan,
+        { data: entry.product, sourceId: row.sourceId },
+      );
+      if (!stored) {
+        results.push({
+          id: row.id,
+          outcome: 'skipped',
+          error: 'ICA page projected to nothing (no ean or no name)',
+        });
+        continue;
+      }
+      // The page is the authority on which barcode it describes, so the write
+      // above went under the parsed EAN. That leaves the claimed EAN with no
+      // catalog row, and settling it `stored` would have the fill sweep queue
+      // it again on every pass to fetch the same page forever. `skipped` is
+      // terminal and says why. Settling a row `skipped` after a successful
+      // write exists nowhere else in the lane: the two are otherwise mutually
+      // exclusive, and this is the one case where both are true.
+      //
+      // Measured at zero over all 34 437 census pages, so this is defensive.
+      if (entry.product.ean !== row.ean) {
+        results.push({
+          id: row.id,
+          outcome: 'skipped',
+          error: `ICA page ${row.sourceId} resolves to EAN ${entry.product.ean}`,
+        });
+        continue;
+      }
       results.push({ id: row.id, outcome: 'stored' });
     } catch (error) {
       results.push({ id: row.id, outcome: 'failed', error: errorText(error) });

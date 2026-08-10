@@ -113,6 +113,31 @@ because Convex imports every module at push time with no deployment env vars, so
 a top-level throw would fail the deploy of the whole deployment rather than the
 one function that needs the key.
 
+### An ICA page that resolves to a different EAN is trusted
+
+**Decided: trust the page.** A queue row claims `ean = X` at `sourceId = P`, and
+page `P` states `ean = Y`. The write goes under `Y`, `rememberEan('ica', Y, P)`
+records it as addressable, and the claimed row for `X` is settled `skipped` with
+`ICA page P resolves to EAN Y`.
+
+**Measured at zero.** Joining the 34 437 row census worklist against the crawl
+cache on `sourceId` found no page whose parsed EAN differs from the claimed one,
+and no parsed EAN shared by two product ids. The branch is three lines and is
+kept as a guard rather than because the case was observed.
+
+Without it the lane loops: the catalog gains `[Y, 'ica']` and still has no
+`[X, 'ica']`, so the fill sweep re-queues `X`, the drain fetches page `P` again,
+and it repeats one ICA request per pass per affected product, forever.
+
+The `skipped` memo is load-bearing here for the same reason it is under
+**A missing product is skipped**: `queueEanIfMissing` treats any existing queue
+row as a duplicate, so the surviving row for `X` is the only thing stopping the
+sweep re-queueing it. Tidying up skipped rows reopens the loop.
+
+Note the shape: the row is settled `skipped` **after** a successful write.
+Everywhere else in the lane `stored` and `skipped` are mutually exclusive, and
+this is the one place where both are true of the same claimed row.
+
 ### A dead worker's claim comes back after 30 minutes
 
 **Accepted.** `claimPendingEans` resets `processing` rows older than `STALE_CLAIM_MS`

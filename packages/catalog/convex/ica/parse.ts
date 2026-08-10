@@ -226,7 +226,10 @@ export function netContentFromName(name: string): CatalogQuantity | undefined {
 /** Pulls one product page apart. Returns null when the page carries no EAN or
  * no name, which is the same bar `projectCoop` holds a Coop payload to. */
 export function parseIcaProduct(html: string): IcaProduct | null {
-  const ean = text(meta(html, 'sku') ?? meta(html, 'mpn'));
+  // `text` inside each branch rather than around the pair. `meta` answers `''`
+  // for a `content=""` attribute rather than undefined, and `'' ?? mpn` is `''`,
+  // so the fallback never ran on the one page shape it exists for.
+  const ean = text(meta(html, 'sku')) ?? text(meta(html, 'mpn'));
   const name = text(meta(html, 'name'));
   if (!ean || !name) return null;
 
