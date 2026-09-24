@@ -3,9 +3,23 @@ import type { ReceiptItemDoc } from '@matvis/shared';
 const DB_NAME = 'matvis.app';
 const STORE = 'receiptItems';
 
-const CACHE_VERSION = 1;
+// v2: entries now carry `cachedAt` and expire. v1 had none, so a receipt
+// fetched once before this line ever ran (or before a later relink) stayed
+// stuck showing its gtin as unmatched forever — the cache had no way to
+// learn that `matching:matchReceipt` had patched it server-side since. The
+// version bump alone clears every v1 entry on next load; the TTL keeps that
+// from happening again.
+const CACHE_VERSION = 2;
 
 const storeName = `${STORE}.v${CACHE_VERSION}`;
+
+/** How long a cached receipt's items are trusted before this refetches them
+ * regardless. Short enough that matching new lines in (this or another) linker
+ * session shows up on the next reasonable visit, long enough that a normal
+ * session still avoids re-fetching every receipt's items on every render. */
+const CACHE_TTL_MS = 60 * 60 * 1000;
+
+type CachedEntry = { items: ReceiptItemDoc[]; cachedAt: number };
 
 let dbPromise: Promise<IDBDatabase | null> | null = null;
 
@@ -93,12 +107,17 @@ export async function loadCachedItems(
     const range = scopeRange(scope);
     const [keys, values] = await Promise.all([
       promisify(store.getAllKeys(range)),
-      promisify(store.getAll(range) as IDBRequest<ReceiptItemDoc[][]>),
+      promisify(store.getAll(range) as IDBRequest<CachedEntry[]>),
     ]);
+    const now = Date.now();
     keys.forEach((key, i) => {
-      const items = values[i];
-      if (typeof key !== 'string' || !items) return;
-      out.set(key.slice(scope.length + 1), items);
+      const entry = values[i];
+      if (typeof key !== 'string' || !entry) return;
+      // Expired entries are simply left out, not returned as stale data —
+      // the caller (usePurchaseData) treats "not in this map" as "go fetch
+      // it", the same as a receipt it has never seen.
+      if (now - entry.cachedAt > CACHE_TTL_MS) return;
+      out.set(key.slice(scope.length + 1), entry.items);
     });
   } catch {}
   return out;
@@ -113,7 +132,8 @@ export async function putCachedItems(
   if (!db || !db.objectStoreNames.contains(storeName)) return;
   try {
     const tx = db.transaction(storeName, 'readwrite');
-    tx.objectStore(storeName).put(items, scopedKey(scope, receiptId));
+    const entry: CachedEntry = { items, cachedAt: Date.now() };
+    tx.objectStore(storeName).put(entry, scopedKey(scope, receiptId));
     await new Promise<void>((resolve) => {
       tx.oncomplete = () => resolve();
       tx.onerror = () => resolve();
