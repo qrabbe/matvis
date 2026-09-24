@@ -7,3 +7,9 @@ storybook-static
 
 # Convex codegen — committed but written in Convex's own style, not ours.
 **/convex/_generated
+**/convex/README.md
+
+# `npx convex ai-files install` output — regenerated from convex-agents
+# content, not ours to reformat.
+**/.claude/skills/convex*
+**/.agents/skills/convex*
