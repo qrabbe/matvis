@@ -1,8 +1,5 @@
 import type { CatalogRow, CatalogUnit, ReceiptItemDoc } from '@matvis/shared';
-import { dayKey } from './format';
 import { parseUnit } from './units';
-
-export const CONSUMPTION_WINDOW_DAYS = 10;
 
 export interface Macros {
   kcal: number;
@@ -139,28 +136,6 @@ export function itemMacros(
     fiber: (nutrition.fiberG ?? 0) * scale,
     salt: (nutrition.saltG ?? 0) * scale,
   };
-}
-
-export interface DailyShare {
-  day: string;
-  macros: Macros;
-}
-
-export function spreadOverWindow(
-  purchasedAt: Date,
-  macros: Macros,
-  windowDays: number = CONSUMPTION_WINDOW_DAYS,
-): DailyShare[] {
-  const days = Math.max(1, Math.floor(windowDays));
-  const share = scaleMacros(macros, 1 / days);
-  const out: DailyShare[] = [];
-  const cursor = new Date(purchasedAt);
-  cursor.setHours(0, 0, 0, 0);
-  for (let i = 0; i < days; i++) {
-    out.push({ day: dayKey(cursor), macros: share });
-    cursor.setDate(cursor.getDate() + 1);
-  }
-  return out;
 }
 
 export function energySplit(

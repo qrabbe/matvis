@@ -31,8 +31,14 @@ import {
   PRIMARY_SERIES,
   TOOLTIP_STYLE,
 } from '../components/chartTheme';
+import type { Consumption } from '../hooks/useConsumption';
 import type { PurchaseData } from '../hooks/usePurchaseData';
 import { dayAtIndex, daySeries } from '../lib/chartSeries';
+import {
+  allocateConsumption,
+  spreadSpanByDay,
+  type LineAllocation,
+} from '../lib/consumption';
 import {
   inRange,
   precedingRange,
@@ -44,12 +50,10 @@ import {
 import { formatGrams, formatKcal } from '../lib/format';
 import {
   addMacros,
-  CONSUMPTION_WINDOW_DAYS,
   MACRO_LABELS,
   MACRO_UNITS,
   PROTEIN_GOAL_G,
   scaleMacros,
-  spreadOverWindow,
   ZERO_MACROS,
   type Macros,
   type MacroKey,
@@ -64,25 +68,33 @@ const MACRO_OPTIONS = MACRO_KEYS.map((key) => ({
   value: key as string,
 }));
 
+interface DayContribution {
+  line: PurchaseLine;
+  macros: Macros;
+}
+
 interface DayBucket {
   day: string;
   macros: Macros;
-  contributors: PurchaseLine[];
+  contributors: DayContribution[];
 }
 
-function bucketByDay(lines: readonly PurchaseLine[]): Map<string, DayBucket> {
+function bucketByDay(
+  allocations: readonly LineAllocation[],
+): Map<string, DayBucket> {
   const buckets = new Map<string, DayBucket>();
-  for (const line of lines) {
-    if (!line.macros) continue;
-    for (const share of spreadOverWindow(line.purchasedAt, line.macros)) {
-      const bucket = buckets.get(share.day) ?? {
-        day: share.day,
-        macros: ZERO_MACROS,
-        contributors: [],
-      };
-      bucket.macros = addMacros(bucket.macros, share.macros);
-      bucket.contributors.push(line);
-      buckets.set(share.day, bucket);
+  for (const alloc of allocations) {
+    for (const span of alloc.spans) {
+      for (const share of spreadSpanByDay(span)) {
+        const bucket = buckets.get(share.day) ?? {
+          day: share.day,
+          macros: ZERO_MACROS,
+          contributors: [],
+        };
+        bucket.macros = addMacros(bucket.macros, share.macros);
+        bucket.contributors.push({ line: alloc.line, macros: share.macros });
+        buckets.set(share.day, bucket);
+      }
     }
   }
   return buckets;
@@ -94,13 +106,23 @@ function totalMacros(buckets: Iterable<DayBucket>): Macros {
   return total;
 }
 
-export function NutritionPanel({ data }: { data: PurchaseData }) {
+export function NutritionPanel({
+  data,
+  consumption,
+}: {
+  data: PurchaseData;
+  consumption: Consumption;
+}) {
   const [macro, setMacro] = useState<MacroKey>('kcal');
   const [preset, setPreset] = useState<RangePresetId | null>('30d');
   const [range, setRange] = useState<DateRange>(() => presetRange('30d'));
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
 
-  const buckets = useMemo(() => bucketByDay(data.lines), [data.lines]);
+  const allocations = useMemo(
+    () => allocateConsumption(data.lines, consumption.events),
+    [data.lines, consumption.events],
+  );
+  const buckets = useMemo(() => bucketByDay(allocations), [allocations]);
 
   const earliest = useMemo(() => {
     let oldest: string | null = null;
@@ -153,6 +175,25 @@ export function NutritionPanel({ data }: { data: PurchaseData }) {
               </EmptyState.Root>
               <CoverageMeter coverage={data.coverage} />
             </Stack>
+          </Card.Content>
+        </Card.Root>
+      </Stack>
+    );
+  }
+
+  if (consumption.events.length === 0) {
+    return (
+      <Stack direction="column" gap="xl">
+        <ModelNotice />
+        <Card.Root>
+          <Card.Content>
+            <EmptyState.Root>
+              <EmptyState.Title>Nothing logged as used yet</EmptyState.Title>
+              <EmptyState.Description>
+                Intake only counts once you've marked something used — head to
+                Pantry and log the first thing you've eaten.
+              </EmptyState.Description>
+            </EmptyState.Root>
           </Card.Content>
         </Card.Root>
       </Stack>
@@ -290,9 +331,9 @@ export function NutritionPanel({ data }: { data: PurchaseData }) {
 function ModelNotice() {
   return (
     <Notice.Root intent="info">
-      <Notice.Title>These are macros bought, not eaten</Notice.Title>
+      <Notice.Title>Macros eaten, not macros bought</Notice.Title>
       <Notice.Description>
-        {`Each purchase is spread evenly over ${CONSUMPTION_WINDOW_DAYS} days from the day it was bought — a bag of rice is not eaten in one sitting, and the app has no way to record when anything actually was. Read the numbers as a smoothed picture of buying, not as intake.`}
+        {`A logged event's macros spread evenly across every day from the purchase to the day you marked it used — eat it same-day and it lands on one day; let it sit for two weeks and it spreads over two. Anything not yet marked used doesn't count here — it's still in the pantry.`}
       </Notice.Description>
     </Notice.Root>
   );
@@ -310,10 +351,11 @@ function DayDrilldown({
       string,
       { name: string; value: number; line: PurchaseLine }
     >();
-    for (const line of bucket.contributors) {
-      if (!line.macros || !line.product) continue;
+    for (const contribution of bucket.contributors) {
+      const { line } = contribution;
+      if (!line.product) continue;
       const key = line.product.ean;
-      const share = line.macros[macro] / CONSUMPTION_WINDOW_DAYS;
+      const share = contribution.macros[macro];
       const existing = byProduct.get(key);
       if (existing) existing.value += share;
       else byProduct.set(key, { name: line.product.name, value: share, line });
