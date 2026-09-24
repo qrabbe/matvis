@@ -16,6 +16,12 @@ type Assert<T extends true> = T;
 
 export const MAX_RECEIPT_ITEMS = 1000;
 
+/** How many `itemGtinMap` rows one (store, normalizedText) pair can have.
+ * There is one row per genuinely different product a text can mean (a text
+ * meaning three or four different pack sizes would be unusual), plus at
+ * most one generic (price-less) fallback row — a handful, never unbounded. */
+export const MAX_MAP_ROWS_PER_TEXT = 20;
+
 export const encryptedSecretValidator = v.object({
   keyVersion: v.number(),
   iv: v.string(),

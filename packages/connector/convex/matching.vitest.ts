@@ -111,6 +111,99 @@ describe('matchReceipt', () => {
     expect(await gtinOf(t, items[1])).toBeNull();
   });
 
+  test('picks the priced row whose price fits when one text means two products', async () => {
+    const t = convexTest(schema, modules);
+    const { receiptId, items } = await seed(t);
+    await t.run(async (ctx) => {
+      // MJÖLK line costs 12.50 — two sizes share the "mjölk" text.
+      await ctx.db.insert('itemGtinMap', {
+        store: 'coop',
+        normalizedText: 'mjölk',
+        gtin: 'small-carton',
+        price: 12.5,
+      });
+      await ctx.db.insert('itemGtinMap', {
+        store: 'coop',
+        normalizedText: 'mjölk',
+        gtin: 'large-carton',
+        price: 22.9,
+      });
+    });
+    const matched = await t.mutation(internal.matching.matchReceipt, {
+      receiptId,
+    });
+    expect(matched).toBe(1);
+    expect(await gtinOf(t, items[0])).toBe('small-carton');
+  });
+
+  test('fits a bought-multiple line against a small multiple of the row price', async () => {
+    const t = convexTest(schema, modules);
+    const { receiptId, items } = await seed(t);
+    await t.run(async (ctx) => {
+      // MJÖLK line is 12.50 on the receipt; three cartons at 4.17 apiece.
+      await ctx.db.patch(items[0], { price: 12.51 });
+      await ctx.db.insert('itemGtinMap', {
+        store: 'coop',
+        normalizedText: 'mjölk',
+        gtin: 'small-carton',
+        price: 4.17,
+      });
+    });
+    const matched = await t.mutation(internal.matching.matchReceipt, {
+      receiptId,
+    });
+    expect(matched).toBe(1);
+    expect(await gtinOf(t, items[0])).toBe('small-carton');
+  });
+
+  test('leaves a line unmatched when several priced rows exist and none fit', async () => {
+    const t = convexTest(schema, modules);
+    const { receiptId, items } = await seed(t);
+    await t.run(async (ctx) => {
+      // Neither 22.90 nor 6.00 nor any small multiple of either is 12.50.
+      await ctx.db.insert('itemGtinMap', {
+        store: 'coop',
+        normalizedText: 'mjölk',
+        gtin: 'large-carton',
+        price: 22.9,
+      });
+      await ctx.db.insert('itemGtinMap', {
+        store: 'coop',
+        normalizedText: 'mjölk',
+        gtin: 'other-size',
+        price: 6,
+      });
+    });
+    const matched = await t.mutation(internal.matching.matchReceipt, {
+      receiptId,
+    });
+    expect(matched).toBe(0);
+    expect(await gtinOf(t, items[0])).toBeNull();
+  });
+
+  test('falls back to the generic row when no priced row fits', async () => {
+    const t = convexTest(schema, modules);
+    const { receiptId, items } = await seed(t);
+    await t.run(async (ctx) => {
+      await ctx.db.insert('itemGtinMap', {
+        store: 'coop',
+        normalizedText: 'mjölk',
+        gtin: 'large-carton',
+        price: 22.9,
+      });
+      await ctx.db.insert('itemGtinMap', {
+        store: 'coop',
+        normalizedText: 'mjölk',
+        gtin: 'generic-fallback',
+      });
+    });
+    const matched = await t.mutation(internal.matching.matchReceipt, {
+      receiptId,
+    });
+    expect(matched).toBe(1);
+    expect(await gtinOf(t, items[0])).toBe('generic-fallback');
+  });
+
   test('insertReceipt schedules the matcher', async () => {
     vi.useFakeTimers();
     const t = convexTest(schema, modules);

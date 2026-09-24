@@ -83,5 +83,14 @@ export default defineSchema({
     store,
     normalizedText: v.string(), // see normalizeItemText in @matvis/shared
     gtin: v.string(),
+    /** A reference unit price for this gtin, when known (e.g. the shelf
+     * price at link time). The same printed text can mean different real
+     * products at different sizes — Coop prints "HAVREGRYN" for both a
+     * 750g and a 1500g bag at different prices — so a text can legitimately
+     * have more than one row. `matchReceipt` uses this to pick the row
+     * whose price best fits a specific line instead of grabbing whichever
+     * row comes first. Absent means "the generic mapping for this text",
+     * used as a catch-all when no priced row fits (see matching.ts). */
+    price: v.optional(v.number()),
   }).index('by_store_text', ['store', 'normalizedText']),
 });
