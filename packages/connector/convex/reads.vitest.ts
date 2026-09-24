@@ -116,6 +116,7 @@ describe('receipts.getReceipt', () => {
     expect(counts.ranges).toEqual([
       { table: 'accounts', kind: 'index', index: 'by_subject' },
       { table: 'receiptItems', kind: 'index', index: 'by_receipt' },
+      { table: 'itemGtinMap', kind: 'index', index: 'by_store_text' },
     ]);
     expect(counts.gets).toBe(1);
     expect(counts.docs).toBe(1 + 1 + MAX_RECEIPT_ITEMS);

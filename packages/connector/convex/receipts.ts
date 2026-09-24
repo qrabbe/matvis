@@ -5,6 +5,7 @@ import {
 import { v } from 'convex/values';
 import type { Doc, Id } from './_generated/dataModel';
 import { query, type QueryCtx } from './_generated/server';
+import { loadGtinMap, resolveGtin } from './matching';
 import { readScopedAccountId } from './model/auth';
 import {
   MAX_RECEIPT_ITEMS,
@@ -74,7 +75,12 @@ export const getReceipt = query({
       // `lineNo` is assigned in creation order, so `_creationTime` orders by it.
       .order('asc')
       .take(MAX_RECEIPT_ITEMS);
-    return { receipt: toHeader(receipt), items };
+    const gtinMap = await loadGtinMap(ctx, receipt.source);
+    const resolved = items.map((item) => ({
+      ...item,
+      gtin: item.gtin ?? resolveGtin(gtinMap, item),
+    }));
+    return { receipt: toHeader(receipt), items: resolved };
   },
 });
 

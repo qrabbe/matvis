@@ -22,6 +22,13 @@ export const MAX_RECEIPT_ITEMS = 1000;
  * most one generic (price-less) fallback row — a handful, never unbounded. */
 export const MAX_MAP_ROWS_PER_TEXT = 20;
 
+/** How many `itemGtinMap` rows a single store can have. `resolveGtin` loads
+ * a whole store's map in one indexed scan to resolve a receipt's lines
+ * without a query per line, so this bounds that one read rather than the
+ * per-text cap above — generous, since it's every distinct printed text a
+ * store's receipts have ever produced, not per-receipt. */
+export const MAX_MAP_ROWS_PER_STORE = 20000;
+
 export const encryptedSecretValidator = v.object({
   keyVersion: v.number(),
   iv: v.string(),

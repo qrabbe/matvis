@@ -176,4 +176,75 @@ describe('receipts read API', () => {
     });
     expect(noPdf).toBeNull();
   });
+
+  test('getReceipt resolves gtin live against itemGtinMap, even rows added after the receipt existed', async () => {
+    const t = convexTest(schema, modules);
+    const { r3 } = await seed(t);
+    const before = await as(t, 'sub-a').query(api.receipts.getReceipt, {
+      receiptId: r3,
+    });
+    expect(before?.items.map((i) => i.gtin)).toEqual([undefined, undefined]);
+
+    // Mapping added long after the receipt was synced — nothing re-patches
+    // receiptItems, so this only works if getReceipt joins live.
+    await t.run(async (ctx) => {
+      await ctx.db.insert('itemGtinMap', {
+        store: 'coop',
+        normalizedText: 'mjölk',
+        gtin: '7310865004703',
+      });
+    });
+    const after = await as(t, 'sub-a').query(api.receipts.getReceipt, {
+      receiptId: r3,
+    });
+    expect(after?.items.map((i) => i.gtin)).toEqual([
+      '7310865004703',
+      undefined, // the discount line is never matched
+    ]);
+  });
+
+  test('getReceipt picks the priced itemGtinMap row that fits the line', async () => {
+    const t = convexTest(schema, modules);
+    const { r3 } = await seed(t);
+    await t.run(async (ctx) => {
+      // The MJÖLK line costs 12.50 — two sizes share the same printed text.
+      await ctx.db.insert('itemGtinMap', {
+        store: 'coop',
+        normalizedText: 'mjölk',
+        gtin: 'small-carton',
+        price: 12.5,
+      });
+      await ctx.db.insert('itemGtinMap', {
+        store: 'coop',
+        normalizedText: 'mjölk',
+        gtin: 'large-carton',
+        price: 22.9,
+      });
+    });
+    const got = await as(t, 'sub-a').query(api.receipts.getReceipt, {
+      receiptId: r3,
+    });
+    expect(got?.items[0]?.gtin).toBe('small-carton');
+  });
+
+  test('getReceipt respects an already-stored gtin rather than recomputing it', async () => {
+    const t = convexTest(schema, modules);
+    const { r3 } = await seed(t);
+    await t.run(async (ctx) => {
+      const [mjolk] = await ctx.db
+        .query('receiptItems')
+        .withIndex('by_receipt', (q) => q.eq('receiptId', r3))
+        .collect();
+      await ctx.db.patch(mjolk!._id, { gtin: 'already' });
+      await ctx.db.insert('itemGtinMap', {
+        store: 'coop',
+        normalizedText: 'mjölk',
+        gtin: '7310865004703',
+      });
+    });
+    const got = await as(t, 'sub-a').query(api.receipts.getReceipt, {
+      receiptId: r3,
+    });
+    expect(got?.items[0]?.gtin).toBe('already');
+  });
 });

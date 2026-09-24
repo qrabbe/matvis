@@ -1,5 +1,4 @@
 import { v } from 'convex/values';
-import { internal } from '../_generated/api';
 import type { Doc } from '../_generated/dataModel';
 import { internalMutation, internalQuery } from '../_generated/server';
 import {
@@ -94,9 +93,6 @@ export const insertReceipt = internalMutation({
         }),
       ),
     );
-    await ctx.scheduler.runAfter(0, internal.matching.matchReceipt, {
-      receiptId,
-    });
     return receiptId;
   },
 });

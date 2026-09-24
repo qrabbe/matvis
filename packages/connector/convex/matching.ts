@@ -1,8 +1,7 @@
-import { v } from 'convex/values';
-import { internalMutation } from './_generated/server';
 import { normalizeItemText } from '@matvis/shared';
-import { MAX_MAP_ROWS_PER_TEXT, MAX_RECEIPT_ITEMS } from './validators';
+import { MAX_MAP_ROWS_PER_STORE } from './validators';
 import type { Doc } from './_generated/dataModel';
+import type { QueryCtx } from './_generated/server';
 
 /** A line's price counts as fitting a row's reference `price` when it's
  * within this many kronor of some small multiple of it — covers buying more
@@ -43,34 +42,36 @@ function pickMapRow(
   return rows[0];
 }
 
-export const matchReceipt = internalMutation({
-  args: { receiptId: v.id('receipts') },
-  returns: v.number(),
-  handler: async (ctx, { receiptId }) => {
-    const receipt = await ctx.db.get(receiptId);
-    if (!receipt) return 0;
+export type GtinMap = Map<string, Doc<'itemGtinMap'>[]>;
 
-    const items = await ctx.db
-      .query('receiptItems')
-      .withIndex('by_receipt', (q) => q.eq('receiptId', receiptId))
-      .take(MAX_RECEIPT_ITEMS);
+/** Loads every `itemGtinMap` row for a store in one indexed scan, grouped by
+ * text — so resolving a whole receipt's lines costs one query, not one per
+ * line. Read live (not cached in `receiptItems`), so a row added long after
+ * a receipt was synced still resolves on the very next read. */
+export async function loadGtinMap(
+  ctx: QueryCtx,
+  store: Doc<'receipts'>['source'],
+): Promise<GtinMap> {
+  const rows = await ctx.db
+    .query('itemGtinMap')
+    .withIndex('by_store_text', (q) => q.eq('store', store))
+    .take(MAX_MAP_ROWS_PER_STORE);
+  const map: GtinMap = new Map();
+  for (const row of rows) {
+    const existing = map.get(row.normalizedText);
+    if (existing) existing.push(row);
+    else map.set(row.normalizedText, [row]);
+  }
+  return map;
+}
 
-    let matched = 0;
-    for (const item of items) {
-      if (item.gtin !== undefined || item.isDiscount) continue;
-      const normalizedText = normalizeItemText(item.text);
-      if (normalizedText === '') continue;
-      const rows = await ctx.db
-        .query('itemGtinMap')
-        .withIndex('by_store_text', (q) =>
-          q.eq('store', receipt.source).eq('normalizedText', normalizedText),
-        )
-        .take(MAX_MAP_ROWS_PER_TEXT);
-      const hit = pickMapRow(rows, item.price);
-      if (!hit) continue;
-      await ctx.db.patch(item._id, { gtin: hit.gtin });
-      matched++;
-    }
-    return matched;
-  },
-});
+export function resolveGtin(
+  map: GtinMap,
+  item: { text: string; price: number; isDiscount: boolean },
+): string | undefined {
+  if (item.isDiscount) return undefined;
+  const normalizedText = normalizeItemText(item.text);
+  if (normalizedText === '') return undefined;
+  const rows = map.get(normalizedText) ?? [];
+  return pickMapRow(rows, item.price)?.gtin;
+}
