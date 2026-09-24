@@ -13,6 +13,7 @@ import {
 import { STORE_LABELS } from '@matvis/shared';
 import { ErrorNotice, InlineSpinner } from '@matvis/ui';
 import { Meter } from './components/Meter';
+import { useConsumption, type Consumption } from './hooks/useConsumption';
 import { usePurchaseData, type PurchaseData } from './hooks/usePurchaseData';
 import { api } from './lib/convexApi';
 import { looksLikeToken, useApiToken } from './lib/tokenStore';
@@ -52,6 +53,7 @@ const UnmappedPanel = lazy(() =>
 type TabContext = {
   data: PurchaseData;
   token: string;
+  consumption: Consumption;
   forgetToken: () => void;
 };
 
@@ -63,12 +65,16 @@ const TABS: {
   {
     id: 'pantry',
     label: 'Pantry',
-    render: ({ data }) => <PantryPanel data={data} />,
+    render: ({ data, consumption }) => (
+      <PantryPanel data={data} consumption={consumption} />
+    ),
   },
   {
     id: 'nutrition',
     label: 'Nutrition',
-    render: ({ data }) => <NutritionPanel data={data} />,
+    render: ({ data, consumption }) => (
+      <NutritionPanel data={data} consumption={consumption} />
+    ),
   },
   {
     id: 'activity',
@@ -93,8 +99,8 @@ const TABS: {
   {
     id: 'preferences',
     label: 'Preferences',
-    render: ({ forgetToken }) => (
-      <PreferencesPanel onForgetToken={forgetToken} />
+    render: ({ token, forgetToken }) => (
+      <PreferencesPanel token={token} onForgetToken={forgetToken} />
     ),
   },
 ];
@@ -102,6 +108,7 @@ const TABS: {
 export function App() {
   const { token, setToken, forgetToken } = useApiToken();
   const data = usePurchaseData(token);
+  const consumption = useConsumption(token);
 
   return (
     <Stack
@@ -138,7 +145,7 @@ export function App() {
                 style={{ paddingTop: 20 }}
               >
                 <Suspense fallback={<InlineSpinner label="Loading…" />}>
-                  {tab.render({ data, token, forgetToken })}
+                  {tab.render({ data, token, consumption, forgetToken })}
                 </Suspense>
               </Tabs.Panel>
             ))}

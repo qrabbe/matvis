@@ -1,6 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { header, item, line, purchaseData } from '../support/fixtures';
+import {
+  consumption,
+  header,
+  item,
+  line,
+  purchaseData,
+} from '../support/fixtures';
 
 /**
  * The empty and error states of the seven tabs.
@@ -60,7 +66,12 @@ describe('PurchasesPanel', () => {
 
 describe('PantryPanel', () => {
   it('points at the Unmapped tab when nothing resolves to a product', () => {
-    render(<PantryPanel data={purchaseData({ lines: [line()] })} />);
+    render(
+      <PantryPanel
+        data={purchaseData({ lines: [line()] })}
+        consumption={consumption()}
+      />,
+    );
     expect(screen.getByText('Nothing to group yet')).toBeInTheDocument();
     expect(screen.getByText(/Unmapped tab/)).toBeInTheDocument();
   });
@@ -69,7 +80,12 @@ describe('PantryPanel', () => {
     // A different failure with the same symptom, and the one a self-hoster hits.
     // Saying "nothing resolves yet" here would send them looking in the wrong
     // place entirely.
-    render(<PantryPanel data={purchaseData({ catalogAvailable: false })} />);
+    render(
+      <PantryPanel
+        data={purchaseData({ catalogAvailable: false })}
+        consumption={consumption()}
+      />,
+    );
     expect(
       screen.getByText('The catalog is not configured'),
     ).toBeInTheDocument();
@@ -79,9 +95,9 @@ describe('PantryPanel', () => {
   });
 
   it('always states the model, empty or not', () => {
-    render(<PantryPanel data={purchaseData()} />);
+    render(<PantryPanel data={purchaseData()} consumption={consumption()} />);
     expect(
-      screen.getByText('Inferred from purchases, not tracked'),
+      screen.getByText("What you've logged, not what's guessed"),
     ).toBeInTheDocument();
   });
 });
@@ -99,8 +115,24 @@ describe('NutritionPanel', () => {
         nutritionLines: 0,
       },
     });
-    render(<NutritionPanel data={data} />);
+    render(<NutritionPanel data={data} consumption={consumption()} />);
     expect(screen.getByText('No nutrition data yet')).toBeInTheDocument();
+  });
+
+  it('asks for the first logged event once nutrition data resolves', () => {
+    const data = purchaseData({
+      lines: [line()],
+      coverage: {
+        totalLines: 1,
+        matchedLines: 1,
+        catalogedLines: 1,
+        noNutritionLines: 0,
+        notScalableLines: 0,
+        nutritionLines: 1,
+      },
+    });
+    render(<NutritionPanel data={data} consumption={consumption()} />);
+    expect(screen.getByText('Nothing logged as used yet')).toBeInTheDocument();
   });
 });
 
@@ -125,7 +157,7 @@ describe('UnmappedPanel', () => {
 
 describe('PreferencesPanel', () => {
   it('always offers a way to drop the stored credential', () => {
-    render(<PreferencesPanel onForgetToken={() => {}} />);
+    render(<PreferencesPanel token="token-a" onForgetToken={() => {}} />);
     expect(
       screen.getByRole('button', {
         name: 'Forget token and cached receipts',

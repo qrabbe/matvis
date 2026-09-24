@@ -1,18 +1,27 @@
-import { useMemo } from 'react';
-import { Badge, Card, EmptyState, Notice, Stack, Text } from '@wordpress/ui';
+import { useMemo, useState } from 'react';
+import {
+  Badge,
+  Button,
+  Card,
+  EmptyState,
+  Notice,
+  Stack,
+  Text,
+} from '@wordpress/ui';
 import { CoverageMeter } from '../components/CoverageMeter';
+import {
+  LogConsumption,
+  type LoggableProduct,
+} from '../components/LogConsumption';
 import { ProductThumb } from '../components/ProductThumb';
 import { SectionCard } from '../components/SectionCard';
 import { StatCard } from '../components/StatCard';
 import { StatGrid } from '../components/StatGrid';
+import type { Consumption } from '../hooks/useConsumption';
 import type { PurchaseData } from '../hooks/usePurchaseData';
+import { allocateConsumption, totalConsumedMacros } from '../lib/consumption';
 import { spanDays } from '../lib/dateRange';
 import { formatGrams, formatKcal, formatKr } from '../lib/format';
-import {
-  CONSUMPTION_WINDOW_DAYS,
-  addMacros,
-  ZERO_MACROS,
-} from '../lib/nutrition';
 import {
   groupPantry,
   LOW_PROTEIN_DAYS,
@@ -20,22 +29,46 @@ import {
   type PantryGroup,
 } from '../lib/pantry';
 
-export function PantryPanel({ data }: { data: PurchaseData }) {
-  const groups = useMemo(() => groupPantry(data.lines), [data.lines]);
+export function PantryPanel({
+  data,
+  consumption,
+}: {
+  data: PurchaseData;
+  consumption: Consumption;
+}) {
+  const allocations = useMemo(
+    () => allocateConsumption(data.lines, consumption.events),
+    [data.lines, consumption.events],
+  );
+
+  const groups = useMemo(
+    () => groupPantry(allocations, consumption.excludedEans),
+    [allocations, consumption.excludedEans],
+  );
 
   const averageDailyProtein = useMemo(() => {
-    let total = ZERO_MACROS;
-    for (const line of data.lines) {
-      if (line.macros) total = addMacros(total, line.macros);
-    }
-    const days = spanDays(data.lines.map((line) => line.purchasedAt));
+    if (consumption.events.length === 0) return 0;
+    const total = totalConsumedMacros(allocations);
+    const days = spanDays(
+      consumption.events.map((event) => new Date(event.consumedAt)),
+    );
     return days > 0 ? total.protein / days : 0;
-  }, [data.lines]);
+  }, [allocations, consumption.events]);
 
   const stock = useMemo(
     () => pantryStock(groups, averageDailyProtein),
     [averageDailyProtein, groups],
   );
+
+  const products = useMemo<LoggableProduct[]>(() => {
+    const byEan = new Map<string, string>();
+    for (const line of data.lines) {
+      if (line.product && !byEan.has(line.product.ean)) {
+        byEan.set(line.product.ean, line.product.name);
+      }
+    }
+    return [...byEan.entries()].map(([ean, name]) => ({ ean, name }));
+  }, [data.lines]);
 
   if (data.coverage.catalogedLines === 0) {
     return (
@@ -84,6 +117,15 @@ export function PantryPanel({ data }: { data: PurchaseData }) {
     <Stack direction="column" gap="xl">
       <ModelNotice />
 
+      {consumption.available && (
+        <SectionCard title="Log something you used">
+          <LogConsumption
+            products={products}
+            onLog={consumption.logConsumption}
+          />
+        </SectionCard>
+      )}
+
       <StatGrid min={160}>
         <StatCard
           label="Products on the shelf"
@@ -103,7 +145,7 @@ export function PantryPanel({ data }: { data: PurchaseData }) {
               ? '—'
               : `${stock.proteinDays.toFixed(1)} d`
           }
-          sub="At your own average daily rate"
+          sub="At your own logged rate"
           tone={lowProtein ? 'caution' : 'neutral'}
         />
       </StatGrid>
@@ -112,7 +154,7 @@ export function PantryPanel({ data }: { data: PurchaseData }) {
         <Notice.Root intent="warning">
           <Notice.Title>Protein is running low</Notice.Title>
           <Notice.Description>
-            {`Under ${LOW_PROTEIN_DAYS} days left at the rate you normally buy. This is an inference from purchase dates, not a measurement of what is in your fridge.`}
+            {`Under ${LOW_PROTEIN_DAYS} days left at the rate you've been logging. This is only as good as what you've marked used.`}
           </Notice.Description>
         </Notice.Root>
       )}
@@ -121,13 +163,21 @@ export function PantryPanel({ data }: { data: PurchaseData }) {
         <Stack direction="column" gap="md">
           {groups.length === 0 ? (
             <EmptyState.Root>
-              <EmptyState.Title>Nothing grouped yet</EmptyState.Title>
+              <EmptyState.Title>Nothing in the pantry</EmptyState.Title>
               <EmptyState.Description>
-                No line in the selected receipts resolves to a catalog product.
+                Every resolved purchase has been logged as used, or nothing has
+                resolved to a product yet.
               </EmptyState.Description>
             </EmptyState.Root>
           ) : (
-            groups.map((group) => <PantryRow key={group.ean} group={group} />)
+            groups.map((group) => (
+              <PantryRow
+                key={group.ean}
+                group={group}
+                onLog={consumption.logConsumption}
+                onExclude={consumption.setExcluded}
+              />
+            ))
           )}
         </Stack>
       </SectionCard>
@@ -139,40 +189,91 @@ export function PantryPanel({ data }: { data: PurchaseData }) {
   );
 }
 
-function PantryRow({ group }: { group: PantryGroup }) {
+function PantryRow({
+  group,
+  onLog,
+  onExclude,
+}: {
+  group: PantryGroup;
+  onLog: (ean: string, quantity: number, consumedAt: number) => Promise<void>;
+  onExclude: (ean: string, excluded: boolean) => Promise<void>;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [confirmed, setConfirmed] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   const first = group.firstPurchase.toLocaleDateString('sv-SE');
   const last = group.lastPurchase.toLocaleDateString('sv-SE');
   const span = first === last ? first : `${first} → ${last}`;
-  const remaining = Math.round(group.remainingFraction * 100);
+
+  const markUsed = async () => {
+    setBusy(true);
+    try {
+      await onLog(group.ean, 1, Date.now());
+      setConfirmed(true);
+      setTimeout(() => setConfirmed(false), 1500);
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
-    <Stack direction="row" gap="md" align="center" wrap="wrap">
-      <ProductThumb product={group.product} size={48} />
-      <Stack
-        direction="column"
-        gap="xs"
-        style={{ flex: '1 1 220px', minWidth: 0 }}
-      >
-        <Text variant="body-md">{group.name}</Text>
-        <Text variant="body-sm" style={{ opacity: 0.7 }}>
-          {`${span} · ${formatKr(group.spend)}`}
-        </Text>
-      </Stack>
-      <Stack direction="row" gap="sm" align="center" wrap="wrap">
-        <Badge intent="informational">
-          {`${group.unitsBought % 1 === 0 ? group.unitsBought : group.unitsBought.toFixed(2)} bought`}
-        </Badge>
-        {remaining > 0 && <Badge intent="stable">{`${remaining}% left`}</Badge>}
-        {group.totalMacros ? (
-          <Text variant="body-sm">
-            {`${formatKcal(group.totalMacros.kcal)} · ${formatGrams(group.totalMacros.protein)} protein`}
-          </Text>
-        ) : (
+    <Stack direction="column" gap="xs">
+      <Stack direction="row" gap="md" align="center" wrap="wrap">
+        <ProductThumb product={group.product} size={48} />
+        <Stack
+          direction="column"
+          gap="xs"
+          style={{ flex: '1 1 220px', minWidth: 0 }}
+        >
+          <Text variant="body-md">{group.name}</Text>
           <Text variant="body-sm" style={{ opacity: 0.7 }}>
-            No usable nutrition
+            {`${span} · ${formatKr(group.spend)}`}
           </Text>
+        </Stack>
+        <Stack direction="row" gap="sm" align="center" wrap="wrap">
+          <Badge intent="informational">
+            {`${group.outstandingQuantity % 1 === 0 ? group.outstandingQuantity : group.outstandingQuantity.toFixed(2)} left`}
+          </Badge>
+          {group.outstandingMacros.kcal > 0 ? (
+            <Text variant="body-sm">
+              {`${formatKcal(group.outstandingMacros.kcal)} · ${formatGrams(group.outstandingMacros.protein)} protein`}
+            </Text>
+          ) : (
+            <Text variant="body-sm" style={{ opacity: 0.7 }}>
+              No usable nutrition
+            </Text>
+          )}
+        </Stack>
+        {confirmed ? (
+          <Badge intent="stable">✓ Marked used</Badge>
+        ) : (
+          <Button size="compact" loading={busy} onClick={() => void markUsed()}>
+            Mark used
+          </Button>
         )}
+        <Button
+          variant="minimal"
+          size="compact"
+          onClick={() => setExpanded((v) => !v)}
+        >
+          {expanded ? 'Cancel' : 'Log differently'}
+        </Button>
+        <Button
+          variant="minimal"
+          size="compact"
+          onClick={() => void onExclude(group.ean, true)}
+        >
+          Don't track this
+        </Button>
       </Stack>
+      {expanded && (
+        <LogConsumption
+          products={[{ ean: group.ean, name: group.name }]}
+          initialEan={group.ean}
+          onLog={onLog}
+          onDone={() => setExpanded(false)}
+        />
+      )}
     </Stack>
   );
 }
@@ -180,9 +281,11 @@ function PantryRow({ group }: { group: PantryGroup }) {
 function ModelNotice() {
   return (
     <Notice.Root intent="info">
-      <Notice.Title>Inferred from purchases, not tracked</Notice.Title>
+      <Notice.Title>What you've logged, not what's guessed</Notice.Title>
       <Notice.Description>
-        {`A purchase is treated as consumed evenly over ${CONSUMPTION_WINDOW_DAYS} days, so "left" means "bought recently enough that some should remain". Nothing here observes your fridge, and there is no way to mark an item used — that would be a write, and the app has read access only.`}
+        A product leaves the pantry only once you've marked it used — the oldest
+        purchase of that product first. Nothing observes your fridge; "Mark
+        used" is the one input this app asks for.
       </Notice.Description>
     </Notice.Root>
   );

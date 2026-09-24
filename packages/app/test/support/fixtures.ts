@@ -1,6 +1,7 @@
 import type { CatalogRow, ReceiptHeader, ReceiptItemDoc } from '@matvis/shared';
 import { EMPTY_COVERAGE, type PurchaseLine } from '../../src/lib/purchases';
 import { itemMacros } from '../../src/lib/nutrition';
+import type { Consumption } from '../../src/hooks/useConsumption';
 import type { PurchaseData } from '../../src/hooks/usePurchaseData';
 
 /**
@@ -109,6 +110,21 @@ export function purchaseData(
     hydration: { done: 0, total: 0 },
     loadingProducts: false,
     catalogAvailable: true,
+    error: null,
+    ...overrides,
+  };
+}
+
+/** No backend configured, nothing logged — the default a panel renders
+ * against when a test doesn't care about consumption state specifically. */
+export function consumption(overrides: Partial<Consumption> = {}): Consumption {
+  return {
+    available: false,
+    events: [],
+    excludedEans: new Set(),
+    logConsumption: async () => {},
+    deleteConsumption: async () => {},
+    setExcluded: async () => {},
     error: null,
     ...overrides,
   };

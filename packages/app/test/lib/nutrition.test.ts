@@ -1,11 +1,9 @@
 import { describe, expect, it } from 'bun:test';
 import type { CatalogRow, ReceiptItemDoc } from '@matvis/shared';
 import {
-  CONSUMPTION_WINDOW_DAYS,
   energySplit,
   itemMacros,
   purchasedAmount,
-  spreadOverWindow,
   ZERO_MACROS,
 } from '../../src/lib/nutrition';
 
@@ -145,34 +143,6 @@ describe('itemMacros', () => {
     const macros = itemMacros(line(), sparse);
     expect(macros?.kcal).toBe(500);
     expect(macros?.protein).toBe(0);
-  });
-});
-
-describe('spreadOverWindow', () => {
-  it('splits macros evenly across the window, starting on the purchase day', () => {
-    const shares = spreadOverWindow(new Date(2026, 2, 1), {
-      ...ZERO_MACROS,
-      kcal: 1000,
-    });
-    expect(shares).toHaveLength(CONSUMPTION_WINDOW_DAYS);
-    expect(shares[0]?.day).toBe('2026-03-01');
-    expect(shares[0]?.macros.kcal).toBe(100);
-    expect(shares[9]?.day).toBe('2026-03-10');
-  });
-
-  it('crosses a month boundary', () => {
-    const shares = spreadOverWindow(
-      new Date(2026, 2, 28),
-      { ...ZERO_MACROS, kcal: 10 },
-      5,
-    );
-    expect(shares.map((share) => share.day)).toEqual([
-      '2026-03-28',
-      '2026-03-29',
-      '2026-03-30',
-      '2026-03-31',
-      '2026-04-01',
-    ]);
   });
 });
 

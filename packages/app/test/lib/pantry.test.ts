@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'bun:test';
 import type { CatalogRow, ReceiptHeader, ReceiptItemDoc } from '@matvis/shared';
-import { ZERO_MACROS, type Macros } from '../../src/lib/nutrition';
 import {
-  groupPantry,
-  pantryStock,
-  remainingFraction,
-} from '../../src/lib/pantry';
+  allocateConsumption,
+  type ConsumptionEvent,
+} from '../../src/lib/consumption';
+import { ZERO_MACROS, type Macros } from '../../src/lib/nutrition';
+import { groupPantry, pantryStock } from '../../src/lib/pantry';
 import type { PurchaseLine } from '../../src/lib/purchases';
 
 function product(ean: string, name = `Product ${ean}`): CatalogRow {
@@ -33,7 +33,7 @@ function line(
       _creationTime: 0,
       receiptId: 'r1' as ReceiptItemDoc['receiptId'],
       lineNo: 1,
-      text: name(ean),
+      text: `LINE ${ean}`,
       price,
       isDiscount: false,
       quantity,
@@ -46,149 +46,129 @@ function line(
   };
 }
 
-function name(ean: string): string {
-  return `LINE ${ean}`;
+function event(
+  ean: string,
+  quantity: number,
+  consumedAt: string,
+): ConsumptionEvent {
+  return { ean, quantity, consumedAt: new Date(consumedAt).getTime() };
 }
 
-describe('remainingFraction', () => {
-  const bought = new Date(2026, 2, 1);
-
-  it('is 1 on the day of purchase and 0 once the window closes', () => {
-    expect(remainingFraction(bought, bought, 10)).toBe(1);
-    expect(remainingFraction(bought, new Date(2026, 2, 11), 10)).toBe(0);
-    expect(remainingFraction(bought, new Date(2026, 3, 1), 10)).toBe(0);
-  });
-
-  it('decays linearly across the window', () => {
-    expect(remainingFraction(bought, new Date(2026, 2, 6), 10)).toBeCloseTo(
-      0.5,
-      6,
-    );
-  });
-
-  it('clamps a future-dated receipt to 1 rather than exceeding it', () => {
-    expect(remainingFraction(new Date(2026, 2, 10), bought, 10)).toBe(1);
-  });
-});
-
 describe('groupPantry', () => {
-  const now = new Date(2026, 2, 1, 12);
-
-  it('aggregates every line for a product into one group', () => {
-    const groups = groupPantry(
+  it('aggregates every outstanding line for a product into one group', () => {
+    const allocations = allocateConsumption(
       [
         line('111', '2026-03-01', { kcal: 100, protein: 10 }, 2, 30),
         line('111', '2026-02-25', { kcal: 100, protein: 10 }, 1, 20),
       ],
-      now,
+      [],
     );
+    const groups = groupPantry(allocations);
     expect(groups).toHaveLength(1);
-    expect(groups[0]?.unitsBought).toBe(3);
+    expect(groups[0]?.outstandingQuantity).toBe(3);
     expect(groups[0]?.spend).toBe(50);
     expect(groups[0]?.lines).toBe(2);
     expect(groups[0]?.totalMacros?.kcal).toBe(200);
   });
 
   it('tracks the first and last purchase regardless of input order', () => {
-    const [group] = groupPantry(
+    const allocations = allocateConsumption(
       [
         line('111', '2026-03-01', { kcal: 1 }),
         line('111', '2026-01-05', { kcal: 1 }),
         line('111', '2026-02-10', { kcal: 1 }),
       ],
-      now,
+      [],
     );
+    const [group] = groupPantry(allocations);
     expect(group?.firstPurchase.getMonth()).toBe(0);
     expect(group?.lastPurchase.getMonth()).toBe(2);
   });
 
   it('sorts by total energy, biggest first', () => {
-    const groups = groupPantry(
+    const allocations = allocateConsumption(
       [
         line('small', '2026-03-01', { kcal: 10 }),
         line('big', '2026-03-01', { kcal: 900 }),
       ],
-      now,
+      [],
     );
+    const groups = groupPantry(allocations);
     expect(groups[0]?.ean).toBe('big');
-  });
-
-  it('keeps a product with no usable nutrition, at the bottom', () => {
-    const groups = groupPantry(
-      [
-        line('withMacros', '2026-03-01', { kcal: 100 }),
-        line('noMacros', '2026-03-01', null),
-      ],
-      now,
-    );
-    expect(groups).toHaveLength(2);
-    expect(groups[1]?.ean).toBe('noMacros');
-    expect(groups[1]?.totalMacros).toBeNull();
   });
 
   it('skips lines with no product — those belong to the Unmapped tab', () => {
     const orphan = { ...line('111', '2026-03-01', { kcal: 5 }), product: null };
-    expect(groupPantry([orphan], now)).toEqual([]);
+    const allocations = allocateConsumption([orphan], []);
+    expect(groupPantry(allocations)).toEqual([]);
   });
 
-  it('leaves nothing remaining once every purchase is past its window', () => {
-    const [group] = groupPantry(
-      [line('111', '2026-01-01', { kcal: 100, protein: 10 })],
-      now,
-      10,
+  it('depletes the oldest purchase first when a product is marked used', () => {
+    const lines = [
+      line('111', '2026-01-01', { kcal: 100, protein: 10 }, 1),
+      line('111', '2026-02-01', { kcal: 100, protein: 10 }, 1),
+    ];
+    const allocations = allocateConsumption(lines, [
+      event('111', 1, '2026-02-15'),
+    ]);
+    const [group] = groupPantry(allocations);
+    // The 1 remaining unit is the Feb purchase, not the Jan one — FIFO.
+    expect(group?.outstandingQuantity).toBe(1);
+    expect(group?.firstPurchase.getMonth()).toBe(1);
+  });
+
+  it('drops a product entirely once every unit is consumed', () => {
+    const allocations = allocateConsumption(
+      [line('111', '2026-01-01', { kcal: 100 }, 1)],
+      [event('111', 1, '2026-01-05')],
     );
-    expect(group?.remainingMacros.kcal).toBe(0);
-    expect(group?.remainingFraction).toBe(0);
+    expect(groupPantry(allocations)).toEqual([]);
   });
 
-  it('weights a product with no nutrition by units, not by input order', () => {
-    const old = line('111', '2026-01-01', null);
-    const fresh = line('111', '2026-03-01', null);
-    const newestFirst = groupPantry([fresh, old], now, 10);
-    const oldestFirst = groupPantry([old, fresh], now, 10);
-    // One of the two purchases is inside the window, so half the units remain
-    // either way. Seeding from the first line gave 1 or 0 depending on order.
-    expect(newestFirst[0]?.remainingFraction).toBeCloseTo(0.5, 6);
-    expect(oldestFirst[0]?.remainingFraction).toBeCloseTo(0.5, 6);
-  });
-
-  it('counts a half-consumed unnutritious product as still on the shelf', () => {
-    const groups = groupPantry(
-      [line('111', '2026-01-01', null), line('111', '2026-03-01', null)],
-      now,
-      10,
+  it('leaves a partially consumed line at its outstanding fraction', () => {
+    const allocations = allocateConsumption(
+      [line('111', '2026-01-01', { kcal: 100, protein: 10 }, 2)],
+      [event('111', 1, '2026-01-05')],
     );
-    expect(pantryStock(groups, 10).products).toBe(1);
+    const [group] = groupPantry(allocations);
+    expect(group?.outstandingQuantity).toBe(1);
+    expect(group?.outstandingMacros.kcal).toBe(50);
+  });
+
+  it('excludes a product opted out via excludedEans', () => {
+    const allocations = allocateConsumption(
+      [line('111', '2026-03-01', { kcal: 100 })],
+      [],
+    );
+    expect(groupPantry(allocations, new Set(['111']))).toEqual([]);
   });
 });
 
 describe('pantryStock', () => {
-  const now = new Date(2026, 2, 1, 12);
-
   it('divides remaining protein by the account’s own daily rate', () => {
-    const groups = groupPantry(
+    const allocations = allocateConsumption(
       [line('111', '2026-03-01', { kcal: 1000, protein: 100 })],
-      now,
-      10,
+      [],
     );
-    // Fully remaining on the day of purchase, so 100 g at 20 g/day is 5 days.
+    const groups = groupPantry(allocations);
     expect(pantryStock(groups, 20).proteinDays).toBeCloseTo(5, 6);
   });
 
   it('reports null protein days rather than dividing by a zero rate', () => {
-    const groups = groupPantry(
+    const allocations = allocateConsumption(
       [line('111', '2026-03-01', { protein: 50 })],
-      now,
+      [],
     );
+    const groups = groupPantry(allocations);
     expect(pantryStock(groups, 0).proteinDays).toBeNull();
   });
 
   it('excludes fully consumed products from the shelf count', () => {
-    const groups = groupPantry(
+    const allocations = allocateConsumption(
       [line('111', '2026-01-01', { kcal: 100 })],
-      now,
-      10,
+      [event('111', 1, '2026-01-05')],
     );
+    const groups = groupPantry(allocations);
     expect(pantryStock(groups, 10).products).toBe(0);
   });
 });

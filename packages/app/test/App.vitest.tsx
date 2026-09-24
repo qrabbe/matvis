@@ -24,6 +24,18 @@ vi.mock('../src/hooks/usePurchaseData', () => ({
 vi.mock('convex/react', () => ({
   useQuery: () => [],
   useConvex: () => ({ query: async () => null }),
+  // App also mounts useConsumption, which builds its own client for app's
+  // own backend (a second deployment, not the ambiently-provided connector
+  // one this mock otherwise covers) — it needs a constructible stand-in, not
+  // just the two hooks above.
+  ConvexReactClient: class {
+    watchQuery() {
+      return {
+        localQueryResult: () => undefined,
+        onUpdate: () => () => {},
+      };
+    }
+  },
 }));
 
 const { App } = await import('../src/App');
