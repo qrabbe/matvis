@@ -148,5 +148,3 @@ export function energySplit(
   if (total <= 0) return null;
   return { protein: protein / total, fat: fat / total, carbs: carbs / total };
 }
-
-export const PROTEIN_GOAL_G = 150;

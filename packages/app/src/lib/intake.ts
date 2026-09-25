@@ -94,3 +94,67 @@ export function forecastByDay(
     .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
     .map(([day, macros]) => ({ day, macros }));
 }
+
+export interface ProteinSource {
+  name: string;
+  proteinG: number;
+}
+
+/** Which products a range's finished, marked protein actually came from —
+ * biggest contributor first. Grouped by display name (the product's own
+ * name when resolved, else the printed text), not by group key, since this
+ * is for a person reading a list, not another join. */
+export function proteinSources(
+  marks: readonly MarkRow[],
+  unitsByKey: ReadonlyMap<string, PantryUnit>,
+  rangeFrom: string,
+  rangeTo: string,
+): ProteinSource[] {
+  const byName = new Map<string, number>();
+
+  for (const mark of marks) {
+    if (mark.outcome !== 'finished') continue;
+    if (mark.finishedAt < Date.parse(`${rangeFrom}T00:00:00`)) continue;
+    if (mark.finishedAt > Date.parse(`${rangeTo}T23:59:59`)) continue;
+    const unit = unitsByKey.get(unitKeyOf(mark));
+    if (!unit) continue;
+    const macros = unitMacros(unit);
+    if (!macros || macros.protein <= 0) continue;
+
+    const name = unit.line.product?.name ?? unit.line.item.text;
+    byName.set(name, (byName.get(name) ?? 0) + macros.protein);
+  }
+
+  return [...byName.entries()]
+    .map(([name, proteinG]) => ({ name, proteinG }))
+    .sort((a, b) => b.proteinG - a.proteinG);
+}
+
+export interface WasteSummary {
+  kr: number;
+  items: string[];
+}
+
+/** Sum of purchase price for units marked thrown away in a range — net of
+ * any discount already folded into the receipt line's own price. */
+export function wasteSummary(
+  marks: readonly MarkRow[],
+  unitsByKey: ReadonlyMap<string, PantryUnit>,
+  rangeFrom: string,
+  rangeTo: string,
+): WasteSummary {
+  let kr = 0;
+  const items: string[] = [];
+
+  for (const mark of marks) {
+    if (mark.outcome !== 'wasted') continue;
+    if (mark.finishedAt < Date.parse(`${rangeFrom}T00:00:00`)) continue;
+    if (mark.finishedAt > Date.parse(`${rangeTo}T23:59:59`)) continue;
+    const unit = unitsByKey.get(unitKeyOf(mark));
+    if (!unit) continue;
+    kr += unit.line.item.price;
+    items.push(unit.line.product?.name ?? unit.line.item.text);
+  }
+
+  return { kr, items };
+}

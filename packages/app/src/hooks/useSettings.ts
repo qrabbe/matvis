@@ -19,7 +19,9 @@ export interface ResolvedTarget {
 export interface UseSettingsResult {
   available: boolean;
   targets: ResolvedTarget[];
-  setTarget: (key: TargetKey, next: number | null) => Promise<void>;
+  /** `null` turns the target off; `undefined` turns it back on at the
+   * default; a number turns it on at that custom value. */
+  setTarget: (key: TargetKey, next: number | null | undefined) => Promise<void>;
   error: string | null;
 }
 
@@ -51,7 +53,7 @@ export function useSettings(token: string | null): UseSettingsResult {
   }, [client, token]);
 
   const setTarget = useCallback(
-    async (key: TargetKey, next: number | null) => {
+    async (key: TargetKey, next: number | null | undefined) => {
       if (!client || !token) return;
       try {
         await client.mutation(appBackendApi.settings.setTargets, {

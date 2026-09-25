@@ -4,6 +4,8 @@ import { ErrorNotice, InlineSpinner } from '@matvis/ui';
 import { usePurchaseData } from './hooks/usePurchaseData';
 import { PantryTab } from './features/PantryTab';
 import { PurchasesTab } from './features/PurchasesTab';
+import { InsightsTab } from './features/InsightsTab';
+import { SettingsTab } from './features/SettingsTab';
 import { IdentifyQueueScreen } from './features/IdentifyQueueScreen';
 import { IdentifyScreen } from './features/IdentifyScreen';
 import { looksLikeToken, useApiToken } from './lib/tokenStore';
@@ -12,7 +14,7 @@ import { Card, InputControl, Link, Stack, Button } from '@wordpress/ui';
 type IdentifyRoute = { screen: 'queue' } | { screen: 'text'; text: string };
 
 export function App() {
-  const { token, setToken } = useApiToken();
+  const { token, setToken, forgetToken } = useApiToken();
   const data = usePurchaseData(token);
   const [activeTab, setActiveTab] = useState('pantry');
   const [identify, setIdentify] = useState<IdentifyRoute | null>(null);
@@ -87,9 +89,7 @@ export function App() {
                 />
               </Tabs.Panel>
               <Tabs.Panel value="insights">
-                <div style={{ padding: '20px' }}>
-                  <Text>Insights — coming in step 07</Text>
-                </div>
+                <InsightsTab data={data} token={token} />
               </Tabs.Panel>
               <Tabs.Panel value="purchases">
                 <PurchasesTab
@@ -99,9 +99,7 @@ export function App() {
                 />
               </Tabs.Panel>
               <Tabs.Panel value="settings">
-                <div style={{ padding: '20px' }}>
-                  <Text>Settings — coming in step 07</Text>
-                </div>
+                <SettingsTab token={token} onForgetToken={forgetToken} />
               </Tabs.Panel>
             </div>
 
