@@ -1,4 +1,5 @@
 import { normalizeItemText, type ItemMappingKind } from '@matvis/shared';
+import { scaleMacros, type Macros } from './nutrition';
 import type { PurchaseLine } from './purchases';
 
 /** One pantry-trackable package or weighed lot, expanded from a single
@@ -93,6 +94,26 @@ export function pantryGroupKey(unit: PantryUnit): string | null {
   if (kind === 'product' && gtin) return `product:${gtin}`;
   if (kind === 'produce') return `produce:${normalizeItemText(text)}`;
   return null;
+}
+
+/** A unit's own share of its line's macros — the whole line's macros when
+ * it's a weighed lot or a plain single package (both are already one
+ * unit), or an even split across the `xN st` count a line expanded into.
+ * Never assumes; returns `null` right through from a line with no usable
+ * nutrition rather than reporting a confident zero. */
+export function unitMacros(unit: PantryUnit): Macros | null {
+  const macros = unit.line.macros;
+  if (!macros) return null;
+  const { quantity, unit: lineUnit } = unit.line.item;
+  if (
+    lineUnit === 'st' &&
+    quantity !== undefined &&
+    Number.isInteger(quantity) &&
+    quantity > 1
+  ) {
+    return scaleMacros(macros, 1 / quantity);
+  }
+  return macros;
 }
 
 export function unitKindLabel(kind: ItemMappingKind | undefined): string {

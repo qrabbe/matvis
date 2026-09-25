@@ -128,6 +128,37 @@ describe('mark', () => {
   });
 });
 
+describe('mark source', () => {
+  test('is absent (meaning "user") when the caller does not set it', async () => {
+    const t = convexTest(schema, modules);
+    await t.mutation(api.marks.mark, {
+      token: 'tok_a',
+      ...unit(),
+      outcome: 'finished',
+      finishedAt: Date.now(),
+      finishedAtHandSet: false,
+      via: 'tap',
+    });
+    const marks = await t.query(api.marks.list, { token: 'tok_a' });
+    expect(marks[0]?.source).toBeUndefined();
+  });
+
+  test('is stored as "backfill" when the one-time script sets it', async () => {
+    const t = convexTest(schema, modules);
+    await t.mutation(api.marks.mark, {
+      token: 'tok_a',
+      ...unit(),
+      outcome: 'finished',
+      finishedAt: Date.parse('2026-06-01'),
+      finishedAtHandSet: false,
+      via: 'backfill',
+      source: 'backfill',
+    });
+    const marks = await t.query(api.marks.list, { token: 'tok_a' });
+    expect(marks[0]?.source).toBe('backfill');
+  });
+});
+
 describe('markMany', () => {
   test('marks every unit in the batch with the same shared fields', async () => {
     const t = convexTest(schema, modules);

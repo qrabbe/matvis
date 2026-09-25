@@ -33,96 +33,71 @@ export function App() {
           {(data.hydration.total > data.hydration.done ||
             data.loadingHeaders) && <InlineSpinner label="Loading receipts" />}
 
-          <Tabs.Root value={activeTab} onValueChange={setActiveTab}>
-            <div style={{ flex: 1, overflowY: 'auto' }}>
+          <Tabs.Root
+            value={activeTab}
+            onValueChange={setActiveTab}
+            style={{
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              minHeight: 0,
+            }}
+          >
+            <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
               <Tabs.Panel value="pantry">
                 <PantryTab lines={data.lines} token={token} />
               </Tabs.Panel>
               <Tabs.Panel value="insights">
                 <div style={{ padding: '20px' }}>
-                  <Text>Insights - Coming in step 06</Text>
+                  <Text>Insights — coming in step 07</Text>
                 </div>
               </Tabs.Panel>
               <Tabs.Panel value="purchases">
                 <div style={{ padding: '20px' }}>
-                  <Text>Purchases - Coming in step 07</Text>
+                  <Text>Purchases — coming in step 06</Text>
                 </div>
               </Tabs.Panel>
               <Tabs.Panel value="settings">
                 <div style={{ padding: '20px' }}>
-                  <Text>Settings - Coming in step 07</Text>
+                  <Text>Settings — coming in step 07</Text>
                 </div>
               </Tabs.Panel>
             </div>
 
             <Tabs.List
+              variant="minimal"
               style={{
                 display: 'grid',
                 gridTemplateColumns: 'repeat(4, 1fr)',
-                borderTop: '1px solid var(--wpds-color-border)',
+                borderTop: '1px solid var(--wpds-color-stroke-surface-neutral)',
                 marginTop: 'auto',
               }}
             >
-              <Tabs.Tab
-                value="pantry"
-                style={{
-                  padding: '10px 2px 13px',
-                  textAlign: 'center',
-                  fontSize: '11px',
-                  color:
-                    activeTab === 'pantry'
-                      ? 'var(--wpds-color-primary)'
-                      : 'var(--wpds-color-foreground-content-secondary)',
-                  fontWeight: activeTab === 'pantry' ? 700 : 400,
-                }}
-              >
-                Pantry
-              </Tabs.Tab>
-              <Tabs.Tab
-                value="insights"
-                style={{
-                  padding: '10px 2px 13px',
-                  textAlign: 'center',
-                  fontSize: '11px',
-                  color:
-                    activeTab === 'insights'
-                      ? 'var(--wpds-color-primary)'
-                      : 'var(--wpds-color-foreground-content-secondary)',
-                  fontWeight: activeTab === 'insights' ? 700 : 400,
-                }}
-              >
-                Insights
-              </Tabs.Tab>
-              <Tabs.Tab
-                value="purchases"
-                style={{
-                  padding: '10px 2px 13px',
-                  textAlign: 'center',
-                  fontSize: '11px',
-                  color:
-                    activeTab === 'purchases'
-                      ? 'var(--wpds-color-primary)'
-                      : 'var(--wpds-color-foreground-content-secondary)',
-                  fontWeight: activeTab === 'purchases' ? 700 : 400,
-                }}
-              >
-                Purchases
-              </Tabs.Tab>
-              <Tabs.Tab
-                value="settings"
-                style={{
-                  padding: '10px 2px 13px',
-                  textAlign: 'center',
-                  fontSize: '11px',
-                  color:
-                    activeTab === 'settings'
-                      ? 'var(--wpds-color-primary)'
-                      : 'var(--wpds-color-foreground-content-secondary)',
-                  fontWeight: activeTab === 'settings' ? 700 : 400,
-                }}
-              >
-                Settings
-              </Tabs.Tab>
+              {(
+                [
+                  ['pantry', 'Pantry'],
+                  ['insights', 'Insights'],
+                  ['purchases', 'Purchases'],
+                  ['settings', 'Settings'],
+                ] as const
+              ).map(([value, label]) => (
+                <Tabs.Tab
+                  key={value}
+                  value={value}
+                  style={{
+                    padding: '10px 2px 13px',
+                    textAlign: 'center',
+                    fontSize: '11px',
+                    fontWeight: activeTab === value ? 700 : 500,
+                    color:
+                      activeTab === value
+                        ? 'var(--wpds-color-foreground-interactive-brand)'
+                        : 'var(--wpds-color-foreground-content-neutral-weak)',
+                  }}
+                >
+                  {label}
+                </Tabs.Tab>
+              ))}
             </Tabs.List>
           </Tabs.Root>
         </>

@@ -1,8 +1,13 @@
 import type { CatalogRow, ReceiptHeader, ReceiptItemDoc } from '@matvis/shared';
-import { EMPTY_COVERAGE, type PurchaseLine } from '../../src/lib/purchases';
+import {
+  EMPTY_COVERAGE,
+  receiptDate,
+  type PurchaseLine,
+} from '../../src/lib/purchases';
 import { itemMacros } from '../../src/lib/nutrition';
-import type { Consumption } from '../../src/hooks/useConsumption';
+import { dayKey } from '../../src/lib/format';
 import type { PurchaseData } from '../../src/hooks/usePurchaseData';
+import type { MarkRow } from '../../src/lib/appBackendApi';
 
 /**
  * Fixtures for the DOM suites. The bun suites in `test/lib` each build their
@@ -73,18 +78,23 @@ export function product(overrides: Partial<CatalogRow> = {}): CatalogRow {
   };
 }
 
-/** One joined line, the shape every panel actually reads. */
+/** One joined line, the shape every panel actually reads. `day`/
+ * `purchasedAt` derive from `header.purchasedAt` the same way `buildLines`
+ * really computes them, unless a test overrides either directly — so
+ * passing a custom `header` alone (without also repeating the date on the
+ * line itself) still produces a consistent, correctly-dated fixture. */
 export function line(
   overrides: Partial<PurchaseLine> & { item?: ReceiptItemDoc } = {},
 ): PurchaseLine {
   const doc = overrides.item ?? item();
   const head = overrides.header ?? header();
   const row = 'product' in overrides ? overrides.product : product();
+  const purchasedAt = overrides.purchasedAt ?? receiptDate(head);
   return {
     item: doc,
     header: head,
-    day: '2026-03-01',
-    purchasedAt: new Date('2026-03-01T12:00:00.000Z'),
+    day: dayKey(purchasedAt),
+    purchasedAt,
     product: row ?? null,
     macros: row ? itemMacros(doc, row) : null,
     ...overrides,
@@ -115,17 +125,22 @@ export function purchaseData(
   };
 }
 
-/** No backend configured, nothing logged — the default a panel renders
- * against when a test doesn't care about consumption state specifically. */
-export function consumption(overrides: Partial<Consumption> = {}): Consumption {
+let markSeq = 0;
+
+/** A finished/wasted mark row, keyed to whichever unit a test's own fixture
+ * lines produced (`receiptId`/`lineNo`/`unitIndex` — see `pantryUnits.ts`). */
+export function markRow(overrides: Partial<MarkRow> = {}): MarkRow {
+  markSeq += 1;
   return {
-    available: false,
-    events: [],
-    excludedEans: new Set(),
-    logConsumption: async () => {},
-    deleteConsumption: async () => {},
-    setExcluded: async () => {},
-    error: null,
+    _id: `mark_${markSeq}`,
+    _creationTime: 0,
+    receiptId: 'receipt_1',
+    lineNo: 1,
+    unitIndex: 0,
+    outcome: 'finished',
+    finishedAt: Date.now(),
+    finishedAtHandSet: false,
+    via: 'tap',
     ...overrides,
   };
 }

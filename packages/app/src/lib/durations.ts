@@ -43,7 +43,12 @@ export function finishedSpans(
     spans.push({
       groupKey,
       days,
-      teaches: mark.via === 'tap' || mark.finishedAtHandSet,
+      // A backfill mark is a played-forward estimate, not something the
+      // account actually did, so it never teaches — regardless of `via` or
+      // `finishedAtHandSet`.
+      teaches:
+        mark.source !== 'backfill' &&
+        (mark.via === 'tap' || mark.finishedAtHandSet),
     });
   }
   return spans;

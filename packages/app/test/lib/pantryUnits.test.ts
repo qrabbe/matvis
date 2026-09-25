@@ -4,7 +4,9 @@ import {
   expandLineToUnits,
   expandLinesToUnits,
   pantryGroupKey,
+  unitMacros,
 } from '../../src/lib/pantryUnits';
+import { ZERO_MACROS } from '../../src/lib/nutrition';
 import type { PurchaseLine } from '../../src/lib/purchases';
 
 function head(id = 'r1'): ReceiptHeader {
@@ -119,5 +121,40 @@ describe('pantryGroupKey', () => {
       line({ kind: 'product', gtin: undefined }),
     );
     expect(pantryGroupKey(unit!)).toBeNull();
+  });
+});
+
+describe('unitMacros', () => {
+  it('is null when the line has no usable nutrition', () => {
+    const [unit] = expandLineToUnits(line());
+    expect(unitMacros(unit!)).toBeNull();
+  });
+
+  it('gives a single-package unit the whole line’s macros', () => {
+    const withMacros: PurchaseLine = {
+      ...line(),
+      macros: { ...ZERO_MACROS, kcal: 200 },
+    };
+    const [unit] = expandLineToUnits(withMacros);
+    expect(unitMacros(unit!)?.kcal).toBe(200);
+  });
+
+  it('splits an "xN st" line’s macros evenly across its expanded units', () => {
+    const withMacros: PurchaseLine = {
+      ...line({ quantity: 5, unit: 'st' }),
+      macros: { ...ZERO_MACROS, kcal: 500 },
+    };
+    const units = expandLineToUnits(withMacros);
+    expect(units).toHaveLength(5);
+    for (const u of units) expect(unitMacros(u)?.kcal).toBe(100);
+  });
+
+  it('gives a weighed lot its full line macros, never divided', () => {
+    const withMacros: PurchaseLine = {
+      ...line({ quantity: 0.5, unit: 'kg' }),
+      macros: { ...ZERO_MACROS, kcal: 150 },
+    };
+    const [unit] = expandLineToUnits(withMacros);
+    expect(unitMacros(unit!)?.kcal).toBe(150);
   });
 });

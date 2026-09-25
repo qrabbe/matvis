@@ -1,100 +1,84 @@
-﻿import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+﻿import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   appBackendApi,
   type MarkOutcome,
   type MarkRow,
+  type MarkSource,
   type MarkVia,
+  type UnitKey,
 } from '../lib/appBackendApi';
 import { appBackendClient } from '../lib/appBackendClient';
+import { errMsg } from '@matvis/shared';
+
+export interface MarkArgs extends UnitKey {
+  outcome: MarkOutcome;
+  finishedAt: number;
+  finishedAtHandSet: boolean;
+  startedAt?: number;
+  via: MarkVia;
+  source?: MarkSource;
+}
+
+export interface MarkManyArgs {
+  units: UnitKey[];
+  outcome: MarkOutcome;
+  finishedAt: number;
+  finishedAtHandSet: boolean;
+  via: MarkVia;
+  source?: MarkSource;
+}
 
 export interface UseMarksResult {
   available: boolean;
   marks: MarkRow[];
-  mark: (args: {
-    receiptId: string;
-    lineNo: number;
-    unitIndex: number;
-    outcome: MarkOutcome;
-    finishedAt: number;
-    finishedAtHandSet: boolean;
-    startedAt?: number;
-    via: MarkVia;
-  }) => Promise<void>;
-  markMany: (args: {
-    units: Array<{
-      receiptId: string;
-      lineNo: number;
-      unitIndex: number;
-    }>;
-    outcome: MarkOutcome;
-    finishedAt: number;
-    finishedAtHandSet: boolean;
-    via: MarkVia;
-  }) => Promise<void>;
-  unmark: (args: {
-    receiptId: string;
-    lineNo: number;
-    unitIndex: number;
-  }) => Promise<void>;
+  mark: (args: MarkArgs) => Promise<void>;
+  markMany: (args: MarkManyArgs) => Promise<void>;
+  unmark: (args: UnitKey) => Promise<void>;
   error: string | null;
 }
 
+/** Reactive subscription to app's own backend, a second Convex deployment
+ * alongside the connector's — so this uses the client's own `watchQuery`
+ * rather than the `useQuery` hook, which only reads from the nearest
+ * `<ConvexProvider>` (already wired to the connector). Mirrors the deleted
+ * `useConsumption` hook's shape. */
 export function useMarks(token: string | null): UseMarksResult {
   const client = appBackendClient();
   const [marks, setMarks] = useState<MarkRow[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const unsubscribeRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     if (!client || !token) {
-      setMarks([]);
+      setMarks((prev) => (prev.length === 0 ? prev : []));
       return;
     }
 
-    try {
-      const query = client.watchQuery(appBackendApi.marks.list, {
-        token,
-      });
-
-      const unsubscribe = query.onUpdate(() => {
-        const result = query.localQueryResult();
-        if (result !== undefined) {
-          setMarks(result);
-          setError(null);
-        }
-      });
-
-      unsubscribeRef.current = unsubscribe;
-
-      return () => {
-        unsubscribe();
-        unsubscribeRef.current = null;
-      };
-    } catch (err) {
-      setError(String(err));
-      return;
-    }
+    const watch = client.watchQuery(appBackendApi.marks.list, { token });
+    const apply = () => {
+      const result = watch.localQueryResult();
+      if (result !== undefined) setMarks(result);
+    };
+    apply(); // a cached result is already there the moment the watch is created
+    const unsubscribe = watch.onUpdate(apply);
+    return unsubscribe;
   }, [client, token]);
 
   const mark = useCallback(
-    async (args: any) => {
+    async (args: MarkArgs) => {
       if (!client || !token) return;
       try {
-        await client.mutation(appBackendApi.marks.mark, {
-          token,
-          ...args,
-        });
+        await client.mutation(appBackendApi.marks.mark, { token, ...args });
         setError(null);
-      } catch (err) {
-        setError(String(err));
-        throw err;
+      } catch (e) {
+        setError(errMsg(e));
+        throw e;
       }
     },
     [client, token],
   );
 
   const markMany = useCallback(
-    async (args: any) => {
+    async (args: MarkManyArgs) => {
       if (!client || !token) return;
       try {
         await client.mutation(appBackendApi.marks.markMany, {
@@ -102,26 +86,23 @@ export function useMarks(token: string | null): UseMarksResult {
           ...args,
         });
         setError(null);
-      } catch (err) {
-        setError(String(err));
-        throw err;
+      } catch (e) {
+        setError(errMsg(e));
+        throw e;
       }
     },
     [client, token],
   );
 
   const unmark = useCallback(
-    async (args: any) => {
+    async (args: UnitKey) => {
       if (!client || !token) return;
       try {
-        await client.mutation(appBackendApi.marks.unmark, {
-          token,
-          ...args,
-        });
+        await client.mutation(appBackendApi.marks.unmark, { token, ...args });
         setError(null);
-      } catch (err) {
-        setError(String(err));
-        throw err;
+      } catch (e) {
+        setError(errMsg(e));
+        throw e;
       }
     },
     [client, token],

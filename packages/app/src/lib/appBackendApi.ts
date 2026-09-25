@@ -7,7 +7,8 @@ import { anyApi } from 'convex/server';
  * README). Typechecking the app can't depend on that having happened. */
 
 export type MarkOutcome = 'finished' | 'wasted';
-export type MarkVia = 'tap' | 'trip' | 'details';
+export type MarkVia = 'tap' | 'trip' | 'details' | 'backfill';
+export type MarkSource = 'user' | 'backfill';
 
 export interface UnitKey {
   receiptId: string;
@@ -23,6 +24,9 @@ export interface MarkRow extends UnitKey {
   finishedAtHandSet: boolean;
   startedAt?: number;
   via: MarkVia;
+  /** Absent means `'user'` — only the one-time backfill script ever sets
+   * `'backfill'`. See the `marks` table's doc comment in `convex/schema.ts`. */
+  source?: MarkSource;
 }
 
 type Mark = FunctionReference<
@@ -38,6 +42,7 @@ type Mark = FunctionReference<
     finishedAtHandSet: boolean;
     startedAt?: number;
     via: MarkVia;
+    source?: MarkSource;
   },
   string
 >;
@@ -52,6 +57,7 @@ type MarkMany = FunctionReference<
     finishedAt: number;
     finishedAtHandSet: boolean;
     via: MarkVia;
+    source?: MarkSource;
   },
   string[]
 >;
@@ -77,6 +83,25 @@ type ExportAll = FunctionReference<
   { marks: MarkRow[] }
 >;
 
+export interface DurationEstimateRow {
+  _id: string;
+  _creationTime: number;
+  groupKey: string;
+  label: string;
+  daysToFinish: number;
+  daysOnceOpened?: number;
+  maxDaysFromPurchase?: number;
+  singleUse?: boolean;
+  source: string;
+}
+
+type ListDurationEstimates = FunctionReference<
+  'query',
+  'public',
+  Record<string, never>,
+  DurationEstimateRow[]
+>;
+
 type AppBackendApi = {
   marks: {
     mark: Mark;
@@ -84,6 +109,9 @@ type AppBackendApi = {
     unmark: Unmark;
     list: ListMarks;
     exportAll: ExportAll;
+  };
+  durationEstimates: {
+    list: ListDurationEstimates;
   };
 };
 

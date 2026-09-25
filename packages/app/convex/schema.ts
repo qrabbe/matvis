@@ -35,8 +35,37 @@ export default defineSchema({
      * stored only once the person opens the toast's "Started" chip and
      * sets something else. */
     startedAt: v.optional(v.number()),
-    via: v.union(v.literal('tap'), v.literal('trip'), v.literal('details')),
+    via: v.union(
+      v.literal('tap'),
+      v.literal('trip'),
+      v.literal('details'),
+      v.literal('backfill'),
+    ),
+    /** Absent (equivalently `'user'`) for anything a person actually did.
+     * `'backfill'` is stamped only by the one-time script that plays
+     * pre-tracking history forward from an estimate — those dates are
+     * played-forward guesses, not observations, so they must never teach
+     * `durations.ts` anything regardless of `via`/`finishedAtHandSet`. */
+    source: v.optional(v.union(v.literal('user'), v.literal('backfill'))),
   })
     .index('by_token', ['token'])
     .index('by_token_unit', ['token', 'receiptId', 'lineNo', 'unitIndex']),
+
+  /** The backfill's per-product estimate, imported once from
+   * `tickets/backfill/durations.json` and otherwise read-only at runtime —
+   * `durations.ts`'s tier 2, used only when a product has fewer than two of
+   * the account's own teaching marks. Never written to by anything in the
+   * live app. Keyed the same way `pantryGroupKey` groups a tile
+   * (`product:<gtin>` or `produce:<normalizedText>`), not the backfill
+   * file's own `ean:`/`text:store:` key scheme, so every reader shares one
+   * key format. */
+  durationEstimates: defineTable({
+    groupKey: v.string(),
+    label: v.string(),
+    daysToFinish: v.number(),
+    daysOnceOpened: v.optional(v.number()),
+    maxDaysFromPurchase: v.optional(v.number()),
+    singleUse: v.optional(v.boolean()),
+    source: v.string(),
+  }).index('by_group_key', ['groupKey']),
 });

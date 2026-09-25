@@ -41,7 +41,13 @@ const markFields = {
   finishedAt: v.number(),
   finishedAtHandSet: v.boolean(),
   startedAt: v.optional(v.number()),
-  via: v.union(v.literal('tap'), v.literal('trip'), v.literal('details')),
+  via: v.union(
+    v.literal('tap'),
+    v.literal('trip'),
+    v.literal('details'),
+    v.literal('backfill'),
+  ),
+  source: v.optional(v.union(v.literal('user'), v.literal('backfill'))),
 };
 
 async function findMark(
@@ -101,7 +107,13 @@ export const markMany = mutation({
     outcome: v.union(v.literal('finished'), v.literal('wasted')),
     finishedAt: v.number(),
     finishedAtHandSet: v.boolean(),
-    via: v.union(v.literal('tap'), v.literal('trip'), v.literal('details')),
+    via: v.union(
+      v.literal('tap'),
+      v.literal('trip'),
+      v.literal('details'),
+      v.literal('backfill'),
+    ),
+    source: v.optional(v.union(v.literal('user'), v.literal('backfill'))),
   },
   returns: v.array(v.id('marks')),
   handler: async (ctx, { token, units, ...shared }) => {
