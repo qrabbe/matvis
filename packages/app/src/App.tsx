@@ -3,13 +3,47 @@ import { Tabs, Text } from '@wordpress/ui';
 import { ErrorNotice, InlineSpinner } from '@matvis/ui';
 import { usePurchaseData } from './hooks/usePurchaseData';
 import { PantryTab } from './features/PantryTab';
+import { IdentifyQueueScreen } from './features/IdentifyQueueScreen';
+import { IdentifyScreen } from './features/IdentifyScreen';
 import { looksLikeToken, useApiToken } from './lib/tokenStore';
 import { Card, InputControl, Link, Stack, Button } from '@wordpress/ui';
+
+type IdentifyRoute = { screen: 'queue' } | { screen: 'text'; text: string };
 
 export function App() {
   const { token, setToken } = useApiToken();
   const data = usePurchaseData(token);
   const [activeTab, setActiveTab] = useState('pantry');
+  const [identify, setIdentify] = useState<IdentifyRoute | null>(null);
+
+  if (token && identify) {
+    return (
+      <div
+        style={{
+          maxWidth: '480px',
+          margin: '0 auto',
+          display: 'flex',
+          flexDirection: 'column',
+          height: '100vh',
+        }}
+      >
+        {identify.screen === 'queue' ? (
+          <IdentifyQueueScreen
+            lines={data.lines}
+            onSelectText={(text) => setIdentify({ screen: 'text', text })}
+            onClose={() => setIdentify(null)}
+          />
+        ) : (
+          <IdentifyScreen
+            lines={data.lines}
+            selectedText={identify.text}
+            token={token}
+            onBackToQueue={() => setIdentify({ screen: 'queue' })}
+          />
+        )}
+      </div>
+    );
+  }
 
   return (
     <div
@@ -45,7 +79,11 @@ export function App() {
           >
             <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
               <Tabs.Panel value="pantry">
-                <PantryTab lines={data.lines} token={token} />
+                <PantryTab
+                  lines={data.lines}
+                  token={token}
+                  onOpenIdentify={() => setIdentify({ screen: 'queue' })}
+                />
               </Tabs.Panel>
               <Tabs.Panel value="insights">
                 <div style={{ padding: '20px' }}>

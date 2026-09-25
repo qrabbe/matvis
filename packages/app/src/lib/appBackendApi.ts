@@ -102,6 +102,30 @@ type ListDurationEstimates = FunctionReference<
   DurationEstimateRow[]
 >;
 
+export interface TargetsValue {
+  energy?: number | null;
+  protein?: number | null;
+  fat?: number | null;
+  carbs?: number | null;
+  fiber?: number | null;
+  saturatedFat?: number | null;
+  salt?: number | null;
+}
+
+type GetSettings = FunctionReference<
+  'query',
+  'public',
+  { token: string },
+  { targets: TargetsValue }
+>;
+
+type SetTargets = FunctionReference<
+  'mutation',
+  'public',
+  { token: string; targets: TargetsValue },
+  null
+>;
+
 type AppBackendApi = {
   marks: {
     mark: Mark;
@@ -112,6 +136,10 @@ type AppBackendApi = {
   };
   durationEstimates: {
     list: ListDurationEstimates;
+  };
+  settings: {
+    get: GetSettings;
+    setTargets: SetTargets;
   };
 };
 

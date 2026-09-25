@@ -58,11 +58,16 @@ export function PantryTab({
   lines,
   token,
   today = new Date(),
+  onOpenIdentify,
 }: {
   lines: readonly PurchaseLine[];
   token: string | null;
   /** Injectable for deterministic tests; defaults to the real clock. */
   today?: Date;
+  /** Opens the identify queue (see App.tsx) — omitted in tests that don't
+   * care about that flow, in which case the "To identify" row renders but
+   * doesn't navigate anywhere. */
+  onOpenIdentify?: () => void;
 }) {
   const { marks, mark, markMany, unmark, error } = useMarks(token);
   const [sortMode, setSortMode] = useState<SortMode>('due-first');
@@ -303,20 +308,27 @@ export function PantryTab({
             </div>
 
             {toIdentifyCount > 0 && (
-              <div
+              <button
+                type="button"
+                onClick={onOpenIdentify}
                 style={{
+                  display: 'block',
+                  width: '100%',
+                  textAlign: 'left',
                   border:
                     '1px dashed var(--wpds-color-stroke-surface-neutral-strong)',
                   borderRadius: 10,
                   padding: '9px 12px',
                   marginBottom: 10,
+                  background: 'none',
+                  cursor: onOpenIdentify ? 'pointer' : 'default',
                 }}
               >
                 <Text variant="body-sm">
                   <strong>To identify · {toIdentifyCount}</strong>{' '}
                   {formatKr(toIdentifySpend)}
                 </Text>
-              </div>
+              </button>
             )}
 
             {staples.length > 0 && (

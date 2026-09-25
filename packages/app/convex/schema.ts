@@ -68,4 +68,23 @@ export default defineSchema({
     singleUse: v.optional(v.boolean()),
     source: v.string(),
   }).index('by_group_key', ['groupKey']),
+
+  /** A row exists only once an account changes a target away from its
+   * code-level default — nothing is ever written here just to record "the
+   * default", which would only go stale the day the default changes. Per
+   * target: absent (the key missing from `targets`) means "on, at the
+   * default"; a number means "on, at this value"; `null` means "off". The
+   * defaults themselves live in `src/lib/targets.ts`, not here. */
+  settings: defineTable({
+    token: v.string(),
+    targets: v.object({
+      energy: v.optional(v.union(v.null(), v.number())),
+      protein: v.optional(v.union(v.null(), v.number())),
+      fat: v.optional(v.union(v.null(), v.number())),
+      carbs: v.optional(v.union(v.null(), v.number())),
+      fiber: v.optional(v.union(v.null(), v.number())),
+      saturatedFat: v.optional(v.union(v.null(), v.number())),
+      salt: v.optional(v.union(v.null(), v.number())),
+    }),
+  }).index('by_token', ['token']),
 });

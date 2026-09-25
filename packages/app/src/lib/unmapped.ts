@@ -10,6 +10,12 @@ export interface UnmappedGroup {
   lastSeen: Date;
   minPrice: number;
   maxPrice: number;
+  priceGroups: PriceGroup[];
+}
+
+export interface PriceGroup {
+  price: number;
+  count: number;
 }
 
 export function groupUnmapped(lines: readonly PurchaseLine[]): UnmappedGroup[] {
@@ -32,6 +38,7 @@ export function groupUnmapped(lines: readonly PurchaseLine[]): UnmappedGroup[] {
         lastSeen: line.purchasedAt,
         minPrice: price,
         maxPrice: price,
+        priceGroups: [{ price, count: 1 }],
       });
       continue;
     }
@@ -47,9 +54,24 @@ export function groupUnmapped(lines: readonly PurchaseLine[]): UnmappedGroup[] {
     }
     if (price < existing.minPrice) existing.minPrice = price;
     if (price > existing.maxPrice) existing.maxPrice = price;
+
+    // Update price groups
+    const priceGroup = existing.priceGroups.find((pg) => pg.price === price);
+    if (priceGroup) {
+      priceGroup.count += 1;
+    } else {
+      existing.priceGroups.push({ price, count: 1 });
+    }
   }
 
-  return [...groups.values()].sort((a, b) => b.count - a.count);
+  return [...groups.values()].sort((a, b) => b.spend - a.spend);
+}
+
+/** Normalize text for search: strip trailing price and clean whitespace. */
+export function normalizeForSearch(text: string): string {
+  // Strip any trailing price pattern (e.g. " 35,50" or " 35.50")
+  const noPrice = text.replace(/\s+[\d,\.]+\s*$/, '').trim();
+  return noPrice;
 }
 
 export function catalogSearchHref(baseUrl: string): string {

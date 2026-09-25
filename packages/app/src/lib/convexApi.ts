@@ -41,12 +41,42 @@ type ConnectionsList = FunctionReference<
   ConnectionPublic[]
 >;
 
+type MappingsLink = FunctionReference<
+  'mutation',
+  'public',
+  {
+    token: string;
+    store: string;
+    text: string;
+    kind: 'product' | 'produce' | 'notFood' | 'notInCatalog';
+    gtin?: string;
+    price?: number;
+  },
+  GenericId<'itemGtinMap'>
+>;
+
+type MappingsUnlink = FunctionReference<
+  'mutation',
+  'public',
+  {
+    token: string;
+    store: string;
+    text: string;
+    price?: number;
+  },
+  void
+>;
+
 type ConnectorReadApi = {
   connections: { list: ConnectionsList };
   receipts: {
     list: ReceiptsList;
     getReceipt: ReceiptsGetReceipt;
     getPdf: ReceiptsGetPdf;
+  };
+  mappings: {
+    link: MappingsLink;
+    unlink: MappingsUnlink;
   };
 };
 
