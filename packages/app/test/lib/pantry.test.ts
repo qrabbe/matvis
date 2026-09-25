@@ -1,14 +1,17 @@
 import { describe, expect, it } from 'bun:test';
 import type { CatalogRow, ReceiptHeader, ReceiptItemDoc } from '@matvis/shared';
 import {
-  allocateConsumption,
-  type ConsumptionEvent,
-} from '../../src/lib/consumption';
-import { ZERO_MACROS, type Macros } from '../../src/lib/nutrition';
-import { groupPantry, pantryStock } from '../../src/lib/pantry';
+  groupPantryTiles,
+  sortDueFirst,
+  sortNewestFirst,
+  sortOldestFirst,
+  splitStaples,
+  STAPLE_THRESHOLD_DAYS,
+} from '../../src/lib/pantry';
+import type { MarkRow } from '../../src/lib/appBackendApi';
 import type { PurchaseLine } from '../../src/lib/purchases';
 
-function product(ean: string, name = `Product ${ean}`): CatalogRow {
+function catalogProduct(ean: string, name = `Product ${ean}`): CatalogRow {
   return {
     _id: `catalog_${ean}` as CatalogRow['_id'],
     _creationTime: 0,
@@ -20,155 +23,195 @@ function product(ean: string, name = `Product ${ean}`): CatalogRow {
   };
 }
 
+let seq = 0;
+
 function line(
-  ean: string,
-  day: string,
-  macros: Partial<Macros> | null,
-  quantity = 1,
-  price = 20,
+  gtin: string,
+  purchasedAt: string,
+  overrides: Partial<ReceiptItemDoc> = {},
 ): PurchaseLine {
+  seq += 1;
+  const item: ReceiptItemDoc = {
+    _id: `item_${seq}` as ReceiptItemDoc['_id'],
+    _creationTime: 0,
+    receiptId: `receipt_${seq}` as ReceiptItemDoc['receiptId'],
+    lineNo: 0,
+    text: `LINE ${gtin}`,
+    price: 20,
+    isDiscount: false,
+    gtin,
+    kind: 'product',
+    ...overrides,
+  };
   return {
-    item: {
-      _id: `${ean}-${day}` as ReceiptItemDoc['_id'],
-      _creationTime: 0,
-      receiptId: 'r1' as ReceiptItemDoc['receiptId'],
-      lineNo: 1,
-      text: `LINE ${ean}`,
-      price,
-      isDiscount: false,
-      quantity,
-    },
-    header: {} as ReceiptHeader,
-    day,
-    purchasedAt: new Date(`${day}T12:00:00`),
-    product: product(ean),
-    macros: macros ? { ...ZERO_MACROS, ...macros } : null,
+    item,
+    header: { _id: item.receiptId } as ReceiptHeader,
+    day: purchasedAt.slice(0, 10),
+    purchasedAt: new Date(purchasedAt),
+    product: item.gtin ? catalogProduct(item.gtin) : null,
+    macros: null,
   };
 }
 
-function event(
-  ean: string,
-  quantity: number,
-  consumedAt: string,
-): ConsumptionEvent {
-  return { ean, quantity, consumedAt: new Date(consumedAt).getTime() };
+function mark(
+  line: PurchaseLine,
+  unitIndex: number,
+  finishedAt: string,
+  overrides: Partial<MarkRow> = {},
+): MarkRow {
+  return {
+    _id: `mark_${seq}`,
+    _creationTime: 0,
+    receiptId: line.header._id,
+    lineNo: line.item.lineNo,
+    unitIndex,
+    outcome: 'finished',
+    finishedAt: Date.parse(finishedAt),
+    finishedAtHandSet: false,
+    via: 'tap',
+    ...overrides,
+  };
 }
 
-describe('groupPantry', () => {
-  it('aggregates every outstanding line for a product into one group', () => {
-    const allocations = allocateConsumption(
+const TODAY = new Date('2026-09-24T12:00:00Z');
+
+describe('groupPantryTiles', () => {
+  it('groups every outstanding unit of a product into one tile', () => {
+    const tiles = groupPantryTiles(
       [
-        line('111', '2026-03-01', { kcal: 100, protein: 10 }, 2, 30),
-        line('111', '2026-02-25', { kcal: 100, protein: 10 }, 1, 20),
+        line('111', '2026-09-20T00:00:00Z'),
+        line('111', '2026-09-22T00:00:00Z'),
       ],
       [],
+      TODAY,
     );
-    const groups = groupPantry(allocations);
-    expect(groups).toHaveLength(1);
-    expect(groups[0]?.outstandingQuantity).toBe(3);
-    expect(groups[0]?.spend).toBe(50);
-    expect(groups[0]?.lines).toBe(2);
-    expect(groups[0]?.totalMacros?.kcal).toBe(200);
+    expect(tiles).toHaveLength(1);
+    expect(tiles[0]?.outstandingUnits).toHaveLength(2);
+    expect(tiles[0]?.name).toBe('Product 111');
   });
 
-  it('tracks the first and last purchase regardless of input order', () => {
-    const allocations = allocateConsumption(
+  it('never tiles a not-food, not-in-catalog, or unidentified line', () => {
+    for (const kind of ['notFood', 'notInCatalog', undefined] as const) {
+      const tiles = groupPantryTiles(
+        [line('111', '2026-09-20T00:00:00Z', { kind, gtin: undefined })],
+        [],
+        TODAY,
+      );
+      expect(tiles).toEqual([]);
+    }
+  });
+
+  it('drops a unit once it is marked finished, and the tile once every unit is', () => {
+    const l = line('111', '2026-09-20T00:00:00Z');
+    const tiles = groupPantryTiles(
+      [l],
+      [mark(l, 0, '2026-09-23T00:00:00Z')],
+      TODAY,
+    );
+    expect(tiles).toEqual([]);
+  });
+
+  it('leaves the still-outstanding units when only some of a group are marked', () => {
+    const a = line('111', '2026-09-01T00:00:00Z');
+    const b = line('111', '2026-09-20T00:00:00Z');
+    const tiles = groupPantryTiles(
+      [a, b],
+      [mark(a, 0, '2026-09-10T00:00:00Z')],
+      TODAY,
+    );
+    expect(tiles).toHaveLength(1);
+    expect(tiles[0]?.outstandingUnits).toHaveLength(1);
+    expect(tiles[0]?.outstandingUnits[0]?.purchasedAt).toEqual(b.purchasedAt);
+  });
+
+  it('groups loose produce by normalized text, giving each a tile with no catalog product', () => {
+    const tiles = groupPantryTiles(
       [
-        line('111', '2026-03-01', { kcal: 1 }),
-        line('111', '2026-01-05', { kcal: 1 }),
-        line('111', '2026-02-10', { kcal: 1 }),
+        line('', '2026-09-20T00:00:00Z', {
+          kind: 'produce',
+          gtin: undefined,
+          text: 'TOMATER KVIST KG SVE 30,31',
+        }),
       ],
       [],
+      TODAY,
     );
-    const [group] = groupPantry(allocations);
-    expect(group?.firstPurchase.getMonth()).toBe(0);
-    expect(group?.lastPurchase.getMonth()).toBe(2);
+    expect(tiles).toHaveLength(1);
+    expect(tiles[0]?.kind).toBe('produce');
+    expect(tiles[0]?.product).toBeNull();
   });
 
-  it('sorts by total energy, biggest first', () => {
-    const allocations = allocateConsumption(
-      [
-        line('small', '2026-03-01', { kcal: 10 }),
-        line('big', '2026-03-01', { kcal: 900 }),
-      ],
+  it('is overdue (negative dueInDays) once a unit has sat past its typical duration', () => {
+    const l = line('111', '2026-09-01T00:00:00Z'); // 23 days old at TODAY
+    const tiles = groupPantryTiles([l], [], TODAY, () => 7); // estimate: lasts 7 days
+    expect(tiles[0]?.dueInDays).toBeLessThan(0);
+  });
+
+  it('flags a tile a staple once its typical duration passes the threshold', () => {
+    const l = line('111', '2026-09-20T00:00:00Z');
+    const tiles = groupPantryTiles(
+      [l],
       [],
+      TODAY,
+      () => STAPLE_THRESHOLD_DAYS + 1,
     );
-    const groups = groupPantry(allocations);
-    expect(groups[0]?.ean).toBe('big');
-  });
-
-  it('skips lines with no product — those belong to the Unmapped tab', () => {
-    const orphan = { ...line('111', '2026-03-01', { kcal: 5 }), product: null };
-    const allocations = allocateConsumption([orphan], []);
-    expect(groupPantry(allocations)).toEqual([]);
-  });
-
-  it('depletes the oldest purchase first when a product is marked used', () => {
-    const lines = [
-      line('111', '2026-01-01', { kcal: 100, protein: 10 }, 1),
-      line('111', '2026-02-01', { kcal: 100, protein: 10 }, 1),
-    ];
-    const allocations = allocateConsumption(lines, [
-      event('111', 1, '2026-02-15'),
-    ]);
-    const [group] = groupPantry(allocations);
-    // The 1 remaining unit is the Feb purchase, not the Jan one — FIFO.
-    expect(group?.outstandingQuantity).toBe(1);
-    expect(group?.firstPurchase.getMonth()).toBe(1);
-  });
-
-  it('drops a product entirely once every unit is consumed', () => {
-    const allocations = allocateConsumption(
-      [line('111', '2026-01-01', { kcal: 100 }, 1)],
-      [event('111', 1, '2026-01-05')],
-    );
-    expect(groupPantry(allocations)).toEqual([]);
-  });
-
-  it('leaves a partially consumed line at its outstanding fraction', () => {
-    const allocations = allocateConsumption(
-      [line('111', '2026-01-01', { kcal: 100, protein: 10 }, 2)],
-      [event('111', 1, '2026-01-05')],
-    );
-    const [group] = groupPantry(allocations);
-    expect(group?.outstandingQuantity).toBe(1);
-    expect(group?.outstandingMacros.kcal).toBe(50);
-  });
-
-  it('excludes a product opted out via excludedEans', () => {
-    const allocations = allocateConsumption(
-      [line('111', '2026-03-01', { kcal: 100 })],
-      [],
-    );
-    expect(groupPantry(allocations, new Set(['111']))).toEqual([]);
+    expect(tiles[0]?.isStaple).toBe(true);
   });
 });
 
-describe('pantryStock', () => {
-  it('divides remaining protein by the account’s own daily rate', () => {
-    const allocations = allocateConsumption(
-      [line('111', '2026-03-01', { kcal: 1000, protein: 100 })],
+describe('sorting', () => {
+  function tilesFor() {
+    const soonestDue = line('soon', '2026-09-23T00:00:00Z'); // 1 day old, lasts 2 → due in 1
+    const overdue = line('over', '2026-09-01T00:00:00Z'); // 23 days old, lasts 5 → due in -18
+    const notYet = line('later', '2026-09-24T00:00:00Z'); // 0 days old, lasts 30 → due in 30
+    return groupPantryTiles(
+      [soonestDue, overdue, notYet],
       [],
+      TODAY,
+      (groupKey) =>
+        ({ 'product:soon': 2, 'product:over': 5, 'product:later': 30 })[
+          groupKey
+        ],
     );
-    const groups = groupPantry(allocations);
-    expect(pantryStock(groups, 20).proteinDays).toBeCloseTo(5, 6);
+  }
+
+  it('due first puts the most overdue tile on top, then soonest-due', () => {
+    const sorted = sortDueFirst(tilesFor());
+    expect(sorted.map((t) => t.groupKey)).toEqual([
+      'product:over',
+      'product:soon',
+      'product:later',
+    ]);
   });
 
-  it('reports null protein days rather than dividing by a zero rate', () => {
-    const allocations = allocateConsumption(
-      [line('111', '2026-03-01', { protein: 50 })],
-      [],
-    );
-    const groups = groupPantry(allocations);
-    expect(pantryStock(groups, 0).proteinDays).toBeNull();
+  it('oldest first orders by first purchase date', () => {
+    const sorted = sortOldestFirst(tilesFor());
+    expect(sorted.map((t) => t.groupKey)).toEqual([
+      'product:over',
+      'product:soon',
+      'product:later',
+    ]);
   });
 
-  it('excludes fully consumed products from the shelf count', () => {
-    const allocations = allocateConsumption(
-      [line('111', '2026-01-01', { kcal: 100 })],
-      [event('111', 1, '2026-01-05')],
+  it('newest first orders by last purchase date, descending', () => {
+    const sorted = sortNewestFirst(tilesFor());
+    expect(sorted.map((t) => t.groupKey)).toEqual([
+      'product:later',
+      'product:soon',
+      'product:over',
+    ]);
+  });
+});
+
+describe('splitStaples', () => {
+  it('separates staples from the regular grid without losing any tile', () => {
+    const regular = line('111', '2026-09-20T00:00:00Z');
+    const staple = line('222', '2026-09-20T00:00:00Z');
+    const tiles = groupPantryTiles([regular, staple], [], TODAY, (groupKey) =>
+      groupKey === 'product:222' ? 60 : 5,
     );
-    const groups = groupPantry(allocations);
-    expect(pantryStock(groups, 10).products).toBe(0);
+    const split = splitStaples(tiles);
+    expect(split.regular.map((t) => t.groupKey)).toEqual(['product:111']);
+    expect(split.staples.map((t) => t.groupKey)).toEqual(['product:222']);
   });
 });

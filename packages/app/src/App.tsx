@@ -1,4 +1,4 @@
-import { lazy, Suspense, useMemo, useState, type ReactNode } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery } from 'convex/react';
 import {
   Badge,
@@ -7,108 +7,22 @@ import {
   InputControl,
   Link,
   Stack,
-  Tabs,
   Text,
 } from '@wordpress/ui';
 import { STORE_LABELS } from '@matvis/shared';
 import { ErrorNotice, InlineSpinner } from '@matvis/ui';
 import { Meter } from './components/Meter';
-import { useConsumption, type Consumption } from './hooks/useConsumption';
 import { usePurchaseData, type PurchaseData } from './hooks/usePurchaseData';
 import { api } from './lib/convexApi';
 import { looksLikeToken, useApiToken } from './lib/tokenStore';
 
-const ActivityPanel = lazy(() =>
-  import('./features/ActivityPanel').then((m) => ({
-    default: m.ActivityPanel,
-  })),
-);
-const NutritionPanel = lazy(() =>
-  import('./features/NutritionPanel').then((m) => ({
-    default: m.NutritionPanel,
-  })),
-);
-const PantryPanel = lazy(() =>
-  import('./features/PantryPanel').then((m) => ({ default: m.PantryPanel })),
-);
-const PreferencesPanel = lazy(() =>
-  import('./features/PreferencesPanel').then((m) => ({
-    default: m.PreferencesPanel,
-  })),
-);
-const PurchasesPanel = lazy(() =>
-  import('./features/PurchasesPanel').then((m) => ({
-    default: m.PurchasesPanel,
-  })),
-);
-const StatsPanel = lazy(() =>
-  import('./features/StatsPanel').then((m) => ({ default: m.StatsPanel })),
-);
-const UnmappedPanel = lazy(() =>
-  import('./features/UnmappedPanel').then((m) => ({
-    default: m.UnmappedPanel,
-  })),
-);
-
-type TabContext = {
-  data: PurchaseData;
-  token: string;
-  consumption: Consumption;
-  forgetToken: () => void;
-};
-
-const TABS: {
-  id: string;
-  label: string;
-  render: (context: TabContext) => ReactNode;
-}[] = [
-  {
-    id: 'pantry',
-    label: 'Pantry',
-    render: ({ data, consumption }) => (
-      <PantryPanel data={data} consumption={consumption} />
-    ),
-  },
-  {
-    id: 'nutrition',
-    label: 'Nutrition',
-    render: ({ data, consumption }) => (
-      <NutritionPanel data={data} consumption={consumption} />
-    ),
-  },
-  {
-    id: 'activity',
-    label: 'Activity',
-    render: ({ data }) => <ActivityPanel data={data} />,
-  },
-  {
-    id: 'stats',
-    label: 'Stats',
-    render: ({ data }) => <StatsPanel data={data} />,
-  },
-  {
-    id: 'purchases',
-    label: 'Purchases',
-    render: ({ data, token }) => <PurchasesPanel data={data} token={token} />,
-  },
-  {
-    id: 'unmapped',
-    label: 'Unmapped',
-    render: ({ data }) => <UnmappedPanel data={data} />,
-  },
-  {
-    id: 'preferences',
-    label: 'Preferences',
-    render: ({ token, forgetToken }) => (
-      <PreferencesPanel token={token} onForgetToken={forgetToken} />
-    ),
-  },
-];
+// The four tabs (Pantry, Insights, Purchases, Settings) land in the next
+// step of the app-ux rebuild — this shell keeps the token gate and load
+// status working on their own in the meantime.
 
 export function App() {
-  const { token, setToken, forgetToken } = useApiToken();
+  const { token, setToken } = useApiToken();
   const data = usePurchaseData(token);
-  const consumption = useConsumption(token);
 
   return (
     <Stack
@@ -128,28 +42,6 @@ export function App() {
               {data.error}
             </ErrorNotice>
           )}
-
-          <Tabs.Root defaultValue="purchases">
-            <Tabs.List>
-              {TABS.map((tab) => (
-                <Tabs.Tab key={tab.id} value={tab.id}>
-                  {tab.label}
-                </Tabs.Tab>
-              ))}
-            </Tabs.List>
-
-            {TABS.map((tab) => (
-              <Tabs.Panel
-                key={tab.id}
-                value={tab.id}
-                style={{ paddingTop: 20 }}
-              >
-                <Suspense fallback={<InlineSpinner label="Loading…" />}>
-                  {tab.render({ data, token, consumption, forgetToken })}
-                </Suspense>
-              </Tabs.Panel>
-            ))}
-          </Tabs.Root>
         </>
       )}
     </Stack>

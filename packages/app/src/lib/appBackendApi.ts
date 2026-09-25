@@ -6,71 +6,83 @@ import { anyApi } from 'convex/server';
  * a manual step the person running this app takes themselves (see the
  * README). Typechecking the app can't depend on that having happened. */
 
-export interface ConsumptionEventRow {
+export type MarkOutcome = 'finished' | 'wasted';
+export type MarkVia = 'tap' | 'trip' | 'details';
+
+export interface UnitKey {
+  receiptId: string;
+  lineNo: number;
+  unitIndex: number;
+}
+
+export interface MarkRow extends UnitKey {
   _id: string;
   _creationTime: number;
-  ean: string;
-  quantity: number;
-  consumedAt: number;
+  outcome: MarkOutcome;
+  finishedAt: number;
+  finishedAtHandSet: boolean;
+  startedAt?: number;
+  via: MarkVia;
 }
 
-export interface PreferenceRow {
-  ean: string;
-  excluded: boolean;
-}
-
-type LogConsumption = FunctionReference<
+type Mark = FunctionReference<
   'mutation',
   'public',
-  { token: string; ean: string; quantity: number; consumedAt: number },
+  {
+    token: string;
+    receiptId: string;
+    lineNo: number;
+    unitIndex: number;
+    outcome: MarkOutcome;
+    finishedAt: number;
+    finishedAtHandSet: boolean;
+    startedAt?: number;
+    via: MarkVia;
+  },
   string
 >;
 
-type DeleteConsumption = FunctionReference<
+type MarkMany = FunctionReference<
   'mutation',
   'public',
-  { token: string; eventId: string },
+  {
+    token: string;
+    units: UnitKey[];
+    outcome: MarkOutcome;
+    finishedAt: number;
+    finishedAtHandSet: boolean;
+    via: MarkVia;
+  },
+  string[]
+>;
+
+type Unmark = FunctionReference<
+  'mutation',
+  'public',
+  { token: string; receiptId: string; lineNo: number; unitIndex: number },
   null
 >;
 
-type SetExcluded = FunctionReference<
-  'mutation',
-  'public',
-  { token: string; ean: string; excluded: boolean },
-  null
->;
-
-type ListConsumption = FunctionReference<
+type ListMarks = FunctionReference<
   'query',
   'public',
   { token: string },
-  ConsumptionEventRow[]
->;
-
-type ListPreferences = FunctionReference<
-  'query',
-  'public',
-  { token: string },
-  PreferenceRow[]
+  MarkRow[]
 >;
 
 type ExportAll = FunctionReference<
   'query',
   'public',
   { token: string },
-  {
-    consumptionEvents: ConsumptionEventRow[];
-    productPreferences: PreferenceRow[];
-  }
+  { marks: MarkRow[] }
 >;
 
 type AppBackendApi = {
-  consumption: {
-    logConsumption: LogConsumption;
-    deleteConsumption: DeleteConsumption;
-    setExcluded: SetExcluded;
-    listConsumption: ListConsumption;
-    listPreferences: ListPreferences;
+  marks: {
+    mark: Mark;
+    markMany: MarkMany;
+    unmark: Unmark;
+    list: ListMarks;
     exportAll: ExportAll;
   };
 };
