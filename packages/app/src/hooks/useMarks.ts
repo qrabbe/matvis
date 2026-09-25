@@ -54,9 +54,17 @@ export function useMarks(token: string | null): UseMarksResult {
     }
 
     const watch = client.watchQuery(appBackendApi.marks.list, { token });
+    // `localQueryResult()` re-throws a server-side query error (e.g. this
+    // deployment has no `marks:list` pushed yet) rather than returning
+    // undefined — caught here so a backend that isn't deployed yet degrades
+    // to "no marks" instead of taking the whole app down.
     const apply = () => {
-      const result = watch.localQueryResult();
-      if (result !== undefined) setMarks(result);
+      try {
+        const result = watch.localQueryResult();
+        if (result !== undefined) setMarks(result);
+      } catch (e) {
+        setError(errMsg(e));
+      }
     };
     apply(); // a cached result is already there the moment the watch is created
     const unsubscribe = watch.onUpdate(apply);

@@ -36,9 +36,15 @@ export function useSettings(token: string | null): UseSettingsResult {
       return;
     }
     const watch = client.watchQuery(appBackendApi.settings.get, { token });
+    // See useMarks.ts: a server-side query error re-throws from
+    // `localQueryResult()` rather than resolving to undefined.
     const apply = () => {
-      const result = watch.localQueryResult();
-      if (result !== undefined) setStored(result.targets);
+      try {
+        const result = watch.localQueryResult();
+        if (result !== undefined) setStored(result.targets);
+      } catch (e) {
+        setError(errMsg(e));
+      }
     };
     apply();
     return watch.onUpdate(apply);

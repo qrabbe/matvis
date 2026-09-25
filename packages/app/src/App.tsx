@@ -3,6 +3,7 @@ import { Tabs, Text } from '@wordpress/ui';
 import { ErrorNotice, InlineSpinner } from '@matvis/ui';
 import { usePurchaseData } from './hooks/usePurchaseData';
 import { PantryTab } from './features/PantryTab';
+import { PurchasesTab } from './features/PurchasesTab';
 import { IdentifyQueueScreen } from './features/IdentifyQueueScreen';
 import { IdentifyScreen } from './features/IdentifyScreen';
 import { looksLikeToken, useApiToken } from './lib/tokenStore';
@@ -91,9 +92,11 @@ export function App() {
                 </div>
               </Tabs.Panel>
               <Tabs.Panel value="purchases">
-                <div style={{ padding: '20px' }}>
-                  <Text>Purchases — coming in step 06</Text>
-                </div>
+                <PurchasesTab
+                  data={data}
+                  token={token}
+                  onOpenIdentify={() => setIdentify({ screen: 'queue' })}
+                />
               </Tabs.Panel>
               <Tabs.Panel value="settings">
                 <div style={{ padding: '20px' }}>
