@@ -1,76 +1,133 @@
-import { useMemo, useState } from 'react';
-import { useQuery } from 'convex/react';
-import {
-  Badge,
-  Button,
-  Card,
-  InputControl,
-  Link,
-  Stack,
-  Text,
-} from '@wordpress/ui';
-import { STORE_LABELS } from '@matvis/shared';
+﻿import { useState } from 'react';
+import { Tabs, Text } from '@wordpress/ui';
 import { ErrorNotice, InlineSpinner } from '@matvis/ui';
-import { Meter } from './components/Meter';
-import { usePurchaseData, type PurchaseData } from './hooks/usePurchaseData';
-import { api } from './lib/convexApi';
+import { usePurchaseData } from './hooks/usePurchaseData';
+import { PantryTab } from './features/PantryTab';
 import { looksLikeToken, useApiToken } from './lib/tokenStore';
-
-// The four tabs (Pantry, Insights, Purchases, Settings) land in the next
-// step of the app-ux rebuild — this shell keeps the token gate and load
-// status working on their own in the meantime.
+import { Card, InputControl, Link, Stack, Button } from '@wordpress/ui';
 
 export function App() {
   const { token, setToken } = useApiToken();
   const data = usePurchaseData(token);
+  const [activeTab, setActiveTab] = useState('pantry');
 
   return (
-    <Stack
-      direction="column"
-      gap="xl"
-      style={{ maxWidth: 980, margin: '0 auto', padding: '48px 20px' }}
+    <div
+      style={{
+        maxWidth: '480px',
+        margin: '0 auto',
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100vh',
+      }}
     >
-      <Header token={token} />
-
       {!token ? (
         <TokenGate onSubmit={setToken} />
       ) : (
         <>
-          <HydrationStatus data={data} />
           {data.error && (
-            <ErrorNotice title="Something didn’t load">
+            <ErrorNotice title="Something did not load">
               {data.error}
             </ErrorNotice>
           )}
+          {(data.hydration.total > data.hydration.done ||
+            data.loadingHeaders) && <InlineSpinner label="Loading receipts" />}
+
+          <Tabs.Root value={activeTab} onValueChange={setActiveTab}>
+            <div style={{ flex: 1, overflowY: 'auto' }}>
+              <Tabs.Panel value="pantry">
+                <PantryTab lines={data.lines} token={token} />
+              </Tabs.Panel>
+              <Tabs.Panel value="insights">
+                <div style={{ padding: '20px' }}>
+                  <Text>Insights - Coming in step 06</Text>
+                </div>
+              </Tabs.Panel>
+              <Tabs.Panel value="purchases">
+                <div style={{ padding: '20px' }}>
+                  <Text>Purchases - Coming in step 07</Text>
+                </div>
+              </Tabs.Panel>
+              <Tabs.Panel value="settings">
+                <div style={{ padding: '20px' }}>
+                  <Text>Settings - Coming in step 07</Text>
+                </div>
+              </Tabs.Panel>
+            </div>
+
+            <Tabs.List
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(4, 1fr)',
+                borderTop: '1px solid var(--wpds-color-border)',
+                marginTop: 'auto',
+              }}
+            >
+              <Tabs.Tab
+                value="pantry"
+                style={{
+                  padding: '10px 2px 13px',
+                  textAlign: 'center',
+                  fontSize: '11px',
+                  color:
+                    activeTab === 'pantry'
+                      ? 'var(--wpds-color-primary)'
+                      : 'var(--wpds-color-foreground-content-secondary)',
+                  fontWeight: activeTab === 'pantry' ? 700 : 400,
+                }}
+              >
+                Pantry
+              </Tabs.Tab>
+              <Tabs.Tab
+                value="insights"
+                style={{
+                  padding: '10px 2px 13px',
+                  textAlign: 'center',
+                  fontSize: '11px',
+                  color:
+                    activeTab === 'insights'
+                      ? 'var(--wpds-color-primary)'
+                      : 'var(--wpds-color-foreground-content-secondary)',
+                  fontWeight: activeTab === 'insights' ? 700 : 400,
+                }}
+              >
+                Insights
+              </Tabs.Tab>
+              <Tabs.Tab
+                value="purchases"
+                style={{
+                  padding: '10px 2px 13px',
+                  textAlign: 'center',
+                  fontSize: '11px',
+                  color:
+                    activeTab === 'purchases'
+                      ? 'var(--wpds-color-primary)'
+                      : 'var(--wpds-color-foreground-content-secondary)',
+                  fontWeight: activeTab === 'purchases' ? 700 : 400,
+                }}
+              >
+                Purchases
+              </Tabs.Tab>
+              <Tabs.Tab
+                value="settings"
+                style={{
+                  padding: '10px 2px 13px',
+                  textAlign: 'center',
+                  fontSize: '11px',
+                  color:
+                    activeTab === 'settings'
+                      ? 'var(--wpds-color-primary)'
+                      : 'var(--wpds-color-foreground-content-secondary)',
+                  fontWeight: activeTab === 'settings' ? 700 : 400,
+                }}
+              >
+                Settings
+              </Tabs.Tab>
+            </Tabs.List>
+          </Tabs.Root>
         </>
       )}
-    </Stack>
-  );
-}
-
-function Header({ token }: { token: string | null }) {
-  const connections = useQuery(
-    api.connections.list,
-    token ? { token } : 'skip',
-  );
-
-  const summary = useMemo(() => {
-    if (!token) return 'Pantry, nutrition and purchase insight';
-    if (connections === undefined) return 'Loading…';
-    if (connections.length === 0) return 'No stores linked to this token';
-    return connections
-      .map((connection) => STORE_LABELS[connection.store])
-      .join(', ');
-  }, [connections, token]);
-
-  return (
-    <Stack direction="row" gap="md" justify="space-between" align="start">
-      <Stack direction="column" gap="xs">
-        <Text variant="heading-xl">Matvis</Text>
-        <Text variant="body-md">{summary}</Text>
-      </Stack>
-      {token && <Badge intent="stable">Read-only</Badge>}
-    </Stack>
+    </div>
   );
 }
 
@@ -78,62 +135,39 @@ function TokenGate({ onSubmit }: { onSubmit: (token: string) => void }) {
   const [value, setValue] = useState('');
 
   return (
-    <Card.Root>
-      <Card.Header>
-        <Card.Title>Connect your receipts</Card.Title>
-      </Card.Header>
-      <Card.Content>
-        <Stack direction="column" gap="md">
-          <Text variant="body-md">
-            Paste your account API token. Mint one in the{' '}
-            <Link href="../connector/">connector portal</Link> under “Connect” —
-            that is also where you link a store.
-          </Text>
-          <InputControl
-            label="Account API token"
-            description="Stored in this browser only. It grants read access to one account's receipts."
-            value={value}
-            onValueChange={setValue}
-          />
-          <Stack direction="row" gap="sm">
-            <Button
-              disabled={!looksLikeToken(value)}
-              onClick={() => onSubmit(value)}
-            >
-              Use this token
-            </Button>
+    <div style={{ padding: '48px 20px' }}>
+      <Card.Root>
+        <Card.Header>
+          <Card.Title>Connect your receipts</Card.Title>
+        </Card.Header>
+        <Card.Content>
+          <Stack direction="column" gap="md">
+            <Text variant="body-md">
+              Paste your account API token. Mint one in the{' '}
+              <Link href="../connector/">connector portal</Link> under Connect -
+              that is also where you link a store.
+            </Text>
+            <InputControl
+              label="Account API token"
+              description="Stored in this browser only. It grants read access to one account's receipts."
+              value={value}
+              onValueChange={setValue}
+            />
+            <Stack direction="row" gap="sm">
+              <Button
+                disabled={!looksLikeToken(value)}
+                onClick={() => onSubmit(value)}
+              >
+                Use this token
+              </Button>
+            </Stack>
+            <Text variant="body-sm">
+              The app can only read. It never opens an auth session, so linking,
+              syncing and every other write stay with the portal.
+            </Text>
           </Stack>
-          <Text variant="body-sm">
-            The app can only read. It never opens an auth session, so linking,
-            syncing and every other write stay with the portal.
-          </Text>
-        </Stack>
-      </Card.Content>
-    </Card.Root>
-  );
-}
-
-function HydrationStatus({ data }: { data: PurchaseData }) {
-  const { hydration, loadingHeaders, loadingMoreHeaders } = data;
-  const pending = hydration.total > hydration.done;
-
-  if (loadingHeaders) return <InlineSpinner label="Loading receipts…" />;
-  if (!pending) {
-    return loadingMoreHeaders ? (
-      <InlineSpinner label="Loading more receipts…" />
-    ) : null;
-  }
-
-  return (
-    <Stack direction="column" gap="xs">
-      <Text variant="body-sm">
-        {`Hydrating ${hydration.done} of ${hydration.total} receipts — cached after this, so the next load is instant.`}
-      </Text>
-      <Meter
-        value={hydration.done}
-        max={hydration.total}
-        label="Receipts hydrated"
-      />
-    </Stack>
+        </Card.Content>
+      </Card.Root>
+    </div>
   );
 }

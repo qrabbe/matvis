@@ -1,13 +1,8 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+﻿import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { purchaseData } from './support/fixtures';
 import type { PurchaseData } from '../src/hooks/usePurchaseData';
-
-/**
- * The shell: the token gate, which is the whole of onboarding, and the one
- * place a load failure is ever shown.
- */
 
 const store = vi.hoisted(() => ({
   data: null as PurchaseData | null,
@@ -24,10 +19,6 @@ vi.mock('../src/hooks/usePurchaseData', () => ({
 vi.mock('convex/react', () => ({
   useQuery: () => [],
   useConvex: () => ({ query: async () => null }),
-  // App also mounts useConsumption, which builds its own client for app's
-  // own backend (a second deployment, not the ambiently-provided connector
-  // one this mock otherwise covers) — it needs a constructible stand-in, not
-  // just the two hooks above.
   ConvexReactClient: class {
     watchQuery() {
       return {
@@ -56,7 +47,6 @@ describe('the token gate', () => {
     expect(
       screen.getByRole('link', { name: 'connector portal' }),
     ).toHaveAttribute('href', '../connector/');
-    // No token, so the store is never asked for an account's receipts.
     expect(store.seen).toEqual([null]);
   });
 
@@ -64,13 +54,9 @@ describe('the token gate', () => {
     const user = userEvent.setup();
     render(<App />);
 
-    // `@wordpress/ui` disables accessibly — the button keeps its place in the
-    // tab order and says so through aria rather than dropping out of it.
     const submit = screen.getByRole('button', { name: 'Use this token' });
     expect(submit).toHaveAttribute('aria-disabled', 'true');
 
-    // A token is opaque to the app — the connector mints it and only the
-    // connector can judge it — so "valid" here means only "non-empty".
     await user.type(
       screen.getByLabelText('Account API token'),
       'mv_test_token',
@@ -90,7 +76,6 @@ describe('the token gate', () => {
     render(<App />);
 
     expect(screen.queryByText('Connect your receipts')).toBeNull();
-    expect(screen.getByText('Read-only')).toBeInTheDocument();
     expect(store.seen).toEqual(['mv_stored']);
   });
 });
@@ -105,7 +90,7 @@ describe('the shell', () => {
 
     render(<App />);
 
-    expect(screen.getByText('Something didn’t load')).toBeInTheDocument();
+    expect(screen.getByText('Something did not load')).toBeInTheDocument();
     expect(
       screen.getByText('2 receipts could not be loaded: boom'),
     ).toBeInTheDocument();
@@ -115,13 +100,22 @@ describe('the shell', () => {
     store.data = purchaseData({ hydration: { done: 3, total: 10 } });
 
     const { unmount } = render(<App />);
-    expect(screen.getByText(/Hydrating 3 of 10 receipts/)).toBeInTheDocument();
+    expect(screen.getByText(/Loading receipts/)).toBeInTheDocument();
     unmount();
 
-    // A warm cache reports n / n the moment the cache read resolves, and the
-    // bar must not flash up for it.
     store.data = purchaseData({ hydration: { done: 10, total: 10 } });
     render(<App />);
-    expect(screen.queryByText(/Hydrating/)).toBeNull();
+    expect(screen.queryByText(/Loading receipts/)).toBeNull();
+  });
+
+  it('shows the tab bar with four tabs', () => {
+    store.data = purchaseData();
+
+    render(<App />);
+
+    expect(screen.getByRole('tab', { name: 'Pantry' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Insights' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Purchases' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Settings' })).toBeInTheDocument();
   });
 });
