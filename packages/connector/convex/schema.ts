@@ -4,6 +4,7 @@ import { authTables } from '@convex-dev/auth/server';
 import {
   connectionStatusValidator,
   encryptedSecretValidator,
+  itemGtinMapKindValidator,
   pendingLinkStatusValidator,
   receiptContentFields,
   storeValidator as store,
@@ -82,15 +83,28 @@ export default defineSchema({
   itemGtinMap: defineTable({
     store,
     normalizedText: v.string(), // see normalizeItemText in @matvis/shared
-    gtin: v.string(),
+    /** `product` resolves to a real catalog item (`gtin` required).
+     * `produce` and `notFood` classify a text without a catalog row — loose
+     * produce and non-food/fees respectively. `notInCatalog` is real food
+     * the catalog doesn't carry. Only `product` ever carries a `gtin`. */
+    kind: itemGtinMapKindValidator,
+    gtin: v.optional(v.string()),
     /** A reference unit price for this gtin, when known (e.g. the shelf
      * price at link time). The same printed text can mean different real
      * products at different sizes — Coop prints "HAVREGRYN" for both a
      * 750g and a 1500g bag at different prices — so a text can legitimately
-     * have more than one row. `resolveGtin` uses this to pick the row
+     * have more than one row. `resolveMapping` uses this to pick the row
      * whose price best fits a specific line instead of grabbing whichever
      * row comes first. Absent means "the generic mapping for this text",
      * used as a catch-all when no priced row fits (see matching.ts). */
     price: v.optional(v.number()),
+    /** `seed` for a one-time import, `app` for a write from the identify
+     * flow. Both are equally authoritative at read time; this is
+     * provenance, not a trust ranking. */
+    source: v.union(v.literal('seed'), v.literal('app')),
+    /** The account that made this mapping, when it came from the app.
+     * Informational only — every mapping is chain-wide and applies to
+     * every account, never scoped by who wrote it. */
+    createdBy: v.optional(v.id('accounts')),
   }).index('by_store_text', ['store', 'normalizedText']),
 });

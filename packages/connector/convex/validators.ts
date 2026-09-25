@@ -1,5 +1,6 @@
 import {
   STORES,
+  type ItemMappingKind,
   type LineItem,
   type ReceiptCore,
   type ReceiptHeader,
@@ -41,6 +42,18 @@ type _EncryptedSecretMatches = Assert<
 
 // @matvis/shared
 export const storeValidator = v.union(...STORES.map((slug) => v.literal(slug)));
+
+// @matvis/shared ItemMappingKind
+export const itemGtinMapKindValidator = v.union(
+  v.literal('product'),
+  v.literal('produce'),
+  v.literal('notFood'),
+  v.literal('notInCatalog'),
+);
+
+type _ItemMappingKindMatches = Assert<
+  Equal<Infer<typeof itemGtinMapKindValidator>, ItemMappingKind>
+>;
 
 export const connectionStatusValidator = v.union(
   v.literal('active'),
@@ -140,6 +153,7 @@ export const receiptItemDocValidator = v.object({
   lineNo: v.number(),
   ...receiptItemInsertValidator.fields,
   gtin: v.optional(v.string()),
+  kind: v.optional(itemGtinMapKindValidator),
 });
 
 // @matvis/shared rather than through `Doc<'receiptItems'>`, so guard that copy

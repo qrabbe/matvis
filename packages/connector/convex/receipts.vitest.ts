@@ -191,7 +191,9 @@ describe('receipts read API', () => {
       await ctx.db.insert('itemGtinMap', {
         store: 'coop',
         normalizedText: 'mjölk',
+        kind: 'product',
         gtin: '7310865004703',
+        source: 'seed',
       });
     });
     const after = await as(t, 'sub-a').query(api.receipts.getReceipt, {
@@ -201,6 +203,25 @@ describe('receipts read API', () => {
       '7310865004703',
       undefined, // the discount line is never matched
     ]);
+    expect(after?.items.map((i) => i.kind)).toEqual(['product', undefined]);
+  });
+
+  test('getReceipt resolves non-product kinds without a gtin', async () => {
+    const t = convexTest(schema, modules);
+    const { r3 } = await seed(t);
+    await t.run(async (ctx) => {
+      await ctx.db.insert('itemGtinMap', {
+        store: 'coop',
+        normalizedText: 'mjölk',
+        kind: 'notFood',
+        source: 'app',
+      });
+    });
+    const got = await as(t, 'sub-a').query(api.receipts.getReceipt, {
+      receiptId: r3,
+    });
+    expect(got?.items[0]?.gtin).toBeUndefined();
+    expect(got?.items[0]?.kind).toBe('notFood');
   });
 
   test('getReceipt picks the priced itemGtinMap row that fits the line', async () => {
@@ -211,14 +232,18 @@ describe('receipts read API', () => {
       await ctx.db.insert('itemGtinMap', {
         store: 'coop',
         normalizedText: 'mjölk',
+        kind: 'product',
         gtin: 'small-carton',
         price: 12.5,
+        source: 'seed',
       });
       await ctx.db.insert('itemGtinMap', {
         store: 'coop',
         normalizedText: 'mjölk',
+        kind: 'product',
         gtin: 'large-carton',
         price: 22.9,
+        source: 'seed',
       });
     });
     const got = await as(t, 'sub-a').query(api.receipts.getReceipt, {
@@ -239,12 +264,15 @@ describe('receipts read API', () => {
       await ctx.db.insert('itemGtinMap', {
         store: 'coop',
         normalizedText: 'mjölk',
+        kind: 'product',
         gtin: '7310865004703',
+        source: 'seed',
       });
     });
     const got = await as(t, 'sub-a').query(api.receipts.getReceipt, {
       receiptId: r3,
     });
     expect(got?.items[0]?.gtin).toBe('already');
+    expect(got?.items[0]?.kind).toBe('product');
   });
 });

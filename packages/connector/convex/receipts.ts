@@ -5,7 +5,7 @@ import {
 import { v } from 'convex/values';
 import type { Doc, Id } from './_generated/dataModel';
 import { query, type QueryCtx } from './_generated/server';
-import { loadGtinMap, resolveGtin } from './matching';
+import { loadGtinMap, resolveMapping } from './matching';
 import { readScopedAccountId } from './model/auth';
 import {
   MAX_RECEIPT_ITEMS,
@@ -76,10 +76,11 @@ export const getReceipt = query({
       .order('asc')
       .take(MAX_RECEIPT_ITEMS);
     const gtinMap = await loadGtinMap(ctx, receipt.source);
-    const resolved = items.map((item) => ({
-      ...item,
-      gtin: item.gtin ?? resolveGtin(gtinMap, item),
-    }));
+    const resolved = items.map((item) => {
+      if (item.gtin) return { ...item, kind: 'product' as const };
+      const mapping = resolveMapping(gtinMap, item);
+      return { ...item, gtin: mapping?.gtin, kind: mapping?.kind };
+    });
     return { receipt: toHeader(receipt), items: resolved };
   },
 });

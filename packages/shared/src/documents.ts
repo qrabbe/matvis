@@ -13,6 +13,12 @@ export type ReceiptHeader = ReceiptCore & {
   pdfStorageId?: GenericId<'_storage'>;
 };
 
+/** How a receipt line's printed text resolved against `itemGtinMap`, live at
+ * read time. `product` is the only kind that carries a `gtin`. Absent means
+ * the text has no mapping row yet — unidentified, not any of these kinds. */
+export type ItemMappingKind =
+  'product' | 'produce' | 'notFood' | 'notInCatalog';
+
 export type ReceiptItemDoc = {
   _id: GenericId<'receiptItems'>;
   _creationTime: number;
@@ -24,6 +30,7 @@ export type ReceiptItemDoc = {
   quantity?: number;
   unit?: string;
   gtin?: string;
+  kind?: ItemMappingKind;
 };
 
 export type ConnectionPublic = {
