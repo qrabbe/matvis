@@ -1,6 +1,10 @@
 import { defineSchema, defineTable } from 'convex/server';
 import { v } from 'convex/values';
-import { catalogFields, storeValidator } from './model/fields';
+import {
+  catalogFields,
+  catalogInternalFields,
+  storeValidator,
+} from './model/fields';
 import {
   queueStatusValidator,
   runKindValidator,
@@ -47,14 +51,23 @@ export default defineSchema({
     .index('by_store_status', ['store', 'status'])
     .index('by_store_ean', ['store', 'ean']),
 
-  /** Two indexes on purpose. `by_ean_store` is ean first so it serves both an
-   * ean only lookup and the exact per store upsert, and EAN search is a range
-   * scan over it rather than a second text index. Per store totals come from
-   * `app_counters`, which is what retires `by_store`. Filtering the catalog by
-   * store is gone from the API, so the name search carries no filter field. */
-  catalog: defineTable(catalogFields)
+  /** `by_ean_store` is ean first so it serves both an ean only lookup and the
+   * exact per store upsert, and EAN search is a range scan over it rather
+   * than a second text index. Per store totals come from `app_counters`,
+   * which is what retires `by_store`.
+   *
+   * Two search indexes for one push cycle only: `search_name` is what
+   * `catalog.search` still reads until the backfill has reached every row on
+   * both deployments (a search index skips a row lacking its field).
+   * `search_text` matches name, brand and every category name, past the
+   * Swedish compounds `name` alone missed, and is what push 2 switches to. */
+  catalog: defineTable({ ...catalogFields, ...catalogInternalFields })
     .index('by_ean_store', ['ean', 'store'])
-    .searchIndex('search_name', { searchField: 'name' }),
+    .searchIndex('search_name', { searchField: 'name' })
+    .searchIndex('search_text', {
+      searchField: 'searchText',
+      filterFields: ['store'],
+    }),
 
   /** One row per settled search term. `visitor` is a random id the browser
    * makes up, not a signed-in identity: the catalog site has no sign-in and

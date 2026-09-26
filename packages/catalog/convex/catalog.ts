@@ -9,8 +9,19 @@ import {
   CATALOG_COUNT_KEY,
 } from './model/counters';
 import { readCoverage, readFreshness } from './model/metrics';
+import type { Doc } from './_generated/dataModel';
 
 const catalogItem = catalogDocValidator;
+
+// searchText/categoryKey are internal, not in the published contract. The
+// return validator rejects an undeclared field rather than stripping it, so
+// every public read goes through this first.
+function toCatalogItem(
+  row: Doc<'catalog'>,
+): Omit<Doc<'catalog'>, 'searchText' | 'categoryKey'> {
+  const { searchText, categoryKey, ...rest } = row;
+  return rest;
+}
 
 const MIN_EAN_QUERY_DIGITS = 6;
 
@@ -48,29 +59,36 @@ export const search = query({
     // the only useful matches, and a search index would additionally match a
     // one digit typo onto a different real product.
     if (term && looksLikeEan(term)) {
-      return await ctx.db
+      const page = await ctx.db
         .query('catalog')
         .withIndex('by_ean_store', (i) =>
           i.gte('ean', term).lt('ean', `${term}${EAN_PREFIX_CEILING}`),
         )
         .paginate(paginationOpts);
+      return { ...page, page: page.page.map(toCatalogItem) };
     }
     if (term) {
-      return await ctx.db
+      const page = await ctx.db
         .query('catalog')
         .withSearchIndex('search_name', (s) => s.search('name', term))
         .paginate(paginationOpts);
+      return { ...page, page: page.page.map(toCatalogItem) };
     }
-    return await ctx.db.query('catalog').order('desc').paginate(paginationOpts);
+    const page = await ctx.db
+      .query('catalog')
+      .order('desc')
+      .paginate(paginationOpts);
+    return { ...page, page: page.page.map(toCatalogItem) };
   },
 });
 
 /** One row per store at most, which is what bounds the take. */
-function rowsForEan(ctx: QueryCtx, ean: string) {
-  return ctx.db
+async function rowsForEan(ctx: QueryCtx, ean: string) {
+  const rows = await ctx.db
     .query('catalog')
     .withIndex('by_ean_store', (i) => i.eq('ean', ean))
     .take(STORES.length);
+  return rows.map(toCatalogItem);
 }
 
 export const getByEan = query({

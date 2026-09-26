@@ -69,6 +69,13 @@ export const catalogFields = {
   fetchedAt: v.optional(v.number()),
 } as const;
 
+// Written by upsertClean, not part of the published contract, stripped from
+// every public read. Optional: rows written before this backfill have neither.
+export const catalogInternalFields = {
+  searchText: v.optional(v.string()),
+  categoryKey: v.optional(v.string()),
+} as const;
+
 export const catalogDocValidator = v.object({
   _id: v.id('catalog'),
   _creationTime: v.number(),

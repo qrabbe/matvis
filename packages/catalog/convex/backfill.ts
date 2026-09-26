@@ -4,7 +4,11 @@ import { internal } from './_generated/api';
 import { STORES } from '@matvis/shared';
 import { QUEUE_STATUSES } from './model/ingest';
 import { storeValidator } from './model/fields';
-import { netContentFrom, soldByFrom } from './model/project';
+import {
+  deriveSearchFields,
+  netContentFrom,
+  soldByFrom,
+} from './model/project';
 import {
   catalogStoreKey,
   coverageKey,
@@ -217,6 +221,75 @@ export const normalizeUnits = internalAction({
       totals.scanned += page.scanned;
       totals.rewritten += page.rewritten;
       totals.unresolved += page.unresolved;
+      totals.pages += 1;
+      if (page.isDone) break;
+      cursor = page.continueCursor;
+    }
+    return totals;
+  },
+});
+
+// Idempotent by comparison: a row already matching deriveSearchFields is left
+// alone, so a second run patches nothing. patch rather than replace since this
+// only ever touches these two fields.
+export const backfillSearchFieldsPage = internalMutation({
+  args: { cursor: v.union(v.string(), v.null()) },
+  returns: v.object({
+    scanned: v.number(),
+    updated: v.number(),
+    continueCursor: v.string(),
+    isDone: v.boolean(),
+  }),
+  handler: async (ctx, { cursor }) => {
+    const page = await ctx.db
+      .query('catalog')
+      .paginate({ cursor, numItems: RECOUNT_CATALOG_PAGE });
+
+    let updated = 0;
+    for (const row of page.page) {
+      const derived = deriveSearchFields(row);
+      if (
+        row.searchText === derived.searchText &&
+        row.categoryKey === derived.categoryKey
+      ) {
+        continue;
+      }
+      await ctx.db.patch(row._id, derived);
+      updated += 1;
+    }
+
+    return {
+      scanned: page.page.length,
+      updated,
+      continueCursor: page.continueCursor,
+      isDone: page.isDone,
+    };
+  },
+});
+
+// Pause ingest before running this: it pages across many transactions and a
+// live drain writing rows underneath it is one more thing to reason about.
+export const backfillSearchFields = internalAction({
+  args: {},
+  returns: v.object({
+    scanned: v.number(),
+    updated: v.number(),
+    pages: v.number(),
+  }),
+  handler: async (ctx) => {
+    const totals = { scanned: 0, updated: 0, pages: 0 };
+    let cursor: string | null = null;
+    for (;;) {
+      const page: {
+        scanned: number;
+        updated: number;
+        continueCursor: string;
+        isDone: boolean;
+      } = await ctx.runMutation(internal.backfill.backfillSearchFieldsPage, {
+        cursor,
+      });
+      totals.scanned += page.scanned;
+      totals.updated += page.updated;
       totals.pages += 1;
       if (page.isDone) break;
       cursor = page.continueCursor;

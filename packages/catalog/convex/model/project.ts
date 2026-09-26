@@ -16,6 +16,7 @@ import {
 } from './counters';
 import type { CoopProduct } from '../coop/sanitize';
 import { netContentFromName, type IcaProduct } from '../ica/parse';
+import { categoryKeyFor, searchTextFor } from './categoryKey';
 
 /** What a projector produces. `fetchedAt` is excluded because a projection is a
  * pure function of a payload and the time it arrived is not in the payload:
@@ -300,18 +301,32 @@ export function projectIcaProduct(doc: IcaProduct): CleanFields | null {
   return { ...projected, store: 'ica' };
 }
 
+// Pure function of CleanFields, so a fresh write and the backfill compute the
+// same searchText/categoryKey either way.
+export function deriveSearchFields(fields: CleanFields): {
+  searchText: string;
+  categoryKey: string;
+} {
+  return {
+    searchText: searchTextFor(fields),
+    categoryKey: categoryKeyFor(fields.categoryPath),
+  };
+}
+
 /** Replaces rather than patches: a projection is a total function of one source
  * payload, so a value the source dropped must not linger on the clean row.
  *
  * Stamps `fetchedAt` here because this is the only place that both knows the
  * row came from the source and survives the replace. Anything that rewrites a
  * row without re-reading the source must carry the old stamp forward instead of
- * calling this, or it claims a freshness it did not earn. */
+ * calling this, or it claims a freshness it did not earn. Also stamps
+ * searchText and categoryKey for the same reason. */
 export async function upsertClean(
   ctx: MutationCtx,
   fields: CleanFields,
   fetchedAt: number = Date.now(),
 ): Promise<boolean> {
+  const derived = deriveSearchFields(fields);
   const existing = await ctx.db
     .query('catalog')
     .withIndex('by_ean_store', (q) =>
@@ -324,10 +339,10 @@ export async function upsertClean(
     if (existing.fetchedAt === undefined) {
       await bumpCounter(ctx, CATALOG_VERIFIED_KEY, 1);
     }
-    await ctx.db.replace(existing._id, { ...fields, fetchedAt });
+    await ctx.db.replace(existing._id, { ...fields, ...derived, fetchedAt });
     return false;
   }
-  await ctx.db.insert('catalog', { ...fields, fetchedAt });
+  await ctx.db.insert('catalog', { ...fields, ...derived, fetchedAt });
   await bumpCounter(ctx, CATALOG_COUNT_KEY, 1);
   await bumpCounter(ctx, catalogStoreKey(fields.store), 1);
   await bumpCounter(ctx, CATALOG_VERIFIED_KEY, 1);
