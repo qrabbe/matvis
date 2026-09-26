@@ -102,7 +102,7 @@ describe('search', () => {
     await seed(t, eansUpTo(30));
 
     const oneRange = [
-      { table: 'catalog', kind: 'search', index: 'search_name' },
+      { table: 'catalog', kind: 'search', index: 'search_text' },
     ];
     expect((await searchPage(t, 5)).ranges).toEqual(oneRange);
     expect((await searchPage(t, 25)).ranges).toEqual(oneRange);

@@ -56,14 +56,10 @@ export default defineSchema({
    * than a second text index. Per store totals come from `app_counters`,
    * which is what retires `by_store`.
    *
-   * Two search indexes for one push cycle only: `search_name` is what
-   * `catalog.search` still reads until the backfill has reached every row on
-   * both deployments (a search index skips a row lacking its field).
    * `search_text` matches name, brand and every category name, past the
-   * Swedish compounds `name` alone missed, and is what push 2 switches to. */
+   * Swedish compounds `name` alone missed. Filterable by store. */
   catalog: defineTable({ ...catalogFields, ...catalogInternalFields })
     .index('by_ean_store', ['ean', 'store'])
-    .searchIndex('search_name', { searchField: 'name' })
     .searchIndex('search_text', {
       searchField: 'searchText',
       filterFields: ['store'],

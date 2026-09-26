@@ -38,6 +38,7 @@ function looksLikeEan(term: string): boolean {
 export const search = query({
   args: {
     q: v.optional(v.string()),
+    store: v.optional(storeValidator),
     paginationOpts: paginationOptsValidator,
   },
   returns: v.object({
@@ -53,8 +54,15 @@ export const search = query({
       ),
     ),
   }),
-  handler: async (ctx, { q, paginationOpts }) => {
+  handler: async (ctx, { q, store, paginationOpts }) => {
     const term = q?.trim();
+    // A store filter here rides no index: `by_ean_store` is ean first, so an
+    // ean range and a store equality can't share it, and the plain listing
+    // below has no index on store at all. Both stay small pages, so the
+    // filter runs over the fetched page in memory instead.
+    const byStore = (rows: Doc<'catalog'>[]) =>
+      store ? rows.filter((row) => row.store === store) : rows;
+
     // A prefix range beats a text index on barcodes. Exact and starts-with are
     // the only useful matches, and a search index would additionally match a
     // one digit typo onto a different real product.
@@ -65,12 +73,15 @@ export const search = query({
           i.gte('ean', term).lt('ean', `${term}${EAN_PREFIX_CEILING}`),
         )
         .paginate(paginationOpts);
-      return { ...page, page: page.page.map(toCatalogItem) };
+      return { ...page, page: byStore(page.page).map(toCatalogItem) };
     }
     if (term) {
       const page = await ctx.db
         .query('catalog')
-        .withSearchIndex('search_name', (s) => s.search('name', term))
+        .withSearchIndex('search_text', (s) => {
+          const matched = s.search('searchText', term);
+          return store ? matched.eq('store', store) : matched;
+        })
         .paginate(paginationOpts);
       return { ...page, page: page.page.map(toCatalogItem) };
     }
@@ -78,7 +89,7 @@ export const search = query({
       .query('catalog')
       .order('desc')
       .paginate(paginationOpts);
-    return { ...page, page: page.page.map(toCatalogItem) };
+    return { ...page, page: byStore(page.page).map(toCatalogItem) };
   },
 });
 
