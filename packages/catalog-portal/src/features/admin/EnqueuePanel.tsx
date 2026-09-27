@@ -28,7 +28,7 @@ export function EnqueuePanel({
             <Field.Root>
               <Field.Label>EANs</Field.Label>
               <Field.Description>
-                {`One per line, or separated by commas or spaces. At most ${ENQUEUE_PASTE_MAX.toLocaleString()} per paste, and a bigger one is refused rather than truncated. They are queued into the ${STORE_LABELS[store]} lane.`}
+                {`One per line, or separated by commas or spaces. Up to ${ENQUEUE_PASTE_MAX.toLocaleString()} per paste.`}
               </Field.Description>
               <Textarea
                 rows={5}
@@ -38,10 +38,7 @@ export function EnqueuePanel({
             </Field.Root>
             {store === 'ica' && (
               <Text variant="body-sm">
-                A bare barcode does not address an ICA page: the lane needs the
-                product id the census supplies, so a row pasted here is claimed
-                and then skipped as having no ICA product id. Pasting is a Coop
-                lever. Load ICA from the census script.
+                Pasting is a Coop lever — ICA needs the census script instead.
               </Text>
             )}
             <Stack direction="row" gap="md" align="center" wrap="wrap">

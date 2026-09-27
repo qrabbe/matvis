@@ -42,7 +42,7 @@ export function CoveragePanel({ token }: { token: string }) {
         ) : (
           <Stack direction="column" gap="lg">
             <Text variant="body-sm">
-              {`Share of the ${coverage.total.toLocaleString()} catalog rows carrying each optional field, measured ${formatAge(coverage.measuredAt)}. Counted on demand, so it is a snapshot rather than a live number.`}
+              {`Share of ${coverage.total.toLocaleString()} rows, measured ${formatAge(coverage.measuredAt)}.`}
             </Text>
             <Stack direction="row" gap="xl" wrap="wrap">
               {coverage.fields.map((row) => (

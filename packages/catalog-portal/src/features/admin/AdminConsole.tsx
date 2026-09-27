@@ -158,12 +158,6 @@ function LanePicker({
           }
         />
       </div>
-      <Text variant="body-sm">
-        Which chain everything below acts on: fill progress, the queue list,
-        what Run drives and where a paste is queued. Only chains with an ingest
-        lane are listed, so the catalog can hold rows for a store this select
-        does not offer.
-      </Text>
     </Stack>
   );
 }
@@ -171,14 +165,7 @@ function LanePicker({
 function ConsoleFrame({ children }: { children: ReactNode }) {
   return (
     <Stack direction="column" gap="lg">
-      <Stack direction="column" gap="xs">
-        <Text variant="heading-lg">Catalog console</Text>
-        <Text variant="body-sm">
-          Drives the ingest pipeline one lane at a time and reports what the
-          catalog holds, how fresh it is and what people search for. Crons are
-          off, so nothing runs here unless someone starts it.
-        </Text>
-      </Stack>
+      <Text variant="heading-lg">Catalog console</Text>
       {children}
       <Text
         variant="body-sm"

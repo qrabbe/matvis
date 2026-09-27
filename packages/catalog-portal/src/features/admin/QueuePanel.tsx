@@ -84,18 +84,6 @@ export function QueuePanel({
             </div>
           </Stack>
 
-          <Text variant="body-sm">
-            {`This list is the ${STORE_LABELS[store]} lane only. The counts on the overview are whole-table, so the two disagree whenever another lane holds work.`}
-          </Text>
-
-          <Text variant="body-sm">
-            The queue holds only work and memos. A row whose product was stored
-            is deleted, and one whose fetch failed is back under Pending with
-            the error on it, waiting for the next run. Skipped means the store
-            returned nothing for that barcode, which is remembered so the sweep
-            does not queue it again.
-          </Text>
-
           {page === undefined ? (
             <SkeletonList label="Loading queue…" rows={5} />
           ) : page === null || page.rows.length === 0 ? (
@@ -138,7 +126,7 @@ export function QueuePanel({
             <div style={{ flex: '1 1 240px' }}>
               <InputControl
                 label="Remove rows"
-                description={`Every ${STORE_LABELS[store]} queue row for one EAN, up to ${QUEUE_MAINTENANCE_LIMIT.toLocaleString()}. The way to stop a barcode that fails forever, since failures requeue themselves.`}
+                description={`Every ${STORE_LABELS[store]} queue row for one EAN, up to ${QUEUE_MAINTENANCE_LIMIT.toLocaleString()}.`}
                 placeholder="7311312009203"
                 value={removeText}
                 onValueChange={(value) => setRemoveText(value)}

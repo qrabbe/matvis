@@ -47,10 +47,6 @@ export function OverviewPanel({
           />
 
           <Stack direction="column" gap="sm">
-            <Text variant="body-sm">
-              Rows per store. A chain at zero is one nothing has been ingested
-              for yet, not one that does not exist.
-            </Text>
             {health === undefined ? (
               <SkeletonList label="Loading store counts…" rows={2} />
             ) : (
@@ -67,146 +63,87 @@ export function OverviewPanel({
               </Stack>
             )}
           </Stack>
-          <Stack direction="column" gap="sm">
-            <Text variant="body-sm">
-              What the queue is holding, across all lanes at once. The counters
-              are whole-table by design, so these three do not follow the lane
-              select and a done-looking queue list can sit under a five-figure
-              pending count that belongs to another chain.
-            </Text>
-            <Text variant="body-sm">
-              The per-lane numbers are in the run log and the trend below:
-              claimed, added, skipped and failed are recorded per run, and a run
-              drives one lane. That is where to look for whether this lane is
-              making progress. A run row does not name its lane, so read the log
-              against the press you just made rather than an hour later.
-            </Text>
-            <Stack direction="row" gap="xl" wrap="wrap">
-              <Stat
-                label="Pending"
-                value={formatCount(queue.pending)}
-                note="all lanes"
-              />
-              <Stat
-                label="Processing"
-                value={formatCount(queue.processing)}
-                note="all lanes"
-              />
-              <Stat
-                label="Skipped"
-                value={formatCount(queue.skipped)}
-                note="all lanes. Barcodes the store returned nothing for, remembered so the sweep does not queue them again"
-              />
-            </Stack>
-            <Text variant="body-sm">
-              There is no done count and no failed count: a stored row leaves
-              the queue, and a failed one goes back to pending for the next run.
-            </Text>
-          </Stack>
-          <Stack direction="column" gap="sm">
-            <Text variant="body-sm">
-              {`The fill sweep, for ${STORE_LABELS[store]} only. This pair is the one thing on this panel that follows the lane select.`}
-            </Text>
-            <Stack direction="row" gap="xl" wrap="wrap">
-              <Stat
-                label="EANs known"
-                value={formatCount(fill.eansKnown)}
-                note="the target set the fill sweep works through"
-              />
-              <Stat
-                label="Fill sweep"
-                value={
-                  fill.cursorAtEnd ? 'at the start of a fresh pass' : 'mid pass'
-                }
-                note="where the persisted cursor sits. A deployment that has never run a fill reads the same way, because both are a null cursor"
-              />
-            </Stack>
-          </Stack>
-
-          <Stack direction="column" gap="sm">
-            <Text variant="body-sm">
-              How much of the catalog has ever been checked against the store it
-              came from, every lane counted together. Nothing runs on a
-              schedule, so this only moves when you move it.
-            </Text>
-            <Stack direction="row" gap="xl" wrap="wrap">
-              <Stat
-                label="Verified"
-                value={formatCount(freshness.verified)}
-                note="rows carrying a fetch timestamp"
-              />
-              <Stat
-                label="Never fetched"
-                value={formatCount(freshness.never)}
-                note="written before the timestamp existed, and not re-read since"
-              />
-            </Stack>
-            <Text variant="body-sm">
-              {`Age of the ${freshness.sample.size.toLocaleString()} most recently added rows. A sample, and one biased toward new rows, because bucketing the whole table by age is a scan.`}
-            </Text>
-            <Stack direction="row" gap="xl" wrap="wrap">
-              <Stat
-                label="Past week"
-                value={formatCount(freshness.sample.week)}
-              />
-              <Stat
-                label="Past month"
-                value={formatCount(freshness.sample.month)}
-              />
-              <Stat label="Older" value={formatCount(freshness.sample.older)} />
-              <Stat label="Never" value={formatCount(freshness.sample.never)} />
-            </Stack>
-          </Stack>
-
-          <Stack direction="column" gap="sm">
-            <Text variant="body-sm">
-              Every number above is maintained on write, not counted on read, so
-              it can drift. Rebuilding recounts both tables and overwrites them.
-              Pause ingest first, or it is refused.
-            </Text>
-            <Stack direction="row" gap="md" align="center" wrap="wrap">
-              <Button
-                variant="outline"
-                tone="neutral"
-                onClick={() =>
-                  run(async () => {
-                    const result = await rebuildCounters({ token });
-                    return `Recounted ${result.pages} page(s): ${result.catalog?.total ?? 0} catalog row(s), ${result.catalog?.eans ?? 0} EAN(s).`;
-                  })
-                }
-              >
-                Rebuild counters
-              </Button>
-            </Stack>
-            <TaskResult state={state} busyLabel="Recounting…" />
-          </Stack>
-
-          <Stack direction="column" gap="sm">
-            <Text variant="body-sm">
-              The category tree the browsing screens walk: one row per category
-              per chain, with a rolled-up product count. Rebuilding clears it
-              and refills it from the catalog. Pause ingest first, or it is
-              refused.
-            </Text>
-            <Stack direction="row" gap="md" align="center" wrap="wrap">
-              <Button
-                variant="outline"
-                tone="neutral"
-                onClick={() =>
-                  categoryTreeTask.run(async () => {
-                    const result = await rebuildCategoryTree({ token });
-                    return `Rebuilt ${result.rows} category row(s) across ${result.pages} page(s).`;
-                  })
-                }
-              >
-                Rebuild category tree
-              </Button>
-            </Stack>
-            <TaskResult
-              state={categoryTreeTask.state}
-              busyLabel="Rebuilding…"
+          <Stack direction="row" gap="xl" wrap="wrap">
+            <Stat
+              label="Pending"
+              value={formatCount(queue.pending)}
+              note="all lanes"
+            />
+            <Stat
+              label="Processing"
+              value={formatCount(queue.processing)}
+              note="all lanes"
+            />
+            <Stat
+              label="Skipped"
+              value={formatCount(queue.skipped)}
+              note="all lanes"
             />
           </Stack>
+
+          <Stack direction="row" gap="xl" wrap="wrap">
+            <Stat
+              label={`${STORE_LABELS[store]} EANs known`}
+              value={formatCount(fill.eansKnown)}
+            />
+            <Stat
+              label="Fill sweep"
+              value={
+                fill.cursorAtEnd ? 'at the start of a fresh pass' : 'mid pass'
+              }
+            />
+          </Stack>
+
+          <Stack direction="row" gap="xl" wrap="wrap">
+            <Stat
+              label="Verified"
+              value={formatCount(freshness.verified)}
+              note="carrying a fetch timestamp"
+            />
+            <Stat label="Never fetched" value={formatCount(freshness.never)} />
+          </Stack>
+          <Stack direction="row" gap="xl" wrap="wrap">
+            <Stat
+              label="Added past week"
+              value={formatCount(freshness.sample.week)}
+            />
+            <Stat
+              label="Past month"
+              value={formatCount(freshness.sample.month)}
+            />
+            <Stat label="Older" value={formatCount(freshness.sample.older)} />
+            <Stat label="Never" value={formatCount(freshness.sample.never)} />
+          </Stack>
+
+          <Stack direction="row" gap="md" align="center" wrap="wrap">
+            <Button
+              variant="outline"
+              tone="neutral"
+              onClick={() =>
+                run(async () => {
+                  const result = await rebuildCounters({ token });
+                  return `Recounted ${result.pages} page(s): ${result.catalog?.total ?? 0} catalog row(s), ${result.catalog?.eans ?? 0} EAN(s).`;
+                })
+              }
+            >
+              Rebuild counters
+            </Button>
+            <Button
+              variant="outline"
+              tone="neutral"
+              onClick={() =>
+                categoryTreeTask.run(async () => {
+                  const result = await rebuildCategoryTree({ token });
+                  return `Rebuilt ${result.rows} category row(s) across ${result.pages} page(s).`;
+                })
+              }
+            >
+              Rebuild category tree
+            </Button>
+          </Stack>
+          <Text variant="body-sm">Both need ingest paused first.</Text>
+          <TaskResult state={state} busyLabel="Recounting…" />
+          <TaskResult state={categoryTreeTask.state} busyLabel="Rebuilding…" />
         </Stack>
       </Card.Content>
     </Card.Root>

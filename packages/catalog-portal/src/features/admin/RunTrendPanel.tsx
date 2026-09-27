@@ -70,7 +70,7 @@ function Trend({ history }: { history: RunPoint[] }) {
       </div>
 
       <Text variant="body-sm">
-        {`Oldest on the left, newest on the right. Tallest bar is ${formatCount(peak)}. Last drain ${formatAge(latest.startedAt)} added ${formatCount(latest.added)}.`}
+        {`Last drain ${formatAge(latest.startedAt)} added ${formatCount(latest.added)}.`}
       </Text>
     </Stack>
   );

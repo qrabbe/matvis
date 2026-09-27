@@ -45,9 +45,7 @@ export function SearchPanel({ token }: { token: string }) {
 
             <Stack direction="column" gap="sm">
               <Text variant="body-sm">
-                <strong>Top terms.</strong> A term that has never returned
-                anything is a product the catalog should have and does not,
-                which makes it the most actionable row here.
+                <strong>Top terms</strong>
               </Text>
               <Stack direction="column" gap="xs">
                 {stats.top.map((row) => (
