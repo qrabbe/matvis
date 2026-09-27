@@ -72,4 +72,8 @@ export default [
 			'import/no-extraneous-dependencies': 'off',
 		},
 	},
+	{
+		files: [ 'tools/**', 'packages/*/scripts/**' ],
+		rules: { 'no-console': 'off' },
+	},
 ];
