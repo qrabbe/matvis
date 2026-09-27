@@ -17,13 +17,14 @@ vi.mock('convex/react', () => ({
 
 const { ProductDetail } = await import('../../src/features/ProductDetail');
 
-function row(store: string, name: string): CatalogRow {
+function row(store: string, name: string, categoryPath?: string[]): CatalogRow {
   return {
     _id: `${store}-${name}` as CatalogRow['_id'],
     _creationTime: 1_700_000_000_000,
     ean: '7311041078143',
     name,
     store: store as CatalogRow['store'],
+    categoryPath,
   };
 }
 
@@ -65,6 +66,70 @@ describe('a product in two catalogs', () => {
     expect(
       screen.getByRole('tab', { name: 'ICA' }).getAttribute('aria-selected'),
     ).toBe('true');
+  });
+});
+
+describe('the path into the categories', () => {
+  it('links every level, and the back button targets the leaf', () => {
+    backend.rows = [
+      row('coop', 'Laktosfri mjölk', ['Mejeri & Ägg', 'Mjölk', 'Laktosfri']),
+    ];
+
+    render(<ProductDetail ean="7311041078143" />);
+
+    expect(screen.getAllByText('Coop').length).toBeGreaterThan(0);
+    expect(screen.getByText('Mejeri & Ägg')).toBeTruthy();
+    const leaf = screen.getByText('Laktosfri');
+    expect(leaf.closest('a')?.getAttribute('href')).toBe(
+      '#/c/coop/mejeri-agg/mjolk/laktosfri',
+    );
+
+    const back = screen.getByRole('link', { name: 'Back' });
+    expect(back.getAttribute('href')).toBe(
+      '#/c/coop/mejeri-agg/mjolk/laktosfri',
+    );
+  });
+
+  it('shows the store alone for a row with no category', () => {
+    backend.rows = [row('coop', 'Mystery item')];
+
+    render(<ProductDetail ean="7311041078143" />);
+
+    expect(screen.getAllByText('Coop').length).toBeGreaterThan(0);
+
+    const back = screen.getByRole('link', { name: 'Back' });
+    expect(back.getAttribute('href')).toBe('#/');
+    expect(screen.getAllByRole('link')).toHaveLength(1);
+  });
+
+  it('follows the open tab, not the first row', () => {
+    backend.rows = [
+      row('coop', 'Havregryn Coop', ['Mejeri & Ägg', 'Mjölk']),
+      row('ica', 'Havregryn ICA', ['Mejeri & Ost', 'Mjölk', 'Standardmjölk']),
+    ];
+
+    render(<ProductDetail ean="7311041078143" />);
+
+    expect(screen.getByText('Mejeri & Ägg')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('tab', { name: 'ICA' }));
+
+    expect(screen.getByText('Standardmjölk')).toBeTruthy();
+    expect(screen.queryByText('Mejeri & Ägg')).toBeNull();
+  });
+
+  it('opens on the store named by ?store=', () => {
+    backend.rows = [
+      row('coop', 'Havregryn Coop', ['Mejeri & Ägg', 'Mjölk']),
+      row('ica', 'Havregryn ICA', ['Mejeri & Ost', 'Mjölk']),
+    ];
+
+    render(<ProductDetail ean="7311041078143" store="ica" />);
+
+    expect(
+      screen.getByRole('tab', { name: 'ICA' }).getAttribute('aria-selected'),
+    ).toBe('true');
+    expect(screen.getByText('Mejeri & Ost')).toBeTruthy();
   });
 });
 

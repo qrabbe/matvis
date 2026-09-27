@@ -16,7 +16,11 @@ import {
 } from './counters';
 import type { CoopProduct } from '../coop/sanitize';
 import { netContentFromName, type IcaProduct } from '../ica/parse';
-import { categoryKeyFor, foldSegment, searchTextFor } from './categoryKey';
+import {
+  categoryKeyFor,
+  foldSegment,
+  searchTextFor,
+} from '../../src/categoryKey';
 
 // Helper to bump/decrement a category count in categoryTree.
 async function bumpCategoryCount(

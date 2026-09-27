@@ -13,7 +13,7 @@ import {
   categoryKeyForPrefix,
   OTHER_CATEGORY_KEY,
   slugSegment,
-} from './model/categoryKey';
+} from '../src/categoryKey';
 import {
   deriveSearchFields,
   netContentFrom,

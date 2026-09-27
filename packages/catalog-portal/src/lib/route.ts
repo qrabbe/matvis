@@ -114,3 +114,9 @@ export function eanFromPath(path: string): string | null {
   const match = /^\/p\/([^/]+)\/?$/.exec(pathname);
   return match?.[1] ? decodeURIComponent(match[1]) : null;
 }
+
+export function storeFromPath(path: string): CatalogStore | null {
+  const [, queryString = ''] = path.split('?');
+  const store = new URLSearchParams(queryString).get('store');
+  return store && isCatalogStore(store) ? store : null;
+}

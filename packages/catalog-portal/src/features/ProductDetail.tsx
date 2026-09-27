@@ -1,6 +1,16 @@
 import { useState, type ReactNode } from 'react';
 import { useQuery } from 'convex/react';
-import { Badge, Card, EmptyState, Stack, Tabs, Text } from '@wordpress/ui';
+import {
+  Badge,
+  Card,
+  EmptyState,
+  IconButton,
+  Link,
+  Stack,
+  Tabs,
+  Text,
+} from '@wordpress/ui';
+import { chevronLeft } from '@wordpress/icons';
 import {
   STORE_LABELS,
   type CatalogNutrition,
@@ -8,8 +18,14 @@ import {
   type SoldBy,
   type StoreSlug,
 } from '@matvis/shared';
+import { slugSegment } from '@matvis/catalog';
 import { SkeletonList, sizedImageUrl } from '@matvis/ui';
-import { href } from '../lib/route';
+import {
+  categoryPath,
+  href,
+  storeFrontPath,
+  type CatalogStore,
+} from '../lib/route';
 import { api } from '../lib/convexApi';
 
 function storeLabel(store: string): string {
@@ -26,7 +42,13 @@ function soldByLabel(soldBy: SoldBy): string {
   return SOLD_BY_LABELS[soldBy];
 }
 
-export function ProductDetail({ ean }: { ean: string }) {
+export function ProductDetail({
+  ean,
+  store,
+}: {
+  ean: string;
+  store?: CatalogStore;
+}) {
   const rows = useQuery(api.catalog.getByEan, { ean });
   // Kept as a store slug rather than a row index: the route swaps `ean` under a
   // mounted component, so a position selected on one product would carry over
@@ -41,7 +63,7 @@ export function ProductDetail({ ean }: { ean: string }) {
   if (!first) {
     return (
       <Stack direction="column" gap="lg">
-        <BackLink />
+        <BackButton backPath={storeFrontPath('coop')} />
         <EmptyState.Root>
           <EmptyState.Title>Not in the catalog</EmptyState.Title>
           <EmptyState.Description>
@@ -52,45 +74,105 @@ export function ProductDetail({ ean }: { ean: string }) {
     );
   }
 
-  if (rows.length === 1) {
-    return (
-      <Stack direction="column" gap="lg">
-        <BackLink />
-        <StoreCards item={first} />
-      </Stack>
-    );
-  }
-
   const shownStore = rows.some((row) => row.store === pickedStore)
     ? pickedStore
-    : first.store;
+    : rows.some((row) => row.store === store)
+      ? store
+      : first.store;
+  const shownItem = rows.find((row) => row.store === shownStore) ?? first;
 
   return (
     <Stack direction="column" gap="lg">
-      <BackLink />
-      <Tabs.Root
-        value={shownStore}
-        onValueChange={(value) => setPickedStore(String(value))}
-      >
-        <Stack direction="row" gap="sm" wrap="wrap" align="center">
-          <Text variant="body-sm">Sourced from:</Text>
-          <Tabs.List>
+      <Stack direction="row" gap="sm" wrap="wrap" align="center">
+        <BackButton item={shownItem} />
+        <CategoryPathLine item={shownItem} />
+      </Stack>
+      {rows.length > 1 ? (
+        <Tabs.Root
+          value={shownStore}
+          onValueChange={(value) => setPickedStore(String(value))}
+        >
+          <Tabs.List variant="minimal">
             {rows.map((row) => (
               <Tabs.Tab key={row._id} value={row.store}>
                 {storeLabel(row.store)}
               </Tabs.Tab>
             ))}
           </Tabs.List>
-        </Stack>
-        {rows.map((row) => (
-          <Tabs.Panel key={row._id} value={row.store}>
-            <Stack direction="column" gap="lg" style={{ paddingTop: 20 }}>
-              <StoreCards item={row} />
-            </Stack>
-          </Tabs.Panel>
-        ))}
-      </Tabs.Root>
+          {rows.map((row) => (
+            <Tabs.Panel key={row._id} value={row.store}>
+              <Stack direction="column" gap="lg" style={{ paddingTop: 20 }}>
+                <StoreCards item={row} />
+              </Stack>
+            </Tabs.Panel>
+          ))}
+        </Tabs.Root>
+      ) : (
+        <StoreCards item={first} />
+      )}
     </Stack>
+  );
+}
+
+function leafCategoryPath(item: CatalogRow): string {
+  const store = item.store as CatalogStore;
+  return item.categoryPath && item.categoryPath.length > 0
+    ? categoryPath(store, item.categoryPath.map(slugSegment).join('/'))
+    : storeFrontPath(store);
+}
+
+function BackButton({
+  item,
+  backPath,
+}: {
+  item?: CatalogRow;
+  backPath?: string;
+}) {
+  const target = backPath ?? leafCategoryPath(item!);
+  return (
+    <IconButton
+      icon={chevronLeft}
+      label="Back"
+      render={
+        <a
+          href={href(target)}
+          onClick={(event) => {
+            if (window.history.length > 1) {
+              event.preventDefault();
+              window.history.back();
+            }
+          }}
+        />
+      }
+    />
+  );
+}
+
+function CategoryPathLine({ item }: { item: CatalogRow }) {
+  const store = item.store as CatalogStore;
+  const chainName = storeLabel(item.store);
+  if (!item.categoryPath || item.categoryPath.length === 0) {
+    return <Text variant="body-sm">{chainName}</Text>;
+  }
+
+  const slugs = item.categoryPath.map(slugSegment);
+  const levels = [
+    { name: chainName, path: storeFrontPath(store) },
+    ...item.categoryPath.map((name, index) => ({
+      name,
+      path: categoryPath(store, slugs.slice(0, index + 1).join('/')),
+    })),
+  ];
+
+  return (
+    <Text variant="body-sm">
+      {levels.map((level, index) => (
+        <span key={level.path}>
+          <Link href={href(level.path)}>{level.name}</Link>
+          {index < levels.length - 1 ? ' › ' : ''}
+        </span>
+      ))}
+    </Text>
   );
 }
 
@@ -101,17 +183,6 @@ function StoreCards({ item }: { item: CatalogRow }) {
       {item.food && <FoodCard food={item.food} />}
       <ProvenanceCard item={item} />
     </>
-  );
-}
-
-function BackLink() {
-  return (
-    <Text
-      variant="body-sm"
-      render={<a href={href('/')} style={{ color: 'inherit' }} />}
-    >
-      &larr; Back to the catalog
-    </Text>
   );
 }
 
@@ -144,9 +215,6 @@ function ProductCard({ item }: { item: CatalogRow }) {
             style={{ flex: '1 1 320px', minWidth: 260 }}
           >
             <Stack direction="column" gap="xs">
-              {item.categoryPath && item.categoryPath.length > 0 && (
-                <Text variant="body-sm">{item.categoryPath.join(' › ')}</Text>
-              )}
               <Text variant="heading-lg">{item.name}</Text>
               {item.brand && <Text variant="body-md">{item.brand}</Text>}
             </Stack>

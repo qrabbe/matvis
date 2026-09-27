@@ -1,7 +1,7 @@
 import type { PaginationOptions, PaginationResult } from 'convex/server';
 import type { StoreSlug } from '@matvis/shared';
 import type { QueryCtx } from '../_generated/server';
-import { CATEGORY_KEY_CEILING } from './categoryKey';
+import { CATEGORY_KEY_CEILING } from '../../src/categoryKey';
 import { searchCatalog, toCatalogItem, type CatalogRow } from './catalogReads';
 
 export type PortalListRow = {

@@ -21,7 +21,6 @@ import type * as ica_parse from "../ica/parse.js";
 import type * as ingest from "../ingest.js";
 import type * as model_admin from "../model/admin.js";
 import type * as model_catalogReads from "../model/catalogReads.js";
-import type * as model_categoryKey from "../model/categoryKey.js";
 import type * as model_counters from "../model/counters.js";
 import type * as model_fields from "../model/fields.js";
 import type * as model_ingest from "../model/ingest.js";
@@ -57,7 +56,6 @@ declare const fullApi: ApiFromModules<{
   ingest: typeof ingest;
   "model/admin": typeof model_admin;
   "model/catalogReads": typeof model_catalogReads;
-  "model/categoryKey": typeof model_categoryKey;
   "model/counters": typeof model_counters;
   "model/fields": typeof model_fields;
   "model/ingest": typeof model_ingest;

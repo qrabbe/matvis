@@ -13,6 +13,7 @@ import {
   isAdminPath,
   isDevelopersPath,
   navigate,
+  storeFromPath,
   useRoute,
 } from './lib/route';
 import { api } from './lib/convexApi';
@@ -35,6 +36,7 @@ export function App() {
   const health = useQuery(api.catalog.health, {});
   const route = useRoute();
   const ean = eanFromPath(route);
+  const store = storeFromPath(route);
   const admin = isAdminPath(route);
   const activeTab = isDevelopersPath(route) ? 'developers' : 'catalog';
   return (
@@ -81,7 +83,7 @@ export function App() {
       {admin ? (
         <AdminConsole />
       ) : ean ? (
-        <ProductDetail ean={ean} />
+        <ProductDetail ean={ean} store={store ?? undefined} />
       ) : (
         <Tabs.Root
           value={activeTab}
