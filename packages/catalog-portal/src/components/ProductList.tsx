@@ -7,7 +7,7 @@ import {
 } from '@wordpress/dataviews';
 import { Text } from '@wordpress/ui';
 import { sizedImageUrl } from '@matvis/ui';
-import { href, productPath, type CatalogStore } from '../lib/route';
+import { href, navigate, productPath, type CatalogStore } from '../lib/route';
 
 export type ProductListRow = {
   ean: string;
@@ -125,6 +125,12 @@ export function ProductList({
       renderItemLink={({ item, ...props }) => (
         <a {...props} href={href(productPath(item.ean, item.store))} />
       )}
+      // The list layout (the default here) ignores renderItemLink — it only
+      // ever calls onChangeSelection. Grid honours renderItemLink on its own.
+      onChangeSelection={(ids) => {
+        const row = data.find((item) => item.ean === ids[0]);
+        if (row) navigate(productPath(row.ean, row.store));
+      }}
     />
   );
 }
