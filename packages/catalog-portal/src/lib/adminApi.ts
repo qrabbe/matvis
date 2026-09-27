@@ -4,7 +4,7 @@ import { api } from '@matvis/catalog/api';
 /** The generated API, not a hand-written mirror of it. Every shape below is
  * read back off the real function, so a rename in the backend breaks the build
  * here instead of at runtime. */
-export const adminApi = api;
+export const adminApi: typeof api = api;
 
 type Signed<T> = NonNullable<T>;
 

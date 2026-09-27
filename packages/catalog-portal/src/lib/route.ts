@@ -1,7 +1,49 @@
 import { useSyncExternalStore } from 'react';
 
-export function productPath(ean: string): string {
-  return `/p/${encodeURIComponent(ean)}`;
+export type CatalogStore = 'coop' | 'ica';
+
+function isCatalogStore(value: string): value is CatalogStore {
+  return value === 'coop' || value === 'ica';
+}
+
+export function productPath(ean: string, store?: CatalogStore): string {
+  const query = store ? `?store=${store}` : '';
+  return `/p/${encodeURIComponent(ean)}${query}`;
+}
+
+/** Coop's is `/`, always; ICA's is the only other chain the portal knows. */
+export function storeFrontPath(store: CatalogStore): string {
+  return store === 'coop' ? '/' : `/c/${store}`;
+}
+
+export function searchPath(store: CatalogStore, term: string): string {
+  const query = term ? `?q=${encodeURIComponent(term)}` : '';
+  return `/s/${store}${query}`;
+}
+
+export type CatalogRoute =
+  | { kind: 'search'; store: CatalogStore; term: string }
+  | { kind: 'front'; store: CatalogStore };
+
+/** What the Catalog tab shows: `#/` and an unrecognised path both fall back to
+ * Coop's front page. */
+export function catalogRoute(path: string): CatalogRoute {
+  const [pathname = '/', queryString = ''] = path.split('?');
+  const query = new URLSearchParams(queryString);
+
+  const searchMatch = /^\/s\/([a-z]+)\/?$/.exec(pathname);
+  const searchStore = searchMatch?.[1];
+  if (searchStore && isCatalogStore(searchStore)) {
+    return { kind: 'search', store: searchStore, term: query.get('q') ?? '' };
+  }
+
+  const frontMatch = /^\/c\/([a-z]+)\/?$/.exec(pathname);
+  const frontStore = frontMatch?.[1];
+  if (frontStore && isCatalogStore(frontStore)) {
+    return { kind: 'front', store: frontStore };
+  }
+
+  return { kind: 'front', store: 'coop' };
 }
 
 export const ADMIN_PATH = '/admin';
@@ -38,6 +80,7 @@ export function useRoute(): string {
 }
 
 export function eanFromPath(path: string): string | null {
-  const match = /^\/p\/([^/]+)\/?$/.exec(path);
+  const [pathname = ''] = path.split('?');
+  const match = /^\/p\/([^/]+)\/?$/.exec(pathname);
   return match?.[1] ? decodeURIComponent(match[1]) : null;
 }

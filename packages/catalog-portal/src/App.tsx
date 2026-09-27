@@ -2,7 +2,7 @@ import { useQuery } from 'convex/react';
 import { LinkButton, Stack, Tabs, Text } from '@wordpress/ui';
 import { STORE_LABELS, type StoreSlug } from '@matvis/shared';
 import { AdminConsole } from './features/admin/AdminConsole';
-import { CatalogPanel } from './features/CatalogPanel';
+import { CatalogTab } from './features/CatalogTab';
 import { DevPortal } from './features/DevPortal';
 import { ProductDetail } from './features/ProductDetail';
 import {
@@ -41,9 +41,21 @@ export function App() {
     <Stack
       direction="column"
       gap="xl"
-      style={{ maxWidth: 860, margin: '0 auto', padding: '48px 20px' }}
+      style={{
+        width: '100%',
+        maxWidth: 720,
+        margin: '0 auto',
+        padding: '32px 16px',
+        boxSizing: 'border-box',
+      }}
     >
-      <Stack direction="row" gap="md" align="start" justify="space-between">
+      <Stack
+        direction="row"
+        gap="md"
+        wrap="wrap"
+        align="start"
+        justify="space-between"
+      >
         <Stack direction="column" gap="xs">
           <Text
             variant="heading-xl"
@@ -82,8 +94,8 @@ export function App() {
             <Tabs.Tab value="developers">Developers</Tabs.Tab>
           </Tabs.List>
           <Tabs.Panel value="catalog">
-            <Stack direction="column" gap="xl" style={{ paddingTop: 20 }}>
-              <CatalogPanel />
+            <Stack direction="column" gap="md" style={{ paddingTop: 20 }}>
+              <CatalogTab path={route} />
             </Stack>
           </Tabs.Panel>
           <Tabs.Panel value="developers">
