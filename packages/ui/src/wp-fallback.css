@@ -103,3 +103,12 @@ textarea {
   .components-button:not(.dataviews-all-actions-button) {
   opacity: 1;
 }
+
+/* The sticky infinite-scroll toolbar hardcodes white, unlike every other
+   DataViews surface here, which reads --wp-dataviews-color-background. */
+.dataviews__view-actions--infinite-scroll {
+  background-color: var(
+    --wpds-color-background-surface-neutral-strong,
+    #242424
+  ) !important;
+}
