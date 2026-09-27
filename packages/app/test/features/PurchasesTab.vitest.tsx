@@ -86,6 +86,11 @@ function receiptWithLines() {
 }
 
 describe('PurchasesTab', () => {
+  it('shows the spending overview above the receipts', () => {
+    render(<PurchasesTab data={receiptWithLines()} token="tok_a" />);
+    expect(screen.getByText('Total spend')).toBeInTheDocument();
+  });
+
   it('lists a receipt row with its spend', () => {
     render(<PurchasesTab data={receiptWithLines()} token="tok_a" />);
     // 15.95 + 33 + 2 (papperskasse; discounts don't reach `spend`) ≈ 51 kr

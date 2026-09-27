@@ -318,14 +318,18 @@ export function IdentifyScreen({
                 style={{
                   padding: '5px 10px',
                   borderRadius: 999,
-                  border: '1px solid var(--wpds-color-stroke-surface-neutral)',
+                  border: `1px solid ${
+                    selectedPrice === pg.price
+                      ? 'var(--wpds-color-stroke-interactive-brand)'
+                      : 'var(--wpds-color-stroke-surface-neutral)'
+                  }`,
                   background:
                     selectedPrice === pg.price
-                      ? 'var(--wpds-color-background-interactive-brand-strong-active)'
+                      ? 'var(--wpds-color-background-interactive-brand-strong)'
                       : 'var(--wpds-color-background-surface-neutral)',
                   color:
                     selectedPrice === pg.price
-                      ? 'var(--wpds-color-foreground-interactive-brand)'
+                      ? 'var(--wpds-color-foreground-interactive-brand-strong)'
                       : 'var(--wpds-color-foreground-content-neutral)',
                   fontSize: '12px',
                   fontWeight: selectedPrice === pg.price ? 600 : 400,
@@ -388,6 +392,7 @@ export function IdentifyScreen({
                   border: '1px solid var(--wpds-color-stroke-surface-neutral)',
                   borderRadius: 10,
                   background: 'var(--wpds-color-background-surface-neutral)',
+                  color: 'inherit',
                   cursor: 'pointer',
                 }}
               >
@@ -468,8 +473,9 @@ export function IdentifyScreen({
             left: 12,
             right: 12,
             bottom: 64,
-            background: 'var(--wpds-color-background-surface-neutral)',
+            background: 'var(--wpds-color-background-surface-neutral-strong)',
             color: 'var(--wpds-color-foreground-content-neutral)',
+            border: '1px solid var(--wpds-color-stroke-surface-neutral-strong)',
             borderRadius: 14,
             padding: '10px 12px',
             boxShadow: '0 8px 24px rgba(0,0,0,0.4)',

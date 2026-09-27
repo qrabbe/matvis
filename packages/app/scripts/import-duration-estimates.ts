@@ -12,16 +12,30 @@
  * dropped — `itemGtinMap` and this account are Coop-only today; a second
  * store's produce texts would need revisiting this if they ever collide.
  *
- * Batches the upsert through `bunx convex run` (rather than calling the
- * internal mutation over a client, which can't reach `internalMutation`s)
- * in chunks small enough to stay under a shell's command-line length limit.
+ * Batches the upsert through `convex run` (rather than calling the internal
+ * mutation over a client, which can't reach `internalMutation`s) in chunks
+ * small enough to stay under a shell's command-line length limit.
  *
  * Usage (from packages/app):
  *   bun run scripts/import-duration-estimates.ts
  *   bun run scripts/import-duration-estimates.ts --prod
  */
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { $ } from 'bun';
+
+// `bunx`/`npx convex` resolve to a .cmd shim on Windows that mangles the
+// double quotes out of a JSON arg before Convex ever sees it. Calling the
+// bun-workspace-hoisted binary directly avoids that shim entirely (and is
+// faster besides — no re-resolve on every call).
+const REPO_ROOT = join(import.meta.dir, '..', '..', '..');
+const CONVEX_BIN = (() => {
+  const exe = join(REPO_ROOT, 'node_modules/.bin/convex.exe');
+  if (existsSync(exe)) return exe;
+  const shim = join(REPO_ROOT, 'node_modules/.bin/convex');
+  if (existsSync(shim)) return shim;
+  return null;
+})();
 
 interface BackfillEntry {
   key: string;
@@ -109,22 +123,13 @@ async function main(): Promise<void> {
   let inserted = 0;
   let updated = 0;
   for (const batch of chunk(estimates, BATCH_SIZE)) {
-    const args = [
-      'convex',
-      'run',
-      'durationEstimates:upsert',
-      JSON.stringify({ estimates: batch }),
-    ];
+    const argsJson = JSON.stringify({ estimates: batch });
+    const bin = CONVEX_BIN ?? 'npx';
+    const args = CONVEX_BIN
+      ? ['run', 'durationEstimates:upsert', argsJson]
+      : ['convex', 'run', 'durationEstimates:upsert', argsJson];
     if (prod) args.push('--prod');
-    const result = Bun.spawnSync(['bunx', ...args], {
-      stdout: 'pipe',
-      stderr: 'pipe',
-    });
-    if (result.exitCode !== 0) {
-      console.error(result.stderr.toString());
-      throw new Error(`convex run failed on a batch of ${batch.length}`);
-    }
-    const out = result.stdout.toString();
+    const out = await $`${bin} ${args}`.text();
     console.log(out.trim());
     const parsed = /"inserted":(\d+),"updated":(\d+)/.exec(
       out.replace(/\s/g, ''),

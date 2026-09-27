@@ -1,8 +1,13 @@
+import { useEffect, useState } from 'react';
 import { useQuery } from 'convex/react';
 import { Button, Text } from '@wordpress/ui';
 import { CopyButton } from '@matvis/ui';
 import { STORE_LABELS } from '@matvis/shared';
-import { useSettings } from '../hooks/useSettings';
+import {
+  useSettings,
+  type ResolvedTarget,
+  type UseSettingsResult,
+} from '../hooks/useSettings';
 import { api } from '../lib/convexApi';
 
 function maskToken(token: string): string {
@@ -38,43 +43,15 @@ export function SettingsTab({
         <Section title="Daily targets">
           <div style={{ display: 'grid', gap: 0 }}>
             {targets.map((t) => (
-              <div
-                key={t.key}
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  padding: '8px 0',
-                  borderBottom:
-                    '1px solid var(--wpds-color-stroke-surface-neutral)',
-                }}
-              >
-                <Text variant="body-sm">{t.label}</Text>
-                <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                  <Text variant="body-sm" style={{ opacity: 0.7 }}>
-                    {t.value} {t.unit}
-                  </Text>
-                  <Toggle
-                    on={t.enabled}
-                    onToggle={() =>
-                      void setTarget(t.key, t.enabled ? null : undefined)
-                    }
-                  />
-                </div>
-              </div>
+              <TargetRow key={t.key} target={t} setTarget={setTarget} />
             ))}
           </div>
           <Text variant="body-sm" style={{ opacity: 0.6, marginTop: 6 }}>
-            Defaults for an average adult man. Tap a value to change it.
+            Defaults for an average adult man. Tap a value to set your own.
           </Text>
         </Section>
 
         <Section title="Data">
-          <Row label="Tracking started" value="Not backfilled yet" />
-          <Row
-            label="Gram conversions"
-            value="1 ml = 1 g (oil 0,92); eggs by EU size class"
-          />
           <Row
             label="Export everything"
             value={
@@ -173,6 +150,101 @@ function Section({
         {title}
       </Text>
       {children}
+    </div>
+  );
+}
+
+function TargetRow({
+  target,
+  setTarget,
+}: {
+  target: ResolvedTarget;
+  setTarget: UseSettingsResult['setTarget'];
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(String(target.value));
+
+  useEffect(() => {
+    if (!editing) setDraft(String(target.value));
+  }, [target.value, editing]);
+
+  const commit = () => {
+    setEditing(false);
+    const next = Number(draft);
+    if (Number.isFinite(next) && next > 0) void setTarget(target.key, next);
+    else setDraft(String(target.value));
+  };
+
+  return (
+    <div
+      style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: '8px 0',
+        borderBottom: '1px solid var(--wpds-color-stroke-surface-neutral)',
+      }}
+    >
+      <Text variant="body-sm">{target.label}</Text>
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+        {editing ? (
+          <input
+            type="number"
+            autoFocus
+            min={0}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onBlur={commit}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') commit();
+              if (e.key === 'Escape') {
+                setDraft(String(target.value));
+                setEditing(false);
+              }
+            }}
+            style={{
+              width: 60,
+              background: 'color-mix(in srgb, currentColor 12%, transparent)',
+              border: 'none',
+              borderRadius: 999,
+              color: 'inherit',
+              font: 'inherit',
+              fontSize: 13,
+              padding: '3px 8px',
+              textAlign: 'right',
+            }}
+          />
+        ) : (
+          <button
+            type="button"
+            onClick={() => setEditing(true)}
+            style={{
+              background: 'none',
+              border: 'none',
+              padding: 0,
+              cursor: 'pointer',
+              color: 'inherit',
+            }}
+          >
+            <Text
+              variant="body-sm"
+              style={{
+                opacity: 0.7,
+                textDecoration: 'underline dotted',
+                textUnderlineOffset: 3,
+              }}
+            >
+              {target.value} {target.unit}
+            </Text>
+          </button>
+        )}
+        <Toggle
+          on={target.enabled}
+          onToggle={() =>
+            void setTarget(target.key, target.enabled ? null : undefined)
+          }
+        />
+      </div>
     </div>
   );
 }

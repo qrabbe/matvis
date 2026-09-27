@@ -146,9 +146,11 @@ const cssVars = (
     .map(([token, value]) => `  --${prefix}${token}: ${value}${suffix};`)
     .join('\n');
 
-/** Needs both selectors and the `!important`: `:root` is what portaled modals and
- * menus inherit from, `.matvis-theme` is what in-app content inherits from. */
-export const matvisPinsCss = `:root, .matvis-theme {
+/** `ThemeProvider` writes its derived tokens inline on `<html>` and on its own
+ * wrapper, which carries `data-wpds-corner-radius`, and @wordpress/ui nests one
+ * such wrapper inside every portal. The pins cover all of them, with
+ * `!important` to beat the inline styles. */
+export const matvisPinsCss = `:root, [data-wpds-corner-radius] {
 ${cssVars(wpdsPins, 'wpds-', ' !important')}
 }
 

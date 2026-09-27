@@ -53,10 +53,10 @@ function CategoryRow({
   );
 }
 
-/** The "All N products" row and a level's children, as a `Card` of full-bleed
- * `Link` rows. Used for both a chain's front page and a category-with-children
- * screen — the front page just has no `allRow`. */
-export function CategoryRows({
+/** The "All N products" row and a level's children, as plain full-bleed
+ * `Link` rows with no surrounding `Card` — for a caller that supplies its own
+ * container, e.g. a `CollapsibleCard.Content`. */
+export function CategoryRowsList({
   allRow,
   rows,
 }: {
@@ -68,16 +68,30 @@ export function CategoryRows({
     : rows;
 
   return (
+    <>
+      {items.map((item, index) => (
+        <CategoryRow
+          key={item.key}
+          item={item}
+          isLast={index === items.length - 1}
+        />
+      ))}
+    </>
+  );
+}
+
+/** The same rows, in their own `Card`. Used for a category-with-children
+ * screen; a chain's front page instead embeds `CategoryRowsList` in a
+ * `CollapsibleCard`. */
+export function CategoryRows(props: {
+  allRow?: { name: string; path: string };
+  rows: CategoryRowItem[];
+}) {
+  return (
     <Card.Root>
       <Card.Content>
         <Card.FullBleed>
-          {items.map((item, index) => (
-            <CategoryRow
-              key={item.key}
-              item={item}
-              isLast={index === items.length - 1}
-            />
-          ))}
+          <CategoryRowsList {...props} />
         </Card.FullBleed>
       </Card.Content>
     </Card.Root>

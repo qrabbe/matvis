@@ -54,72 +54,55 @@ const day = (n: number) => new Date(2026, 0, 1 + n).getTime();
 describe('simulateGroupBackfill', () => {
   it('finishes a single unit bought and estimated to be long gone by tracking start', () => {
     const [unit] = expandLineToUnits(line('a', '2026-01-01T00:00:00'));
-    const { toFinish, stillInPantryKeys } = simulateGroupBackfill(
-      [unit!],
-      { daysToFinish: 3 },
-      day(30),
-    );
-    expect(toFinish).toHaveLength(1);
-    expect(stillInPantryKeys).toEqual([]);
+    const marks = simulateGroupBackfill([unit!], { daysToFinish: 3 }, day(30));
+    expect(marks).toHaveLength(1);
+    expect(marks[0]?.finishedAt).toBeLessThan(day(30));
   });
 
-  it('leaves a unit in the pantry when its estimated finish is at or after tracking start', () => {
+  it('caps a unit at tracking start when its estimated finish would otherwise land in the future', () => {
     const [unit] = expandLineToUnits(line('a', '2026-01-29T00:00:00'));
-    const { toFinish, stillInPantryKeys } = simulateGroupBackfill(
-      [unit!],
-      { daysToFinish: 3 },
-      day(30),
-    );
-    expect(toFinish).toEqual([]);
-    expect(stillInPantryKeys).toEqual([unit!.key]);
+    const marks = simulateGroupBackfill([unit!], { daysToFinish: 3 }, day(30));
+    expect(marks).toHaveLength(1);
+    expect(marks[0]?.finishedAt).toBe(day(30));
+    expect(marks[0]?.startedAt).toBeLessThanOrEqual(day(30));
   });
 
-  it('does not pile up a backlog when the estimate is longer than the real buying cadence (the milk bug)', () => {
-    // Bought every 2.5 days for 60 days — ~24 purchases — but the estimate
-    // is wrongly generous at 4 days. Naive FIFO queueing at 4 days/unit
-    // would leave many units still "in the queue" by day 60. Own pace
-    // (2.5 days, well under 2x the 4-day estimate) should be used instead,
-    // and the queue should clear roughly as fast as it fills.
+  it('stays every unit finishing off its own purchase date, regardless of how often the product is bought', () => {
+    // Bought every 2.5 days for 60 days — ~24 purchases — at a 4-day
+    // estimate. Every unit finishes its own 4 days after its own purchase;
+    // there's no queueing between units of the same product.
     const units = [];
     for (let i = 0; i < 24; i++) {
       const purchasedAt = new Date(2026, 0, 1 + i * 2.5).toISOString();
       units.push(expandLineToUnits(line('milk', purchasedAt))[0]!);
     }
-    const trackingStart = new Date(2026, 0, 1 + 24 * 2.5).getTime();
-    const { toFinish, stillInPantryKeys } = simulateGroupBackfill(
+    const trackingStart = new Date(2026, 0, 1 + 24 * 2.5 + 30).getTime();
+    const marks = simulateGroupBackfill(
       units,
       { daysToFinish: 4 },
       trackingStart,
     );
-    // A believable pantry: at most a couple of very recent cartons left,
-    // not dozens.
-    expect(stillInPantryKeys.length).toBeLessThanOrEqual(3);
-    expect(toFinish.length).toBeGreaterThan(20);
+    expect(marks).toHaveLength(24);
+    for (const mark of marks) {
+      expect(mark.finishedAt - mark.startedAt).toBe(4 * 86_400_000);
+    }
   });
 
-  it('caps own pace at twice the estimate, so a rarely-bought perishable does not inherit a meaningless cadence', () => {
-    // Hummus bought every 85 days (rare, but that's shopping rhythm, not
-    // shelf life) — a 3-day estimate should cap the effective duration at
-    // 6 days, not let 85-day gaps become "how long hummus lasts".
-    const units = [0, 85, 170].map(
-      (offset) =>
-        expandLineToUnits(
-          line('hummus', new Date(2026, 0, 1 + offset).toISOString()),
-        )[0]!,
+  it('stalls three units bought together, one after another, instead of finishing them all at once', () => {
+    const purchasedAt = '2026-01-01T00:00:00';
+    const units = expandLineToUnits(
+      line('milk', purchasedAt, { quantity: 3, unit: 'st' }),
     );
-    const trackingStart = new Date(2026, 0, 1 + 170 + 10).getTime();
-    const { toFinish } = simulateGroupBackfill(
+    const trackingStart = day(60);
+    const marks = simulateGroupBackfill(
       units,
-      { daysToFinish: 3 },
+      { daysToFinish: 4 },
       trackingStart,
     );
-    // Each unit's own span is capped at 6 days (2x the 3-day estimate), so
-    // start ≈ purchase date for every unit (no backlog possible at an
-    // 85-day cadence) and each finishes 6 days after its own purchase.
-    expect(toFinish).toHaveLength(3);
-    for (const mark of toFinish) {
-      expect(mark.finishedAt - mark.startedAt).toBe(6 * 86_400_000);
-    }
+    const sorted = [...marks].sort((a, b) => a.unitIndex - b.unitIndex);
+    expect(sorted[0]?.startedAt).toBe(new Date(purchasedAt).getTime());
+    expect(sorted[1]?.startedAt).toBe(sorted[0]?.finishedAt);
+    expect(sorted[2]?.startedAt).toBe(sorted[1]?.finishedAt);
   });
 
   it('never estimates past the shelf-life cap', () => {
@@ -130,12 +113,12 @@ describe('simulateGroupBackfill', () => {
         )[0]!,
     );
     const trackingStart = new Date(2026, 0, 1 + 80 + 5).getTime();
-    const { toFinish } = simulateGroupBackfill(
+    const marks = simulateGroupBackfill(
       units,
       { daysToFinish: 365, maxDaysFromPurchase: 60 },
       trackingStart,
     );
-    for (const mark of toFinish) {
+    for (const mark of marks) {
       expect(mark.finishedAt - mark.startedAt).toBeLessThanOrEqual(
         60 * 86_400_000,
       );
@@ -144,10 +127,10 @@ describe('simulateGroupBackfill', () => {
 });
 
 describe('simulateBackfill', () => {
-  it('runs every product group independently and only returns units gone before tracking start', () => {
+  it('runs every product group independently, marking everything finished', () => {
     const lines = [
       line('a', '2026-01-01T00:00:00'), // long gone by day 30
-      line('b', '2026-01-29T00:00:00'), // still fresh at day 30
+      line('b', '2026-01-29T00:00:00'), // not due yet at day 30
     ];
     const marks = simulateBackfill(
       lines,
@@ -157,8 +140,7 @@ describe('simulateBackfill', () => {
       ]),
       day(30),
     );
-    expect(marks).toHaveLength(1);
-    expect(marks[0]?.receiptId).toBe(lines[0]!.header._id);
+    expect(marks).toHaveLength(2);
   });
 
   it('falls back to the flat default duration for a group with no estimate', () => {
@@ -167,12 +149,12 @@ describe('simulateBackfill', () => {
     expect(marks).toHaveLength(1);
   });
 
-  it('never touches a notFood or unidentified line — it has no group key', () => {
+  it('still marks a notFood or unidentified line finished, under the flat default', () => {
     const lines = [
       line('a', '2026-01-01T00:00:00', { kind: 'notFood', gtin: undefined }),
       line('a', '2026-01-01T00:00:00', { kind: undefined, gtin: undefined }),
     ];
     const marks = simulateBackfill(lines, new Map(), day(30));
-    expect(marks).toEqual([]);
+    expect(marks).toHaveLength(2);
   });
 });

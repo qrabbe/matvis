@@ -1,10 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Button, Collapsible, Dialog, EmptyState, Text } from '@wordpress/ui';
+import {
+  Button,
+  Collapsible,
+  Dialog,
+  EmptyState,
+  Popover,
+  Text,
+  VisuallyHidden,
+} from '@wordpress/ui';
+import { DatePicker } from '@wordpress/components';
 import { DateStrip } from '../components/DateStrip';
 import { PantryTileCard } from '../components/PantryTile';
 import { ProductThumb } from '../components/ProductThumb';
 import { useMarks } from '../hooks/useMarks';
-import { formatKcal, formatKr } from '../lib/format';
+import { dayKey, formatKcal, formatKr } from '../lib/format';
 import {
   groupPantryTiles,
   sortDueFirst,
@@ -48,10 +57,6 @@ function startOfDay(ms: number): number {
   const d = new Date(ms);
   d.setHours(0, 0, 0, 0);
   return d.getTime();
-}
-
-function toInputDate(ms: number): string {
-  return new Date(ms).toISOString().slice(0, 10);
 }
 
 export function PantryTab({
@@ -321,11 +326,12 @@ export function PantryTab({
                   padding: '9px 12px',
                   marginBottom: 10,
                   background: 'none',
+                  color: 'inherit',
                   cursor: onOpenIdentify ? 'pointer' : 'default',
                 }}
               >
                 <Text variant="body-sm">
-                  <strong>To identify · {toIdentifyCount}</strong>{' '}
+                  <strong>To identify · {toIdentifyCount}</strong> ·{' '}
                   {formatKr(toIdentifySpend)}
                 </Text>
               </button>
@@ -347,6 +353,7 @@ export function PantryTab({
                         border: 'none',
                         background:
                           'var(--wpds-color-background-surface-neutral-strong)',
+                        color: 'inherit',
                         borderRadius: 10,
                         padding: '9px 12px',
                         cursor: 'pointer',
@@ -395,62 +402,38 @@ export function PantryTab({
             left: 12,
             right: 12,
             bottom: 64,
-            background: 'var(--wpds-color-background-surface-neutral)',
+            background: 'var(--wpds-color-background-surface-neutral-strong)',
             color: 'var(--wpds-color-foreground-content-neutral)',
+            border: '1px solid var(--wpds-color-stroke-surface-neutral-strong)',
             borderRadius: 14,
             padding: '10px 12px',
             boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
           }}
         >
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              gap: 8,
-            }}
-          >
-            <Text variant="body-sm" style={{ fontWeight: 700 }}>
-              {toast.outcome === 'wasted' ? 'Thrown away' : 'Finished'} ·{' '}
-              {toast.tile.name} ·{' '}
-              {toast.kcal !== null ? formatKcal(toast.kcal) : 'not counted'}
-            </Text>
-            <button
-              type="button"
-              onClick={undo}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: 'var(--wpds-color-foreground-interactive-brand)',
-                fontWeight: 700,
-                cursor: 'pointer',
-              }}
-            >
-              Undo
-            </button>
-          </div>
+          <Text variant="body-sm" style={{ fontWeight: 700 }}>
+            {toast.outcome === 'wasted' ? 'Thrown away' : 'Finished'} ·{' '}
+            {toast.tile.name} ·{' '}
+            {toast.kcal !== null ? formatKcal(toast.kcal) : 'not counted'}
+          </Text>
           <div
             style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}
           >
-            <label style={chipLabelStyle}>
-              Started
-              <input
-                type="date"
-                value={toInputDate(toast.startedAt)}
-                onChange={(e) => updateToastDate('startedAt', e.target.value)}
-                style={chipInputStyle}
-              />
-            </label>
-            <label style={chipLabelStyle}>
-              Finished
-              <input
-                type="date"
-                value={toInputDate(toast.finishedAt)}
-                onChange={(e) => updateToastDate('finishedAt', e.target.value)}
-                style={chipInputStyle}
-              />
-            </label>
+            <AdjustDateButton
+              label="Adjust start date"
+              valueMs={toast.startedAt}
+              onPick={(dateKey) => updateToastDate('startedAt', dateKey)}
+            />
+            <AdjustDateButton
+              label="Adjust end date"
+              valueMs={toast.finishedAt}
+              onPick={(dateKey) => updateToastDate('finishedAt', dateKey)}
+            />
+            <Button size="compact" variant="outline" onClick={undo}>
+              Undo
+            </Button>
             <button
               type="button"
+              aria-label="More actions"
               onClick={() =>
                 setToast((t) => (t ? { ...t, menuOpen: !t.menuOpen } : t))
               }
@@ -625,6 +608,9 @@ function TripView({
                 padding: '10px 6px',
                 borderRadius: 12,
                 border: '1px solid var(--wpds-color-stroke-surface-neutral)',
+                background:
+                  'var(--wpds-color-background-surface-neutral-strong)',
+                color: 'inherit',
                 opacity: done ? 0.45 : 1,
                 cursor: done ? 'default' : 'pointer',
               }}
@@ -648,12 +634,35 @@ function TripView({
   );
 }
 
-const chipLabelStyle: React.CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: 4,
-  fontSize: 12,
-};
+function AdjustDateButton({
+  label,
+  valueMs,
+  onPick,
+}: {
+  label: string;
+  valueMs: number;
+  onPick: (dateKey: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Popover.Root open={open} onOpenChange={setOpen}>
+      <Popover.Trigger render={<Button size="compact" variant="outline" />}>
+        {label}
+      </Popover.Trigger>
+      <Popover.Popup>
+        <VisuallyHidden render={<Popover.Title />}>{label}</VisuallyHidden>
+        <DatePicker
+          currentDate={new Date(valueMs)}
+          startOfWeek={1}
+          onChange={(date) => {
+            onPick(dayKey(new Date(date)));
+            setOpen(false);
+          }}
+        />
+      </Popover.Popup>
+    </Popover.Root>
+  );
+}
 
 const chipInputStyle: React.CSSProperties = {
   background: 'color-mix(in srgb, currentColor 12%, transparent)',

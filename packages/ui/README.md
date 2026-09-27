@@ -1,3 +1,0 @@
-# @matvis/ui
-
-Matvis UI

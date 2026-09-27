@@ -5,7 +5,9 @@ import {
   expandLinesToUnits,
   pantryGroupKey,
   unitMacros,
+  unitPrice,
 } from '../../src/lib/pantryUnits';
+import { lineDiscountKey } from '../../src/lib/receiptLines';
 import { ZERO_MACROS } from '../../src/lib/nutrition';
 import type { PurchaseLine } from '../../src/lib/purchases';
 
@@ -156,5 +158,34 @@ describe('unitMacros', () => {
     };
     const [unit] = expandLineToUnits(withMacros);
     expect(unitMacros(unit!)?.kcal).toBe(150);
+  });
+});
+
+describe('unitPrice', () => {
+  it('is the whole line price for a single package', () => {
+    const [unit] = expandLineToUnits(line({ price: 51.8 }));
+    expect(unitPrice(unit!, new Map())).toBe(51.8);
+  });
+
+  it('splits an "xN st" line price evenly across its packages', () => {
+    const [unit] = expandLineToUnits(
+      line({ price: 40, quantity: 4, unit: 'st' }),
+    );
+    expect(unitPrice(unit!, new Map())).toBe(10);
+  });
+
+  it('takes the discount printed under the line off before splitting', () => {
+    const [unit] = expandLineToUnits(
+      line({ lineNo: 3, price: 40, quantity: 4, unit: 'st' }),
+    );
+    const discounts = new Map([[lineDiscountKey('r1', 3), -8]]);
+    expect(unitPrice(unit!, discounts)).toBe(8);
+  });
+
+  it('keeps a weighed lot at its whole line price', () => {
+    const [unit] = expandLineToUnits(
+      line({ price: 23.46, quantity: 0.782, unit: 'kg' }),
+    );
+    expect(unitPrice(unit!, new Map())).toBe(23.46);
   });
 });

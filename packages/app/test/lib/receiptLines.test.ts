@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'bun:test';
 import type { ReceiptHeader, ReceiptItemDoc } from '@matvis/shared';
-import { foldDiscounts } from '../../src/lib/receiptLines';
+import {
+  foldDiscounts,
+  lineDiscountKey,
+  lineDiscounts,
+} from '../../src/lib/receiptLines';
 import type { PurchaseLine } from '../../src/lib/purchases';
 
 function line(lineNo: number, price: number, isDiscount = false): PurchaseLine {
@@ -55,5 +59,47 @@ describe('foldDiscounts', () => {
       line(3, -3, true),
     ]);
     expect(folded.map((f) => f.netPrice)).toEqual([18, 27]);
+  });
+});
+
+describe('lineDiscounts', () => {
+  function items(...rows: Array<[number, number, boolean?]>): ReceiptItemDoc[] {
+    return rows.map(
+      ([lineNo, price, isDiscount = false]) =>
+        line(lineNo, price, isDiscount).item,
+    );
+  }
+
+  it('keys each discount to the item line printed right above it', () => {
+    const discounts = lineDiscounts(
+      new Map([['r1', items([2, 33], [3, -2.5, true], [4, 12])]]),
+    );
+    expect(discounts.get(lineDiscountKey('r1', 2))).toBe(-2.5);
+    expect(discounts.has(lineDiscountKey('r1', 4))).toBe(false);
+  });
+
+  it('adds up two discounts under the same line, in any input order', () => {
+    const discounts = lineDiscounts(
+      new Map([['r1', items([5, -1, true], [3, 40], [4, -4, true])]]),
+    );
+    expect(discounts.get(lineDiscountKey('r1', 3))).toBe(-5);
+  });
+
+  it('drops a discount with no item above it', () => {
+    const discounts = lineDiscounts(
+      new Map([['r1', items([0, -5, true], [1, 10])]]),
+    );
+    expect(discounts.size).toBe(0);
+  });
+
+  it('keeps receipts apart', () => {
+    const discounts = lineDiscounts(
+      new Map([
+        ['r1', items([1, 20], [2, -2, true])],
+        ['r2', items([1, 30], [2, -3, true])],
+      ]),
+    );
+    expect(discounts.get(lineDiscountKey('r1', 1))).toBe(-2);
+    expect(discounts.get(lineDiscountKey('r2', 1))).toBe(-3);
   });
 });

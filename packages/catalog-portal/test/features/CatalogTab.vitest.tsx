@@ -23,9 +23,12 @@ vi.mock('convex/react', () => ({
   },
   useQuery: (
     _reference: unknown,
-    args: { store: string; parentSlug: string },
+    args: { store: string; parentSlug?: string; paginationOpts?: unknown },
   ) => {
-    backend.categoryLevels.push(args);
+    if (args.paginationOpts) {
+      return { page: [], isDone: true, continueCursor: '' };
+    }
+    backend.categoryLevels.push(args as { store: string; parentSlug: string });
     return [];
   },
   useMutation: () => async () => undefined,

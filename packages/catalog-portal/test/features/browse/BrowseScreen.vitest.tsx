@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 
 /**
  * The browsing screens: a chain's front page, a category with children, a
@@ -12,6 +12,7 @@ import { render, screen } from '@testing-library/react';
 const backend = vi.hoisted(() => ({
   category: null as unknown,
   categoryLevel: [] as unknown[],
+  frontProducts: [] as unknown[],
 }));
 
 vi.mock('convex/react', () => ({
@@ -19,6 +20,9 @@ vi.mock('convex/react', () => ({
     if (args === 'skip') return undefined;
     if (args && typeof args === 'object' && 'slugPath' in args) {
       return backend.category;
+    }
+    if (args && typeof args === 'object' && 'paginationOpts' in args) {
+      return { page: backend.frontProducts, isDone: true, continueCursor: '' };
     }
     return backend.categoryLevel;
   },
@@ -64,7 +68,27 @@ describe('ancestorsFor', () => {
 });
 
 describe("a chain's front page", () => {
-  it('links each row to its own category address', () => {
+  it('shows the category list collapsed above the default products', () => {
+    backend.categoryLevel = [
+      {
+        slug: 'mejeri-agg',
+        name: 'Mejeri & Ägg',
+        count: 1615,
+        hasChildren: true,
+      },
+    ];
+    backend.frontProducts = [{ ean: '111', name: 'Filmjölk', store: 'coop' }];
+
+    render(<BrowseScreen store="coop" slugPath="" showAll={false} />);
+
+    expect(screen.getByText('Browse by category')).toBeInTheDocument();
+    expect(screen.getByTestId('product-list')).toHaveTextContent('1 products');
+    expect(
+      screen.queryByRole('link', { name: /Mejeri & Ägg/ }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('links each row to its own category address once expanded', () => {
     backend.categoryLevel = [
       {
         slug: 'mejeri-agg',
@@ -74,8 +98,10 @@ describe("a chain's front page", () => {
       },
       { slug: 'other', name: 'Other', count: 12, hasChildren: false },
     ];
+    backend.frontProducts = [];
 
     render(<BrowseScreen store="coop" slugPath="" showAll={false} />);
+    fireEvent.click(screen.getByText('Browse by category'));
 
     expect(screen.getByRole('link', { name: /Mejeri & Ägg/ })).toHaveAttribute(
       'href',

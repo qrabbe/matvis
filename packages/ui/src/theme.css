@@ -1,3 +1,7 @@
+:root {
+  color-scheme: dark;
+}
+
 .matvis-theme {
   isolation: isolate; /* so portaled popovers layer correctly */
   min-height: 100dvh;

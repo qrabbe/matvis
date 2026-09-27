@@ -4,13 +4,13 @@ import { Button, Link, Text } from '@wordpress/ui';
 import { api } from '../lib/convexApi';
 import { formatKr, isoWeekLabel } from '../lib/format';
 import { groupTrips, type Trip } from '../lib/trips';
-import { krCoverage, krCoveragePercent } from '../lib/receiptCoverage';
 import { foldDiscounts } from '../lib/receiptLines';
 import { unitKindLabel, unitMacros } from '../lib/pantryUnits';
 import { joinUnitsWithMarks, sortByPurchaseDate } from '../lib/pantryDetails';
 import { expandLineToUnits } from '../lib/pantryUnits';
 import { formatKcal } from '../lib/format';
 import { STORE_LABELS } from '@matvis/shared';
+import { SpendingOverview } from '../components/SpendingOverview';
 import { useMarks } from '../hooks/useMarks';
 import type { PurchaseData } from '../hooks/usePurchaseData';
 
@@ -29,11 +29,14 @@ export function PurchasesTab({
   data,
   token,
   onOpenIdentify,
+  today: todayProp,
 }: {
   data: PurchaseData;
   token: string | null;
   onOpenIdentify?: () => void;
+  today?: Date;
 }) {
+  const today = useMemo(() => todayProp ?? new Date(), [todayProp]);
   const { marks } = useMarks(token);
   const [view, setView] = useState<View>({ screen: 'list' });
 
@@ -47,6 +50,7 @@ export function PurchasesTab({
     return (
       <ReceiptDetail
         data={data}
+        token={token}
         receiptId={view.receiptId}
         onBack={() => setView({ screen: 'list' })}
         onOpenChain={(lineNo) =>
@@ -107,11 +111,14 @@ export function PurchasesTab({
           </button>
         )}
       </div>
-      <Text variant="body-sm" style={{ opacity: 0.7, padding: '6px 14px 0' }}>
-        {trips.length} receipts
-      </Text>
-
-      <div style={{ flex: 1, overflowY: 'auto', padding: '6px 14px 20px' }}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '10px 14px 20px' }}>
+        <SpendingOverview headers={data.headers} today={today} />
+        <Text
+          variant="body-sm"
+          style={{ display: 'block', opacity: 0.7, marginTop: 16 }}
+        >
+          {trips.length} receipts
+        </Text>
         {[...weeks.entries()].map(([label, weekTrips]) => (
           <div key={label} style={{ marginBottom: 14 }}>
             <Text
@@ -145,10 +152,6 @@ export function PurchasesTab({
 }
 
 function TripRow({ trip, onOpen }: { trip: Trip; onOpen: () => void }) {
-  const lines = trip.units.map((u) => u.line);
-  const coverage = krCoverage(lines);
-  const percent = krCoveragePercent(coverage);
-
   return (
     <button
       type="button"
@@ -161,6 +164,7 @@ function TripRow({ trip, onOpen }: { trip: Trip; onOpen: () => void }) {
         borderRadius: 10,
         border: '1px solid var(--wpds-color-stroke-surface-neutral)',
         background: 'var(--wpds-color-background-surface-neutral-strong)',
+        color: 'inherit',
         cursor: 'pointer',
       }}
     >
@@ -191,35 +195,19 @@ function TripRow({ trip, onOpen }: { trip: Trip; onOpen: () => void }) {
           {trip.toIdentifyCount} to identify
         </Text>
       )}
-      {percent !== null && (
-        <div
-          style={{
-            height: 4,
-            borderRadius: 2,
-            background: 'var(--wpds-color-background-surface-neutral)',
-          }}
-        >
-          <div
-            style={{
-              width: `${percent * 100}%`,
-              height: '100%',
-              borderRadius: 2,
-              background: 'var(--wpds-color-foreground-interactive-brand)',
-            }}
-          />
-        </div>
-      )}
     </button>
   );
 }
 
 function ReceiptDetail({
   data,
+  token,
   receiptId,
   onBack,
   onOpenChain,
 }: {
   data: PurchaseData;
+  token: string | null;
   receiptId: string;
   onBack: () => void;
   onOpenChain: (lineNo: number) => void;
@@ -289,6 +277,7 @@ function ReceiptDetail({
                 borderBottom:
                   '1px solid var(--wpds-color-stroke-surface-neutral)',
                 background: 'none',
+                color: 'inherit',
                 cursor: 'pointer',
               }}
             >
@@ -325,15 +314,22 @@ function ReceiptDetail({
         )}
       </div>
 
-      <PdfLink receiptId={receiptId} />
+      <PdfLink receiptId={receiptId} token={token} />
     </div>
   );
 }
 
-function PdfLink({ receiptId }: { receiptId: string }) {
-  const url = useQuery(api.receipts.getPdf, {
-    receiptId: receiptId as never,
-  });
+function PdfLink({
+  receiptId,
+  token,
+}: {
+  receiptId: string;
+  token: string | null;
+}) {
+  const url = useQuery(
+    api.receipts.getPdf,
+    token ? { receiptId: receiptId as never, token } : 'skip',
+  );
   if (!url) return null;
   return (
     <div

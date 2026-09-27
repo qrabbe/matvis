@@ -1,5 +1,11 @@
 import { useQuery, usePaginatedQuery } from 'convex/react';
-import { EmptyState, LinkButton, Stack } from '@wordpress/ui';
+import {
+  Card,
+  CollapsibleCard,
+  EmptyState,
+  LinkButton,
+  Stack,
+} from '@wordpress/ui';
 import { store as storeIcon } from '@wordpress/icons';
 import { STORE_LABELS } from '@matvis/shared';
 import { SkeletonList } from '@matvis/ui';
@@ -13,7 +19,8 @@ import {
   type CatalogStore,
 } from '../../lib/route';
 import { CategoryHeader, type Ancestor } from './CategoryHeader';
-import { CategoryRows } from './CategoryRows';
+import { CategoryRows, CategoryRowsList } from './CategoryRows';
+import { DefaultProducts } from './DefaultProducts';
 
 type CategoryLevelRow = {
   slug: string;
@@ -69,19 +76,34 @@ export function BrowseScreen({
 function FrontLevel({ store }: { store: CatalogStore }) {
   const rows = useQuery(api.portal.categoryLevel, { store, parentSlug: '' });
 
-  if (rows === undefined) {
-    return <SkeletonList label={`Loading ${STORE_LABELS[store]}`} rows={8} />;
-  }
-
   return (
-    <CategoryRows
-      rows={rows.map((row: CategoryLevelRow) => ({
-        key: row.slug,
-        name: row.name,
-        count: row.count,
-        path: categoryPath(store, row.slug),
-      }))}
-    />
+    <Stack direction="column" gap="lg">
+      <CollapsibleCard.Root>
+        <CollapsibleCard.Header>
+          <Card.Title>Browse by category</Card.Title>
+        </CollapsibleCard.Header>
+        <CollapsibleCard.Content>
+          {rows === undefined ? (
+            <SkeletonList
+              label={`Loading ${STORE_LABELS[store]} categories`}
+              rows={8}
+            />
+          ) : (
+            <Card.FullBleed>
+              <CategoryRowsList
+                rows={rows.map((row: CategoryLevelRow) => ({
+                  key: row.slug,
+                  name: row.name,
+                  count: row.count,
+                  path: categoryPath(store, row.slug),
+                }))}
+              />
+            </Card.FullBleed>
+          )}
+        </CollapsibleCard.Content>
+      </CollapsibleCard.Root>
+      <DefaultProducts store={store} />
+    </Stack>
   );
 }
 

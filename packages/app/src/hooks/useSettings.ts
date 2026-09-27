@@ -4,14 +4,13 @@ import { appBackendClient } from '../lib/appBackendClient';
 import {
   resolveTarget,
   TARGET_DEFINITIONS,
+  type TargetDefinition,
   type TargetKey,
 } from '../lib/targets';
 import { errMsg } from '@matvis/shared';
 
-export interface ResolvedTarget {
+export interface ResolvedTarget extends TargetDefinition {
   key: TargetKey;
-  label: string;
-  unit: string;
   enabled: boolean;
   value: number;
 }
@@ -71,11 +70,11 @@ export function useSettings(token: string | null): UseSettingsResult {
 
   const targets = useMemo(
     () =>
-      (Object.keys(TARGET_DEFINITIONS) as TargetKey[]).map((key) => {
-        const def = TARGET_DEFINITIONS[key];
-        const resolved = resolveTarget(key, stored);
-        return { key, label: def.label, unit: def.unit, ...resolved };
-      }),
+      (Object.keys(TARGET_DEFINITIONS) as TargetKey[]).map((key) => ({
+        key,
+        ...TARGET_DEFINITIONS[key],
+        ...resolveTarget(key, stored),
+      })),
     [stored],
   );
 

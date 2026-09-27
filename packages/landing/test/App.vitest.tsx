@@ -19,16 +19,20 @@ describe('landing page', () => {
     expect(hrefs).toContain('catalog/');
     expect(hrefs).toContain('app/');
     for (const href of hrefs) {
+      if (href?.startsWith('http')) continue;
       expect(href?.startsWith('/')).toBe(false);
     }
   });
 
-  it('names each system and its status', () => {
+  it('names each system as a link', () => {
     render(<App />);
 
-    expect(screen.getByText('Connector')).toBeInTheDocument();
-    expect(screen.getByText('Catalog')).toBeInTheDocument();
-    expect(screen.getByText('Matvis app')).toBeInTheDocument();
-    expect(screen.getByText('in progress')).toBeInTheDocument();
+    // The desktop and phone layouts both render at once (a CSS media query
+    // picks one), so each door appears twice.
+    expect(screen.getAllByRole('link', { name: /^Catalog/ })).toHaveLength(2);
+    expect(screen.getAllByRole('link', { name: /^Connector/ })).toHaveLength(2);
+    expect(screen.getAllByRole('link', { name: /^Matvis app/ })).toHaveLength(
+      2,
+    );
   });
 });

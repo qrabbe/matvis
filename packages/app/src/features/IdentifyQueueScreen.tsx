@@ -61,6 +61,7 @@ export function IdentifyQueueScreen({
                 padding: '10px 12px',
                 textAlign: 'left',
                 background: 'var(--wpds-color-background-surface-neutral)',
+                color: 'inherit',
                 cursor: 'pointer',
               }}
             >

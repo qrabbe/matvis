@@ -13,6 +13,15 @@ import { Card, InputControl, Link, Stack, Button } from '@wordpress/ui';
 
 type IdentifyRoute = { screen: 'queue' } | { screen: 'text'; text: string };
 
+const appColumnStyle: React.CSSProperties = {
+  position: 'relative',
+  maxWidth: '480px',
+  margin: '0 auto',
+  display: 'flex',
+  flexDirection: 'column',
+  height: '100dvh',
+};
+
 export function App() {
   const { token, setToken, forgetToken } = useApiToken();
   const data = usePurchaseData(token);
@@ -21,15 +30,7 @@ export function App() {
 
   if (token && identify) {
     return (
-      <div
-        style={{
-          maxWidth: '480px',
-          margin: '0 auto',
-          display: 'flex',
-          flexDirection: 'column',
-          height: '100vh',
-        }}
-      >
+      <div style={appColumnStyle}>
         {identify.screen === 'queue' ? (
           <IdentifyQueueScreen
             lines={data.lines}
@@ -49,15 +50,7 @@ export function App() {
   }
 
   return (
-    <div
-      style={{
-        maxWidth: '480px',
-        margin: '0 auto',
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100vh',
-      }}
-    >
+    <div style={appColumnStyle}>
       {!token ? (
         <TokenGate onSubmit={setToken} />
       ) : (
@@ -108,6 +101,7 @@ export function App() {
               style={{
                 display: 'grid',
                 gridTemplateColumns: 'repeat(4, 1fr)',
+                width: '100%',
                 borderTop: '1px solid var(--wpds-color-stroke-surface-neutral)',
                 marginTop: 'auto',
               }}

@@ -1,7 +1,11 @@
 import { normalizeItemText, type StoreSlug } from '@matvis/shared';
 import { v } from 'convex/values';
 import type { Doc } from './_generated/dataModel';
-import { mutation, type MutationCtx } from './_generated/server';
+import {
+  internalMutation,
+  mutation,
+  type MutationCtx,
+} from './_generated/server';
 import { readScopedAccountId } from './model/auth';
 import {
   itemGtinMapKindValidator,
@@ -109,5 +113,63 @@ export const unlink = mutation({
     const { existing } = await findRow(ctx, store, normalizedText, price);
     if (existing) await ctx.db.delete(existing._id);
     return null;
+  },
+});
+
+/** One-off import from `packages/connector/data/itemGtinMap.coop.json` (the
+ * checked-in export of confirmed links made in `matvis-linker`, a sibling
+ * tool outside this repo — see its README), run by a developer via `bunx
+ * convex run mappings:upsert`. Same upsert-by-`(store, normalizedText,
+ * price)` semantics as {@link link}, minus the token/account, since this is
+ * an admin import rather than a signed-in write; `source` is always `seed`.
+ * Not reachable from the client. */
+export const upsert = internalMutation({
+  args: {
+    rows: v.array(
+      v.object({
+        store: storeValidator,
+        text: v.string(),
+        kind: itemGtinMapKindValidator,
+        gtin: v.optional(v.string()),
+        price: v.optional(v.number()),
+      }),
+    ),
+  },
+  returns: v.object({ inserted: v.number(), updated: v.number() }),
+  handler: async (ctx, { rows }) => {
+    let inserted = 0;
+    let updated = 0;
+    for (const { store, text, kind, gtin, price } of rows) {
+      const normalizedText = normalizeItemText(text);
+      if (normalizedText === '') continue;
+
+      const { rows: existingRows, existing } = await findRow(
+        ctx,
+        store,
+        normalizedText,
+        price,
+      );
+
+      if (existing) {
+        await ctx.db.patch(existing._id, {
+          kind,
+          gtin,
+          price,
+          source: 'seed',
+        });
+        updated++;
+      } else if (existingRows.length < MAX_MAP_ROWS_PER_TEXT) {
+        await ctx.db.insert('itemGtinMap', {
+          store,
+          normalizedText,
+          kind,
+          gtin,
+          price,
+          source: 'seed',
+        });
+        inserted++;
+      }
+    }
+    return { inserted, updated };
   },
 });

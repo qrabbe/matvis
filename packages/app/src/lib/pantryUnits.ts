@@ -1,6 +1,7 @@
 import { normalizeItemText, type ItemMappingKind } from '@matvis/shared';
 import { scaleMacros, type Macros } from './nutrition';
 import type { PurchaseLine } from './purchases';
+import { lineDiscountKey, type LineDiscounts } from './receiptLines';
 
 /** One pantry-trackable package or weighed lot, expanded from a single
  * receipt line. `key` is the whole identity a mark points at — stable
@@ -27,23 +28,26 @@ function unitKey(receiptId: string, lineNo: number, unitIndex: number): string {
 }
 
 /** "x5 STK" on the receipt means five separate packages that happened to
- * scan as one line — each becomes its own unit, tapped independently. A
- * weighed or single-package line never expands: a "9-pack" product simply
- * never carries a count quantity line at all (Coop scans the whole box as
- * one priced line), so it falls through to the single-unit case below with
- * no special-casing needed. */
+ * scan as one line. A "9-pack" product never carries a count line at all
+ * (Coop scans the whole box as one priced line), so it is one package. */
+function packageCount(item: PurchaseLine['item']): number {
+  const { quantity, unit } = item;
+  return unit === 'st' &&
+    quantity !== undefined &&
+    Number.isInteger(quantity) &&
+    quantity > 1
+    ? quantity
+    : 1;
+}
+
 export function expandLineToUnits(line: PurchaseLine): PantryUnit[] {
   const { quantity, unit } = line.item;
   const receiptId = line.header._id;
   const lineNo = line.item.lineNo;
+  const count = packageCount(line.item);
 
-  if (
-    unit === 'st' &&
-    quantity !== undefined &&
-    Number.isInteger(quantity) &&
-    quantity > 1
-  ) {
-    return Array.from({ length: quantity }, (_, unitIndex) => ({
+  if (count > 1) {
+    return Array.from({ length: count }, (_, unitIndex) => ({
       key: unitKey(receiptId, lineNo, unitIndex),
       receiptId,
       lineNo,
@@ -104,16 +108,14 @@ export function pantryGroupKey(unit: PantryUnit): string | null {
 export function unitMacros(unit: PantryUnit): Macros | null {
   const macros = unit.line.macros;
   if (!macros) return null;
-  const { quantity, unit: lineUnit } = unit.line.item;
-  if (
-    lineUnit === 'st' &&
-    quantity !== undefined &&
-    Number.isInteger(quantity) &&
-    quantity > 1
-  ) {
-    return scaleMacros(macros, 1 / quantity);
-  }
-  return macros;
+  const count = packageCount(unit.line.item);
+  return count > 1 ? scaleMacros(macros, 1 / count) : macros;
+}
+
+export function unitPrice(unit: PantryUnit, discounts: LineDiscounts): number {
+  const discount =
+    discounts.get(lineDiscountKey(unit.receiptId, unit.lineNo)) ?? 0;
+  return (unit.line.item.price + discount) / packageCount(unit.line.item);
 }
 
 export function unitKindLabel(kind: ItemMappingKind | undefined): string {

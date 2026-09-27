@@ -29,11 +29,6 @@ export function PantryTileCard({
         ? `×${count}`
         : null;
 
-  const ageFraction = Math.max(
-    0,
-    Math.min(1, 1 - tile.dueInDays / tile.typicalDurationDays),
-  );
-
   return (
     <button
       type="button"
@@ -52,6 +47,7 @@ export function PantryTileCard({
         borderRadius: 12,
         border: '1px solid var(--wpds-color-stroke-surface-neutral)',
         background: 'var(--wpds-color-background-surface-neutral-strong)',
+        color: 'inherit',
         opacity: done ? 0.45 : 1,
         cursor: 'pointer',
         textAlign: 'center',
@@ -104,29 +100,6 @@ export function PantryTileCard({
       >
         {tile.name}
       </Text>
-      {!done && (
-        <div
-          style={{
-            width: '100%',
-            height: 3,
-            borderRadius: 2,
-            background:
-              'color-mix(in srgb, var(--wpds-color-foreground-content-neutral) 8%, transparent)',
-          }}
-        >
-          <div
-            style={{
-              width: `${ageFraction * 100}%`,
-              height: '100%',
-              borderRadius: 2,
-              background:
-                tile.dueInDays < 0
-                  ? 'var(--wpds-color-foreground-content-warning)'
-                  : 'var(--wpds-color-foreground-interactive-brand)',
-            }}
-          />
-        </div>
-      )}
     </button>
   );
 }

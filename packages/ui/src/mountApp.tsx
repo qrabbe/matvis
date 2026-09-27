@@ -9,11 +9,10 @@ type ClientProviderProps<Client> = {
   children: ReactNode;
 };
 
-export function requireConvexUrl(envFile: string): string {
-  const url = (import.meta.env as Record<string, string | undefined>)
-    .VITE_CONVEX_URL;
+export function requireConvexUrl(envFile: string, varName: string): string {
+  const url = (import.meta.env as Record<string, string | undefined>)[varName];
   if (!url) {
-    throw new Error(`VITE_CONVEX_URL is not set — add it to ${envFile}`);
+    throw new Error(`${varName} is not set — add it to ${envFile}`);
   }
   return url;
 }

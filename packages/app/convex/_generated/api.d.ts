@@ -8,7 +8,9 @@
  * @module
  */
 
-import type * as consumption from "../consumption.js";
+import type * as durationEstimates from "../durationEstimates.js";
+import type * as marks from "../marks.js";
+import type * as settings from "../settings.js";
 
 import type {
   ApiFromModules,
@@ -17,7 +19,9 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
-  consumption: typeof consumption;
+  durationEstimates: typeof durationEstimates;
+  marks: typeof marks;
+  settings: typeof settings;
 }>;
 
 /**

@@ -48,4 +48,14 @@ describe('SettingsTab', () => {
     await user.click(screen.getByRole('switch'));
     expect(store.setTargetCalls).toEqual([['salt', null]]);
   });
+
+  it('tapping a target value lets you type a custom number', async () => {
+    const user = userEvent.setup();
+    render(<SettingsTab token="mv_abcdef123456" onForgetToken={() => {}} />);
+    await user.click(screen.getByText('6 g'));
+    const input = screen.getByDisplayValue('6');
+    await user.clear(input);
+    await user.type(input, '8{Enter}');
+    expect(store.setTargetCalls).toEqual([['salt', 8]]);
+  });
 });

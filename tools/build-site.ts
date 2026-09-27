@@ -4,10 +4,9 @@
  * statichost.yml) and runnable locally to preview the deployed layout.
  *
  * Every frontend is a separate Vite build, so each one needs its own base path
- * and, for the portals and the app, its own Convex deployment URL. Each build
- * reads its deployments under fixed `VITE_*` names, and several point at
- * different deployments under the same name, so the URLs come in here under
- * distinct names and are mapped onto the right target var per build.
+ * and, for the portals and the app, its own Convex deployment URL. The site's
+ * settings hold one URL per deployment; this maps each onto the `VITE_*` name
+ * the build that needs it actually reads.
  *
  *   SITE_BASE               path the site is served from, default '/'
  *   CONNECTOR_CONVEX_URL    connector deployment, read by the connector portal
@@ -32,18 +31,18 @@ const BUILDS: Build[] = [
   {
     pkg: '@matvis/connector-portal',
     path: 'connector',
-    convexUrlVars: { VITE_CONVEX_URL: 'CONNECTOR_CONVEX_URL' },
+    convexUrlVars: { VITE_CONNECTOR_CONVEX_URL: 'CONNECTOR_CONVEX_URL' },
   },
   {
     pkg: '@matvis/catalog-portal',
     path: 'catalog',
-    convexUrlVars: { VITE_CONVEX_URL: 'CATALOG_CONVEX_URL' },
+    convexUrlVars: { VITE_CATALOG_CONVEX_URL: 'CATALOG_CONVEX_URL' },
   },
   {
     pkg: '@matvis/app',
     path: 'app',
     convexUrlVars: {
-      VITE_CONVEX_URL: 'CONNECTOR_CONVEX_URL',
+      VITE_CONNECTOR_CONVEX_URL: 'CONNECTOR_CONVEX_URL',
       VITE_CATALOG_CONVEX_URL: 'CATALOG_CONVEX_URL',
     },
   },
