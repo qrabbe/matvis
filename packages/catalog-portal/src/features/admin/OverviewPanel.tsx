@@ -24,7 +24,9 @@ export function OverviewPanel({
   // rather than a second copy of the same counters behind the session gate.
   const health = useQuery(api.catalog.health, {});
   const rebuildCounters = useAction(adminApi.admin.rebuildCounters);
+  const rebuildCategoryTree = useAction(adminApi.admin.rebuildCategoryTree);
   const { state, run } = useAdminTask();
+  const categoryTreeTask = useAdminTask();
 
   return (
     <Card.Root>
@@ -177,6 +179,33 @@ export function OverviewPanel({
               </Button>
             </Stack>
             <TaskResult state={state} busyLabel="Recounting…" />
+          </Stack>
+
+          <Stack direction="column" gap="sm">
+            <Text variant="body-sm">
+              The category tree the browsing screens walk: one row per category
+              per chain, with a rolled-up product count. Rebuilding clears it
+              and refills it from the catalog. Pause ingest first, or it is
+              refused.
+            </Text>
+            <Stack direction="row" gap="md" align="center" wrap="wrap">
+              <Button
+                variant="outline"
+                tone="neutral"
+                onClick={() =>
+                  categoryTreeTask.run(async () => {
+                    const result = await rebuildCategoryTree({ token });
+                    return `Rebuilt ${result.rows} category row(s) across ${result.pages} page(s).`;
+                  })
+                }
+              >
+                Rebuild category tree
+              </Button>
+            </Stack>
+            <TaskResult
+              state={categoryTreeTask.state}
+              busyLabel="Rebuilding…"
+            />
           </Stack>
         </Stack>
       </Card.Content>

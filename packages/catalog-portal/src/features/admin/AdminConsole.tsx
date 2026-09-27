@@ -1,6 +1,6 @@
 import { useState, type ComponentProps, type ReactNode } from 'react';
 import { useQuery, useMutation } from 'convex/react';
-import { Button, SelectControl, Stack, Text } from '@wordpress/ui';
+import { Button, SelectControl, Stack, Tabs, Text } from '@wordpress/ui';
 import { InlineSpinner } from '@matvis/ui';
 import { STORE_LABELS } from '@matvis/shared';
 import { INGEST_LANES, type IngestLane } from '@matvis/catalog';
@@ -50,16 +50,51 @@ function SignedIn({ token }: { token: string }) {
 
   return (
     <ConsoleFrame>
-      <Stack direction="column" gap="xl">
-        <LanePicker store={store} onSelect={setStore} />
-        <OverviewPanel overview={overview} token={token} store={store} />
-        <RunControls token={token} store={store} paused={overview.paused} />
-        <QueuePanel token={token} store={store} />
-        <EnqueuePanel token={token} store={store} />
-        <CoveragePanel token={token} />
-        <RunTrendPanel token={token} />
-        <RunLogPanel token={token} />
-        <SearchPanel token={token} />
+      <Stack direction="column" gap="lg">
+        <Tabs.Root defaultValue="overview">
+          <Tabs.List>
+            <Tabs.Tab value="overview">Overview</Tabs.Tab>
+            <Tabs.Tab value="ingest">Ingest</Tabs.Tab>
+            <Tabs.Tab value="search">Search</Tabs.Tab>
+          </Tabs.List>
+          <Tabs.Panel value="overview">
+            <Stack
+              direction="column"
+              gap="xl"
+              style={{ paddingTop: 'var(--wpds-dimension-padding-lg)' }}
+            >
+              <OverviewPanel overview={overview} token={token} store={store} />
+              <CoveragePanel token={token} />
+            </Stack>
+          </Tabs.Panel>
+          <Tabs.Panel value="ingest">
+            <Stack
+              direction="column"
+              gap="xl"
+              style={{ paddingTop: 'var(--wpds-dimension-padding-lg)' }}
+            >
+              <LanePicker store={store} onSelect={setStore} />
+              <RunControls
+                token={token}
+                store={store}
+                paused={overview.paused}
+              />
+              <QueuePanel token={token} store={store} />
+              <EnqueuePanel token={token} store={store} />
+              <RunTrendPanel token={token} />
+              <RunLogPanel token={token} />
+            </Stack>
+          </Tabs.Panel>
+          <Tabs.Panel value="search">
+            <Stack
+              direction="column"
+              gap="xl"
+              style={{ paddingTop: 'var(--wpds-dimension-padding-lg)' }}
+            >
+              <SearchPanel token={token} />
+            </Stack>
+          </Tabs.Panel>
+        </Tabs.Root>
         <Stack direction="column" gap="sm">
           <Stack direction="row" gap="md" align="center" wrap="wrap">
             <Button
@@ -83,11 +118,6 @@ function SignedIn({ token }: { token: string }) {
               Sign out everywhere
             </Button>
           </Stack>
-          <Text variant="body-sm">
-            Sign out forgets the token in this browser. Sign out everywhere
-            deletes every session on the deployment, which is the whole
-            revocation story.
-          </Text>
           <TaskResult state={state} busyLabel="Revoking…" />
         </Stack>
       </Stack>
