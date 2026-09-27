@@ -7,6 +7,7 @@ import {
   storeFrontPath,
   type CatalogStore,
 } from '../lib/route';
+import { BrowseScreen } from './browse/BrowseScreen';
 import { SearchField } from './search/SearchField';
 import { StoreResults } from './search/StoreResults';
 import { useSettledTerm } from './search/useSettledTerm';
@@ -75,7 +76,15 @@ export function CatalogTab({ path }: { path: string }) {
           searchNow('');
         }}
       />
-      <StoreResults store={route.store} term={searchedTerm} />
+      {route.kind === 'search' ? (
+        <StoreResults store={route.store} term={searchedTerm} />
+      ) : (
+        <BrowseScreen
+          store={route.store}
+          slugPath={route.kind === 'front' ? '' : route.slugPath}
+          showAll={route.kind === 'branch'}
+        />
+      )}
     </Stack>
   );
 }

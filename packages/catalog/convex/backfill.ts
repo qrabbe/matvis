@@ -5,7 +5,7 @@ import {
   internalQuery,
 } from './_generated/server';
 import { internal } from './_generated/api';
-import { STORES } from '@matvis/shared';
+import { STORES, type StoreSlug } from '@matvis/shared';
 import { QUEUE_STATUSES } from './model/ingest';
 import { storeValidator } from './model/fields';
 import {
@@ -471,7 +471,7 @@ export const rebuildCounters = internalAction({
 });
 
 type CategoryTreeRow = {
-  store: string;
+  store: StoreSlug;
   categoryKey: string;
   slug: string;
   parentSlug: string;
@@ -554,16 +554,16 @@ export const rebuildCategoryTree = internalAction({
   returns: v.object({ rows: v.number(), pages: v.number() }),
   handler: async (ctx) => {
     for (;;) {
-      const { isDone } = await ctx.runMutation(
+      const cleared: { isDone: boolean } = await ctx.runMutation(
         internal.backfill.clearCategoryTreePage,
         {},
       );
-      if (isDone) break;
+      if (cleared.isDone) break;
     }
 
     const tally = new Map<string, CategoryTreeRow>();
     function bump(
-      store: string,
+      store: StoreSlug,
       slug: string,
       parentSlug: string,
       name: string,
@@ -588,9 +588,11 @@ export const rebuildCategoryTree = internalAction({
     let pages = 0;
     let cursor: string | null = null;
     for (;;) {
-      const page = await ctx.runQuery(internal.backfill.categoryTallyPage, {
-        cursor,
-      });
+      const page: {
+        rows: { store: StoreSlug; categoryPath?: string[] }[];
+        continueCursor: string;
+        isDone: boolean;
+      } = await ctx.runQuery(internal.backfill.categoryTallyPage, { cursor });
       for (const row of page.rows) {
         const categoryKey = categoryKeyFor(row.categoryPath);
         if (categoryKey === OTHER_CATEGORY_KEY) {
@@ -604,7 +606,7 @@ export const rebuildCategoryTree = internalAction({
             row.store,
             slugs.slice(0, depth + 1).join('/'),
             depth === 0 ? '' : slugs.slice(0, depth).join('/'),
-            trimmed[depth],
+            trimmed[depth]!,
             categoryKeyForPrefix(trimmed.slice(0, depth + 1)),
           );
         }

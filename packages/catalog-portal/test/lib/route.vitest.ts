@@ -2,7 +2,9 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import {
   ADMIN_PATH,
+  branchPath,
   catalogRoute,
+  categoryPath,
   DEVELOPERS_PATH,
   eanFromPath,
   href,
@@ -137,5 +139,57 @@ describe('catalogRoute', () => {
       store: 'ica',
       term: '',
     });
+  });
+
+  it('reads a top-level category', () => {
+    expect(catalogRoute('/c/coop/mejeri-agg')).toEqual({
+      kind: 'category',
+      store: 'coop',
+      slugPath: 'mejeri-agg',
+    });
+  });
+
+  it('reads a leaf several levels deep', () => {
+    expect(catalogRoute('/c/coop/mejeri-agg/mjolk/laktosfri-mjolk')).toEqual({
+      kind: 'category',
+      store: 'coop',
+      slugPath: 'mejeri-agg/mjolk/laktosfri-mjolk',
+    });
+  });
+
+  it('reads a branch\'s "all products" address', () => {
+    expect(catalogRoute('/c/coop/mejeri-agg/all')).toEqual({
+      kind: 'branch',
+      store: 'coop',
+      slugPath: 'mejeri-agg',
+    });
+  });
+
+  it('reads the uncategorised rows as an ordinary top-level category', () => {
+    expect(catalogRoute('/c/coop/other')).toEqual({
+      kind: 'category',
+      store: 'coop',
+      slugPath: 'other',
+    });
+  });
+
+  it('tolerates a trailing slash on a category address', () => {
+    expect(catalogRoute('/c/coop/mejeri-agg/')).toEqual({
+      kind: 'category',
+      store: 'coop',
+      slugPath: 'mejeri-agg',
+    });
+  });
+});
+
+describe('category addresses', () => {
+  it('nests a slug path under the store', () => {
+    expect(categoryPath('coop', 'mejeri-agg/mjolk')).toBe(
+      '/c/coop/mejeri-agg/mjolk',
+    );
+  });
+
+  it('adds "all" for a branch\'s full product list', () => {
+    expect(branchPath('coop', 'mejeri-agg')).toBe('/c/coop/mejeri-agg/all');
   });
 });

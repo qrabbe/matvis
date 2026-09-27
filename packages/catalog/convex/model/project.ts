@@ -360,9 +360,12 @@ export async function upsertClean(
     if (existing.fetchedAt === undefined) {
       await bumpCounter(ctx, CATALOG_VERIFIED_KEY, 1);
     }
-    // If the category changed, move the count.
+    // If the category changed, move the count. A row from before step 01's
+    // backfill has no categoryKey to move away from.
     if (existing.categoryKey !== derived.categoryKey) {
-      await bumpCategoryCount(ctx, fields.store, existing.categoryKey, -1);
+      if (existing.categoryKey !== undefined) {
+        await bumpCategoryCount(ctx, fields.store, existing.categoryKey, -1);
+      }
       await bumpCategoryCount(ctx, fields.store, derived.categoryKey, 1);
     }
     await ctx.db.replace(existing._id, { ...fields, ...derived, fetchedAt });

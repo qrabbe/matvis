@@ -497,7 +497,7 @@ export const rebuildCategoryTree = adminAction({
     rows: v.number(),
     pages: v.number(),
   }),
-  handler: async (ctx) => {
+  handler: async (ctx): Promise<{ rows: number; pages: number }> => {
     const paused: boolean = await ctx.runQuery(internal.runLog.isPaused, {});
     if (!paused) {
       throw new Error('Pause ingest before rebuilding the category tree');

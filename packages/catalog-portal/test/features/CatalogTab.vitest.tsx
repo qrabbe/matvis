@@ -9,6 +9,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 
 const backend = vi.hoisted(() => ({
   searches: [] as { store: string; q: string | undefined }[],
+  categoryLevels: [] as { store: string; parentSlug: string }[],
   navigated: [] as string[],
 }));
 
@@ -19,6 +20,13 @@ vi.mock('convex/react', () => ({
   ) => {
     backend.searches.push({ store: args.store, q: args.q });
     return { results: [], status: 'Exhausted', loadMore: () => {} };
+  },
+  useQuery: (
+    _reference: unknown,
+    args: { store: string; parentSlug: string },
+  ) => {
+    backend.categoryLevels.push(args);
+    return [];
   },
   useMutation: () => async () => undefined,
 }));
@@ -43,6 +51,7 @@ const { CatalogTab } = await import('../../src/features/CatalogTab');
 
 beforeEach(() => {
   backend.searches = [];
+  backend.categoryLevels = [];
   backend.navigated = [];
   vi.useFakeTimers();
 });
@@ -61,9 +70,13 @@ describe('search results, in place', () => {
     expect(lastSearch()).toEqual({ store: 'coop', q: 'mjölk' });
   });
 
-  it("lists a chain's front page with an empty term", () => {
+  it("browses a chain's front page instead of searching it", () => {
     render(<CatalogTab path="/c/ica" />);
-    expect(lastSearch()).toEqual({ store: 'ica', q: undefined });
+    expect(backend.categoryLevels.at(-1)).toEqual({
+      store: 'ica',
+      parentSlug: '',
+    });
+    expect(backend.searches).toEqual([]);
   });
 });
 
