@@ -39,42 +39,42 @@ but it is real.
 
 3. **Deploy with schema validation off.** In `convex/schema.ts`:
 
-   ```ts
-   export default defineSchema({ ...tables }, { schemaValidation: false });
-   ```
+    ```ts
+    export default defineSchema( { ...tables }, { schemaValidation: false } );
+    ```
 
-   The push is accepted with the old rows still in place.
+    The push is accepted with the old rows still in place.
 
 4. **Run the migration.**
 
-   ```
-   bunx convex run backfill:normalizeUnits
-   ```
+    ```
+    bunx convex run backfill:normalizeUnits
+    ```
 
-   It pages the whole table at 500 rows a transaction and reports
-   `{ scanned, rewritten, unresolved, pages }`. **Check `unresolved`.** It counts
-   rows that stated a size whose unit did not resolve, which is the only signal
-   that `UNIT_BY_SOURCE` has a gap.
+    It pages the whole table at 500 rows a transaction and reports
+    `{ scanned, rewritten, unresolved, pages }`. **Check `unresolved`.** It counts
+    rows that stated a size whose unit did not resolve, which is the only signal
+    that `UNIT_BY_SOURCE` has a gap.
 
-   **A non-zero `unresolved` cannot be fixed by re-running.** The rewrite drops
-   the three legacy fields whether or not the unit resolved, and the re-run
-   guard is "does this row still carry legacy fields", so an unresolved row is
-   skipped on the second pass with its source spelling already gone. That is a
-   deliberate trade and not a bug: keeping the evidence would mean keeping
-   undeclared fields, which is precisely what step 5 has to reject. The cost is
-   that the pre-migration snapshot from step 2 is the only copy of those
-   spellings.
+    **A non-zero `unresolved` cannot be fixed by re-running.** The rewrite drops
+    the three legacy fields whether or not the unit resolved, and the re-run
+    guard is "does this row still carry legacy fields", so an unresolved row is
+    skipped on the second pass with its source spelling already gone. That is a
+    deliberate trade and not a bug: keeping the evidence would mean keeping
+    undeclared fields, which is precisely what step 5 has to reject. The cost is
+    that the pre-migration snapshot from step 2 is the only copy of those
+    spellings.
 
-   The repair is `backfill:repairNetContent`. Add the missing spellings to
-   `UNIT_BY_SOURCE` in `convex/model/project.ts`, deploy, then replay the
-   affected rows out of the snapshot through it. It re-resolves through the same
-   lookup a fetch would use and only ever fills a gap, so replaying more rows
-   than strictly necessary is safe.
+    The repair is `backfill:repairNetContent`. Add the missing spellings to
+    `UNIT_BY_SOURCE` in `convex/model/project.ts`, deploy, then replay the
+    affected rows out of the snapshot through it. It re-resolves through the same
+    lookup a fetch would use and only ever fills a gap, so replaying more rows
+    than strictly necessary is safe.
 
-   Run on prod 2026-08-09 over 34 204 rows: 105 unresolved. 44 were real gaps
-   (`kg`, `dl`, `gram/bit ungefärlig vikt`, `meter`, all now in the lookup) and
-   61 were rows with no unit to resolve at all, 60 of them loose produce
-   carrying `packageSize: 1` and no `packageSizeUnit`.
+    Run on prod 2026-08-09 over 34 204 rows: 105 unresolved. 44 were real gaps
+    (`kg`, `dl`, `gram/bit ungefärlig vikt`, `meter`, all now in the lookup) and
+    61 were rows with no unit to resolve at all, 60 of them loose produce
+    carrying `packageSize: 1` and no `packageSizeUnit`.
 
 5. **Turn schema validation back on** and deploy again. This push validates
    every row against the new schema, which is the real verification that step 4

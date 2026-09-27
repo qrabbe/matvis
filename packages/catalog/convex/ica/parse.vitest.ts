@@ -28,131 +28,145 @@ const PAGE = `
 </tbody></table></div>
 </body></html>`;
 
-describe('parseIcaProduct', () => {
-  test('reads the identity, brand, image and flat category path', () => {
-    const product = parseIcaProduct(PAGE);
-    expect(product).toMatchObject({
-      ean: '7316562700078',
-      name: 'Kräftor Fryst 20-p 700g Pandalus',
-      brand: 'Pandalus',
-      imageUrl: 'https://assets.icanet.se/image/upload/x.webp',
-      // Already leaf-last and flat, so none of Coop's superCategories walk.
-      categoryPath: ['Fryst', 'Fryst fisk & Skaldjur', 'Frysta kräftor'],
-    });
-    // An empty `content`-less meta is absent, not an empty string.
-    expect(product!.description).toBeUndefined();
-  });
+describe( 'parseIcaProduct', () => {
+	test( 'reads the identity, brand, image and flat category path', () => {
+		const product = parseIcaProduct( PAGE );
+		expect( product ).toMatchObject( {
+			ean: '7316562700078',
+			name: 'Kräftor Fryst 20-p 700g Pandalus',
+			brand: 'Pandalus',
+			imageUrl: 'https://assets.icanet.se/image/upload/x.webp',
+			// Already leaf-last and flat, so none of Coop's superCategories walk.
+			categoryPath: [
+				'Fryst',
+				'Fryst fisk & Skaldjur',
+				'Frysta kräftor',
+			],
+		} );
+		// An empty `content`-less meta is absent, not an empty string.
+		expect( product!.description ).toBeUndefined();
+	} );
 
-  test('drops the repeated label off the ingredients prose', () => {
-    expect(parseIcaProduct(PAGE)!.ingredients).toBe(
-      'Kokta kräftor, vatten, salt.',
-    );
-  });
+	test( 'drops the repeated label off the ingredients prose', () => {
+		expect( parseIcaProduct( PAGE )!.ingredients ).toBe(
+			'Kokta kräftor, vatten, salt.'
+		);
+	} );
 
-  test('an empty sku falls back to the mpn rather than to nothing', () => {
-    // `meta` answers `''` for a `content=""` attribute, and `'' ?? mpn` is `''`,
-    // so the fallback the two tags exist for never ran on the one page shape
-    // that needs it.
-    const page = PAGE.replace(
-      '<meta itemprop="sku" content="7316562700078">',
-      '<meta itemprop="sku" content="">',
-    );
-    expect(parseIcaProduct(page)!.ean).toBe('7316562700078');
-  });
+	test( 'an empty sku falls back to the mpn rather than to nothing', () => {
+		// `meta` answers `''` for a `content=""` attribute, and `'' ?? mpn` is `''`,
+		// so the fallback the two tags exist for never ran on the one page shape
+		// that needs it.
+		const page = PAGE.replace(
+			'<meta itemprop="sku" content="7316562700078">',
+			'<meta itemprop="sku" content="">'
+		);
+		expect( parseIcaProduct( page )!.ean ).toBe( '7316562700078' );
+	} );
 
-  test('refuses a page carrying no EAN or no name', () => {
-    expect(parseIcaProduct('<html></html>')).toBeNull();
-    expect(parseIcaProduct('<meta itemprop="sku" content="73165">')).toBeNull();
-  });
-});
+	test( 'refuses a page carrying no EAN or no name', () => {
+		expect( parseIcaProduct( '<html></html>' ) ).toBeNull();
+		expect(
+			parseIcaProduct( '<meta itemprop="sku" content="73165">' )
+		).toBeNull();
+	} );
+} );
 
-describe('nutritionFromIca', () => {
-  test('fills the same slots Coop does, from the same Swedish labels', () => {
-    expect(nutritionFromIca(PAGE)).toEqual({
-      basisQuantity: 100,
-      basisUnit: 'g',
-      energyKcal: 73,
-      energyKj: 308,
-      fatG: 0.6,
-      saturatedFatG: 0.2,
-      carbohydrateG: 0.5,
-      sugarsG: 0,
-      proteinG: 16.3,
-      saltG: 2.5,
-    });
-  });
+describe( 'nutritionFromIca', () => {
+	test( 'fills the same slots Coop does, from the same Swedish labels', () => {
+		expect( nutritionFromIca( PAGE ) ).toEqual( {
+			basisQuantity: 100,
+			basisUnit: 'g',
+			energyKcal: 73,
+			energyKj: 308,
+			fatG: 0.6,
+			saturatedFatG: 0.2,
+			carbohydrateG: 0.5,
+			sugarsG: 0,
+			proteinG: 16.3,
+			saltG: 2.5,
+		} );
+	} );
 
-  test('ignores rows CatalogNutrition has no slot for', () => {
-    // Vitamin C is on the page and has no slot, and `% av DRI` is not a
-    // nutrient at all. Neither may leak into the shape.
-    const nutrition = nutritionFromIca(PAGE)!;
-    expect(Object.keys(nutrition)).not.toContain('vitaminC');
-    expect(Object.values(nutrition)).not.toContain(50);
-  });
+	test( 'ignores rows CatalogNutrition has no slot for', () => {
+		// Vitamin C is on the page and has no slot, and `% av DRI` is not a
+		// nutrient at all. Neither may leak into the shape.
+		const nutrition = nutritionFromIca( PAGE )!;
+		expect( Object.keys( nutrition ) ).not.toContain( 'vitaminC' );
+		expect( Object.values( nutrition ) ).not.toContain( 50 );
+	} );
 
-  test('reads a millilitre basis as well as a gram one', () => {
-    const drink = PAGE.replace('<th>100 Gram</th>', '<th>100 ml</th>');
-    expect(nutritionFromIca(drink)).toMatchObject({
-      basisQuantity: 100,
-      basisUnit: 'ml',
-    });
-  });
+	test( 'reads a millilitre basis as well as a gram one', () => {
+		const drink = PAGE.replace( '<th>100 Gram</th>', '<th>100 ml</th>' );
+		expect( nutritionFromIca( drink ) ).toMatchObject( {
+			basisQuantity: 100,
+			basisUnit: 'ml',
+		} );
+	} );
 
-  test('is absent when the page states no nutrition table', () => {
-    expect(nutritionFromIca('<html>nothing here</html>')).toBeUndefined();
-  });
-});
+	test( 'is absent when the page states no nutrition table', () => {
+		expect(
+			nutritionFromIca( '<html>nothing here</html>' )
+		).toBeUndefined();
+	} );
+} );
 
-describe('netContentFromName', () => {
-  test('reads the pack size ICA states nowhere else', () => {
-    expect(netContentFromName('Pepparsås 57ml Tabasco')).toEqual({
-      value: 57,
-      unit: 'ml',
-    });
-    expect(
-      netContentFromName('Kattsand Fresh Apple Vit 8,7kg PrimaCat'),
-    ).toEqual({ value: 8700, unit: 'g' });
-    expect(netContentFromName('Grädde 5 dl Arla')).toEqual({
-      value: 500,
-      unit: 'ml',
-    });
-  });
+describe( 'netContentFromName', () => {
+	test( 'reads the pack size ICA states nowhere else', () => {
+		expect( netContentFromName( 'Pepparsås 57ml Tabasco' ) ).toEqual( {
+			value: 57,
+			unit: 'ml',
+		} );
+		expect(
+			netContentFromName( 'Kattsand Fresh Apple Vit 8,7kg PrimaCat' )
+		).toEqual( { value: 8700, unit: 'g' } );
+		expect( netContentFromName( 'Grädde 5 dl Arla' ) ).toEqual( {
+			value: 500,
+			unit: 'ml',
+		} );
+	} );
 
-  test('a pack count next to a size does not become the size', () => {
-    expect(netContentFromName('Kräftor Fryst 20-p 700g Pandalus')).toEqual({
-      value: 700,
-      unit: 'g',
-    });
-  });
+	test( 'a pack count next to a size does not become the size', () => {
+		expect(
+			netContentFromName( 'Kräftor Fryst 20-p 700g Pandalus' )
+		).toEqual( {
+			value: 700,
+			unit: 'g',
+		} );
+	} );
 
-  test('two stated sizes are ambiguous rather than nearly right', () => {
-    // A 400 g jar of which 210 g is herring, and four 113 g patties totalling
-    // 452 g. Picking either number would be wrong about half the time.
-    expect(
-      netContentFromName('Inlagd Sill Rolmopsy 400g varav sill 210g Seko'),
-    ).toBeUndefined();
-    expect(
-      netContentFromName('Hamburgare Tex-Mex 4-p 113g 452g ICA'),
-    ).toBeUndefined();
-  });
+	test( 'two stated sizes are ambiguous rather than nearly right', () => {
+		// A 400 g jar of which 210 g is herring, and four 113 g patties totalling
+		// 452 g. Picking either number would be wrong about half the time.
+		expect(
+			netContentFromName(
+				'Inlagd Sill Rolmopsy 400g varav sill 210g Seko'
+			)
+		).toBeUndefined();
+		expect(
+			netContentFromName( 'Hamburgare Tex-Mex 4-p 113g 452g ICA' )
+		).toBeUndefined();
+	} );
 
-  test('units that are not net contents are left alone', () => {
-    // A jack diameter, a lamp, a count and a percentage. `mm` is excluded from
-    // the lookup for exactly this reason even though CATALOG_UNITS carries it.
-    expect(
-      netContentFromName('Adapter Lightning Vit 3,5mm Apple'),
-    ).toBeUndefined();
-    expect(
-      netContentFromName('LED G125 Gold E27 300lm(28W) Osram'),
-    ).toBeUndefined();
-    expect(
-      netContentFromName('Blodapelsin 4-pack Klass 1 ICA'),
-    ).toBeUndefined();
-    expect(netContentFromName('Kaffe 100% Arabica')).toBeUndefined();
-  });
+	test( 'units that are not net contents are left alone', () => {
+		// A jack diameter, a lamp, a count and a percentage. `mm` is excluded from
+		// the lookup for exactly this reason even though CATALOG_UNITS carries it.
+		expect(
+			netContentFromName( 'Adapter Lightning Vit 3,5mm Apple' )
+		).toBeUndefined();
+		expect(
+			netContentFromName( 'LED G125 Gold E27 300lm(28W) Osram' )
+		).toBeUndefined();
+		expect(
+			netContentFromName( 'Blodapelsin 4-pack Klass 1 ICA' )
+		).toBeUndefined();
+		expect( netContentFromName( 'Kaffe 100% Arabica' ) ).toBeUndefined();
+	} );
 
-  test('a name stating no size has none', () => {
-    expect(netContentFromName('Högtalare Clip 5')).toBeUndefined();
-    expect(netContentFromName('Dinkelmjöl Siktat Wapnö Eko')).toBeUndefined();
-  });
-});
+	test( 'a name stating no size has none', () => {
+		expect( netContentFromName( 'Högtalare Clip 5' ) ).toBeUndefined();
+		expect(
+			netContentFromName( 'Dinkelmjöl Siktat Wapnö Eko' )
+		).toBeUndefined();
+	} );
+} );

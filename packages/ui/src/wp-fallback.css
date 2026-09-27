@@ -3,24 +3,24 @@
 
 /* Modal frame. */
 .components-modal__frame {
-  background: var(
-    --wpds-color-background-surface-neutral-strong,
-    #262626
-  ) !important;
-  color: var(--wpds-color-foreground-content-neutral, #e0e0e0) !important;
+	background: var(
+		--wpds-color-background-surface-neutral-strong,
+		#262626
+	) !important;
+	color: var(--wpds-color-foreground-content-neutral, #e0e0e0) !important;
 }
 
 /* No CSS reset ships, so form controls keep the browser default serif. */
 body {
-  font-family: var(
-    --wpds-typography-font-family-body,
-    -apple-system,
-    system-ui,
-    'Segoe UI',
-    Roboto,
-    'Helvetica Neue',
-    sans-serif
-  );
+	font-family: var(
+		--wpds-typography-font-family-body,
+		-apple-system,
+		system-ui,
+		"Segoe UI",
+		Roboto,
+		"Helvetica Neue",
+		sans-serif
+	);
 }
 
 button,
@@ -28,87 +28,87 @@ input,
 optgroup,
 select,
 textarea {
-  font-family: inherit;
+	font-family: inherit;
 }
 
 /* Popovers, meaning every dropdown and menu. */
 .components-popover__content {
-  background: var(
-    --wpds-color-background-surface-neutral-strong,
-    #242424
-  ) !important;
-  color: var(--wpds-color-foreground-content-neutral, #f0f0f0);
-  box-shadow:
-    0 0 0 1px var(--wpds-color-stroke-surface-neutral, #343434),
-    0 8px 24px rgba(0, 0, 0, 0.4) !important;
+	background: var(
+		--wpds-color-background-surface-neutral-strong,
+		#242424
+	) !important;
+	color: var(--wpds-color-foreground-content-neutral, #f0f0f0);
+	box-shadow:
+		0 0 0 1px var(--wpds-color-stroke-surface-neutral, #343434),
+		0 8px 24px rgba(0, 0, 0, 0.4) !important;
 }
 .components-popover__header {
-  background: var(
-    --wpds-color-background-surface-neutral-strong,
-    #242424
-  ) !important;
-  color: var(--wpds-color-foreground-content-neutral, #f0f0f0);
+	background: var(
+		--wpds-color-background-surface-neutral-strong,
+		#242424
+	) !important;
+	color: var(--wpds-color-foreground-content-neutral, #f0f0f0);
 }
 .components-popover__arrow::before {
-  background: var(
-    --wpds-color-background-surface-neutral-strong,
-    #242424
-  ) !important;
+	background: var(
+		--wpds-color-background-surface-neutral-strong,
+		#242424
+	) !important;
 }
 
 /* Modal header and close bar. */
 .components-modal__header {
-  background: transparent !important;
-  color: var(--wpds-color-foreground-content-neutral, #f0f0f0);
+	background: transparent !important;
+	color: var(--wpds-color-foreground-content-neutral, #f0f0f0);
 }
 
 .components-panel {
-  background: transparent !important;
+	background: transparent !important;
 }
 .components-placeholder.components-placeholder {
-  background: var(
-    --wpds-color-background-surface-neutral-weak,
-    #171717
-  ) !important;
-  color: var(--wpds-color-foreground-content-neutral, #f0f0f0);
+	background: var(
+		--wpds-color-background-surface-neutral-weak,
+		#171717
+	) !important;
+	color: var(--wpds-color-foreground-content-neutral, #f0f0f0);
 }
 
 /* Unchecked toggles, checkboxes and radios. */
 .components-form-toggle .components-form-toggle__track {
-  background-color: var(
-    --wpds-color-background-track-neutral,
-    #343434
-  ) !important;
-  border-color: var(
-    --wpds-color-stroke-surface-neutral-strong,
-    #6e6e6e
-  ) !important;
+	background-color: var(
+		--wpds-color-background-track-neutral,
+		#343434
+	) !important;
+	border-color: var(
+		--wpds-color-stroke-surface-neutral-strong,
+		#6e6e6e
+	) !important;
 }
-.components-checkbox-control__input[type='checkbox']:not(:checked),
-.components-radio-control__input[type='radio']:not(:checked) {
-  background: var(
-    --wpds-color-background-surface-neutral-strong,
-    #242424
-  ) !important;
-  border-color: var(
-    --wpds-color-stroke-surface-neutral-strong,
-    #6e6e6e
-  ) !important;
+.components-checkbox-control__input[type="checkbox"]:not(:checked),
+.components-radio-control__input[type="radio"]:not(:checked) {
+	background: var(
+		--wpds-color-background-surface-neutral-strong,
+		#242424
+	) !important;
+	border-color: var(
+		--wpds-color-stroke-surface-neutral-strong,
+		#6e6e6e
+	) !important;
 }
 
 /* DataViews hides row actions until hover. Ours stay visible. */
 .dataviews-view-table
-  tr
-  .dataviews-item-actions
-  .components-button:not(.dataviews-all-actions-button) {
-  opacity: 1;
+	tr
+	.dataviews-item-actions
+	.components-button:not(.dataviews-all-actions-button) {
+	opacity: 1;
 }
 
 /* The sticky infinite-scroll toolbar hardcodes white, unlike every other
    DataViews surface here, which reads --wp-dataviews-color-background. */
 .dataviews__view-actions--infinite-scroll {
-  background-color: var(
-    --wpds-color-background-surface-neutral-strong,
-    #242424
-  ) !important;
+	background-color: var(
+		--wpds-color-background-surface-neutral-strong,
+		#242424
+	) !important;
 }

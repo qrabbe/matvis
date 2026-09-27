@@ -5,4 +5,4 @@ import { matvisApp } from '@matvis/ui/vite';
 // deployment via `convex/react` (typed through the facade in
 // src/lib/convexApi.ts) and reads only the clean catalog table. No auth, no
 // dev proxy.
-export default defineConfig(matvisApp({ port: 5373 }));
+export default defineConfig( matvisApp( { port: 5373 } ) );

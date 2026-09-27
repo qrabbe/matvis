@@ -29,62 +29,72 @@ const OUT = 'packages/catalog-portal/src/generated/catalog-api-spec.json';
 
 /** The runtime surface `query()` and friends hang on a registered function. */
 type RegisteredFunction = {
-  isQuery?: boolean;
-  isMutation?: boolean;
-  isAction?: boolean;
-  isPublic?: boolean;
-  exportArgs: () => string;
-  exportReturns: () => string;
+	isQuery?: boolean;
+	isMutation?: boolean;
+	isAction?: boolean;
+	isPublic?: boolean;
+	exportArgs: () => string;
+	exportReturns: () => string;
 };
 
-function asRegistered(value: unknown): RegisteredFunction | null {
-  if (typeof value !== 'function') return null;
-  const fn = value as Partial<RegisteredFunction>;
-  if (!fn.isQuery && !fn.isMutation && !fn.isAction) return null;
-  return fn as RegisteredFunction;
+function asRegistered( value: unknown ): RegisteredFunction | null {
+	if ( typeof value !== 'function' ) {
+		return null;
+	}
+	const fn = value as Partial< RegisteredFunction >;
+	if ( ! fn.isQuery && ! fn.isMutation && ! fn.isAction ) {
+		return null;
+	}
+	return fn as RegisteredFunction;
 }
 
-function functionType(fn: RegisteredFunction): string {
-  if (fn.isQuery) return 'Query';
-  if (fn.isMutation) return 'Mutation';
-  return 'Action';
+function functionType( fn: RegisteredFunction ): string {
+	if ( fn.isQuery ) {
+		return 'Query';
+	}
+	if ( fn.isMutation ) {
+		return 'Mutation';
+	}
+	return 'Action';
 }
 
-const functions = Object.entries(catalogModule)
-  .flatMap(([name, value]) => {
-    const fn = asRegistered(value);
-    if (!fn || !fn.isPublic) return [];
-    return [
-      {
-        identifier: `${MODULE}:${name}`,
-        functionType: functionType(fn),
-        visibility: { kind: 'public' },
-        args: JSON.parse(fn.exportArgs()),
-        returns: JSON.parse(fn.exportReturns()),
-      },
-    ];
-  })
-  .sort((a, b) => a.identifier.localeCompare(b.identifier));
+const functions = Object.entries( catalogModule )
+	.flatMap( ( [ name, value ] ) => {
+		const fn = asRegistered( value );
+		if ( ! fn || ! fn.isPublic ) {
+			return [];
+		}
+		return [
+			{
+				identifier: `${ MODULE }:${ name }`,
+				functionType: functionType( fn ),
+				visibility: { kind: 'public' },
+				args: JSON.parse( fn.exportArgs() ),
+				returns: JSON.parse( fn.exportReturns() ),
+			},
+		];
+	} )
+	.sort( ( a, b ) => a.identifier.localeCompare( b.identifier ) );
 
-if (functions.length === 0) {
-  console.error(`No public functions found in ${MODULE}.`);
-  process.exit(1);
+if ( functions.length === 0 ) {
+	console.error( `No public functions found in ${ MODULE }.` );
+	process.exit( 1 );
 }
 
-const json = `${JSON.stringify({ module: MODULE, functions }, null, 2)}\n`;
+const json = `${ JSON.stringify( { module: MODULE, functions }, null, 2 ) }\n`;
 
-if (process.argv.includes('--check')) {
-  if (readFileSync(OUT, 'utf8') === json) {
-    console.log(`${OUT} is up to date`);
-    process.exit(0);
-  }
-  console.error(
-    `${OUT} no longer matches ${MODULE}.\n` +
-      'The catalog contract changed. Run `bun run spec` and commit the result ' +
-      'so the change shows up in this pull request.',
-  );
-  process.exit(1);
+if ( process.argv.includes( '--check' ) ) {
+	if ( readFileSync( OUT, 'utf8' ) === json ) {
+		console.log( `${ OUT } is up to date` );
+		process.exit( 0 );
+	}
+	console.error(
+		`${ OUT } no longer matches ${ MODULE }.\n` +
+			'The catalog contract changed. Run `bun run spec` and commit the result ' +
+			'so the change shows up in this pull request.'
+	);
+	process.exit( 1 );
 }
 
-writeFileSync(OUT, json);
-console.log(`wrote ${OUT} (${functions.length} functions)`);
+writeFileSync( OUT, json );
+console.log( `wrote ${ OUT } (${ functions.length } functions)` );

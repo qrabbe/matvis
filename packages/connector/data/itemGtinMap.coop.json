@@ -1,1587 +1,1587 @@
 [
-  {
-    "store": "coop",
-    "normalizedText": "abisko tunnbröd",
-    "kind": "product",
-    "gtin": "7313830006429",
-    "price": 22
-  },
-  {
-    "store": "coop",
-    "normalizedText": "abisko tunnbröd",
-    "kind": "product",
-    "gtin": "7313830006429"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "ägg 12-p frigående l",
-    "kind": "product",
-    "gtin": "7300156600578"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "ägg 18-p frigående m",
-    "kind": "product",
-    "gtin": "7316162107109"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "ägg 6-p frigående m/",
-    "kind": "product",
-    "gtin": "7316161337804",
-    "price": 19.9
-  },
-  {
-    "store": "coop",
-    "normalizedText": "ägg 6-p frigående m/",
-    "kind": "product",
-    "gtin": "7316161337804"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "avfallspåse vit 20",
-    "kind": "product",
-    "gtin": "7340191170551",
-    "price": 27.95
-  },
-  {
-    "store": "coop",
-    "normalizedText": "avfallspåse vit 20",
-    "kind": "product",
-    "gtin": "7340191170551"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "bacontärningar",
-    "kind": "product",
-    "gtin": "7300156596109",
-    "price": 13.72
-  },
-  {
-    "store": "coop",
-    "normalizedText": "bacontärningar",
-    "kind": "product",
-    "gtin": "7300156596109"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "baguette parisien",
-    "kind": "product",
-    "gtin": "7391288610009",
-    "price": 56.64
-  },
-  {
-    "store": "coop",
-    "normalizedText": "baguette parisien",
-    "kind": "product",
-    "gtin": "7391288610009"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "bar choklad",
-    "kind": "product",
-    "gtin": "5024278003063"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "becel omega3",
-    "kind": "product",
-    "gtin": "8719200052529",
-    "price": 26.45
-  },
-  {
-    "store": "coop",
-    "normalizedText": "becel omega3",
-    "kind": "product",
-    "gtin": "8719200052529"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "blodgrapejuice",
-    "kind": "product",
-    "gtin": "7310860007396",
-    "price": 35.92
-  },
-  {
-    "store": "coop",
-    "normalizedText": "blodgrapejuice",
-    "kind": "product",
-    "gtin": "7310860007396"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "cashew naturella",
-    "kind": "product",
-    "gtin": "7340191180581"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "cashewnötter salt",
-    "kind": "product",
-    "gtin": "7340011343769",
-    "price": 64.31
-  },
-  {
-    "store": "coop",
-    "normalizedText": "cashewnötter salt",
-    "kind": "product",
-    "gtin": "7340011343769"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "cayennepeppar",
-    "kind": "product",
-    "gtin": "7310394002089",
-    "price": 26.9
-  },
-  {
-    "store": "coop",
-    "normalizedText": "cayennepeppar",
-    "kind": "product",
-    "gtin": "7310394002089"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "champinjon 250gr",
-    "kind": "product",
-    "gtin": "7340007901034",
-    "price": 18.88
-  },
-  {
-    "store": "coop",
-    "normalizedText": "champinjon 250gr",
-    "kind": "product",
-    "gtin": "7340007901034"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "chickpeas",
-    "kind": "product",
-    "gtin": "7340191144460",
-    "price": 10.5
-  },
-  {
-    "store": "coop",
-    "normalizedText": "chickpeas",
-    "kind": "product",
-    "gtin": "7340191144460"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "chili concarn mix",
-    "kind": "product",
-    "gtin": "8721201984617",
-    "price": 14.15
-  },
-  {
-    "store": "coop",
-    "normalizedText": "chili concarn mix",
-    "kind": "product",
-    "gtin": "8721201984617"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "choco crunch",
-    "kind": "product",
-    "gtin": "7350117570327",
-    "price": 34.97
-  },
-  {
-    "store": "coop",
-    "normalizedText": "choco crunch",
-    "kind": "product",
-    "gtin": "7350117570327"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "chorizo salami",
-    "kind": "product",
-    "gtin": "7331631011824",
-    "price": 32.13
-  },
-  {
-    "store": "coop",
-    "normalizedText": "chorizo salami",
-    "kind": "product",
-    "gtin": "7331631011824"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "citronjuice",
-    "kind": "product",
-    "gtin": "7340191163348",
-    "price": 12.26
-  },
-  {
-    "store": "coop",
-    "normalizedText": "citronjuice",
-    "kind": "product",
-    "gtin": "7340191163348"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "coca-cola",
-    "kind": "product",
-    "gtin": "5000112690132",
-    "price": 26.03
-  },
-  {
-    "store": "coop",
-    "normalizedText": "coca-cola",
-    "kind": "product",
-    "gtin": "5000112690132"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "coca-cola zero",
-    "kind": "product",
-    "gtin": "5000112689792",
-    "price": 19.5
-  },
-  {
-    "store": "coop",
-    "normalizedText": "coca-cola zero",
-    "kind": "product",
-    "gtin": "5000112689792"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "corny big choklad",
-    "kind": "product",
-    "gtin": "4011800003197",
-    "price": 10.36
-  },
-  {
-    "store": "coop",
-    "normalizedText": "corny big choklad",
-    "kind": "product",
-    "gtin": "4011800003197"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "couscous",
-    "kind": "product",
-    "gtin": "7340011321767",
-    "price": 20.77
-  },
-  {
-    "store": "coop",
-    "normalizedText": "couscous",
-    "kind": "product",
-    "gtin": "7340011321767"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "dansk citronvand",
-    "kind": "product",
-    "gtin": "7311120351020",
-    "price": 16.04
-  },
-  {
-    "store": "coop",
-    "normalizedText": "dansk citronvand",
-    "kind": "product",
-    "gtin": "7311120351020"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "demae ramen kyckli",
-    "kind": "product",
-    "gtin": "8850987101090",
-    "price": 51.8
-  },
-  {
-    "store": "coop",
-    "normalizedText": "demae ramen kyckli",
-    "kind": "product",
-    "gtin": "8850987101090"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "demae ramen spicy",
-    "kind": "product",
-    "gtin": "8712429361106",
-    "price": 41.44
-  },
-  {
-    "store": "coop",
-    "normalizedText": "demae ramen spicy",
-    "kind": "product",
-    "gtin": "8712429361106"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "deospray bla&wh fr",
-    "kind": "notInCatalog"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "dillchips",
-    "kind": "product",
-    "gtin": "7310532106471",
-    "price": 27.5
-  },
-  {
-    "store": "coop",
-    "normalizedText": "dillchips",
-    "kind": "product",
-    "gtin": "7310532106471"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "diskborste",
-    "kind": "notInCatalog"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "egen/ingen påse",
-    "kind": "notInCatalog"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "ekologisk gouda",
-    "kind": "product",
-    "gtin": "7340011479307",
-    "price": 38.25
-  },
-  {
-    "store": "coop",
-    "normalizedText": "ekologisk gouda",
-    "kind": "product",
-    "gtin": "7340011479307"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "favorite nut mix",
-    "kind": "product",
-    "gtin": "7340191168497",
-    "price": 52.01
-  },
-  {
-    "store": "coop",
-    "normalizedText": "favorite nut mix",
-    "kind": "product",
-    "gtin": "7340191168497"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "feta originalet",
-    "kind": "product",
-    "gtin": "7316150970340",
-    "price": 30.24
-  },
-  {
-    "store": "coop",
-    "normalizedText": "feta originalet",
-    "kind": "product",
-    "gtin": "7316150970340"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "fetaost 2 för 46,37kr",
-    "kind": "notInCatalog"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "fiberrost",
-    "kind": "product",
-    "gtin": "7312200040797",
-    "price": 31.95
-  },
-  {
-    "store": "coop",
-    "normalizedText": "fiberrost",
-    "kind": "product",
-    "gtin": "7312200040797"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "fikabröd",
-    "kind": "notInCatalog"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "fint salt med jod",
-    "kind": "product",
-    "gtin": "5701027004211",
-    "price": 11.31
-  },
-  {
-    "store": "coop",
-    "normalizedText": "fint salt med jod",
-    "kind": "product",
-    "gtin": "5701027004211"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "gifflar kanel",
-    "kind": "product",
-    "gtin": "7311070006209",
-    "price": 21.72
-  },
-  {
-    "store": "coop",
-    "normalizedText": "gifflar kanel",
-    "kind": "product",
-    "gtin": "7311070006209"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "gran amore",
-    "kind": "product",
-    "gtin": "7350027799931",
-    "price": 41.6
-  },
-  {
-    "store": "coop",
-    "normalizedText": "gran amore",
-    "kind": "product",
-    "gtin": "7350027799931"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "grana padano 12m",
-    "kind": "product",
-    "gtin": "7340191158412",
-    "price": 46.33
-  },
-  {
-    "store": "coop",
-    "normalizedText": "grana padano 12m",
-    "kind": "product",
-    "gtin": "7350027799191",
-    "price": 49.95
-  },
-  {
-    "store": "coop",
-    "normalizedText": "grana padano 12m",
-    "kind": "product",
-    "gtin": "7350027799191",
-    "price": 48.95
-  },
-  {
-    "store": "coop",
-    "normalizedText": "granatäppeldryck",
-    "kind": "product",
-    "gtin": "8684862900085",
-    "price": 25.51
-  },
-  {
-    "store": "coop",
-    "normalizedText": "granatäppeldryck",
-    "kind": "product",
-    "gtin": "8684862900085"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "greek feta block",
-    "kind": "product",
-    "gtin": "7350002402658",
-    "price": 25.95
-  },
-  {
-    "store": "coop",
-    "normalizedText": "greek feta block",
-    "kind": "product",
-    "gtin": "7350002402658",
-    "price": 21.29
-  },
-  {
-    "store": "coop",
-    "normalizedText": "greek feta block",
-    "kind": "product",
-    "gtin": "7350002402658",
-    "price": 22.95
-  },
-  {
-    "store": "coop",
-    "normalizedText": "greek feta block",
-    "kind": "product",
-    "gtin": "7350002402658"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "grillkorv chorizo",
-    "kind": "product",
-    "gtin": "7300200134004",
-    "price": 38.76
-  },
-  {
-    "store": "coop",
-    "normalizedText": "grillkorv chorizo",
-    "kind": "product",
-    "gtin": "7300200134004"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "grönsaksbuljong",
-    "kind": "product",
-    "gtin": "7090046520221"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "gurka st",
-    "kind": "product",
-    "gtin": "2097459700009",
-    "price": 86.88
-  },
-  {
-    "store": "coop",
-    "normalizedText": "gurka st",
-    "kind": "product",
-    "gtin": "2097459700009"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "gurkmeja ekologisk",
-    "kind": "product",
-    "gtin": "7350046468054",
-    "price": 29.29
-  },
-  {
-    "store": "coop",
-    "normalizedText": "gurkmeja ekologisk",
-    "kind": "product",
-    "gtin": "7350046468054"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "hällrengöring",
-    "kind": "notInCatalog"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "havredryck naturel",
-    "kind": "product",
-    "gtin": "7300156500533",
-    "price": 17.51
-  },
-  {
-    "store": "coop",
-    "normalizedText": "havredryck naturel",
-    "kind": "product",
-    "gtin": "7300156500533"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "havregryn",
-    "kind": "product",
-    "gtin": "7300156599452",
-    "price": 18.88
-  },
-  {
-    "store": "coop",
-    "normalizedText": "havregryn",
-    "kind": "product",
-    "gtin": "7300156599445",
-    "price": 13.72
-  },
-  {
-    "store": "coop",
-    "normalizedText": "hobnobs havrekex",
-    "kind": "product",
-    "gtin": "5000396054378",
-    "price": 19.83
-  },
-  {
-    "store": "coop",
-    "normalizedText": "hobnobs havrekex",
-    "kind": "product",
-    "gtin": "5000396054378"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "hummus chili",
-    "kind": "product",
-    "gtin": "7300156587640",
-    "price": 26.03
-  },
-  {
-    "store": "coop",
-    "normalizedText": "hummus chili",
-    "kind": "product",
-    "gtin": "7350113940018",
-    "price": 27.67
-  },
-  {
-    "store": "coop",
-    "normalizedText": "hushåll dry/strong",
-    "kind": "notInCatalog"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "hushållspapper 4p",
-    "kind": "product",
-    "gtin": "7340191138384",
-    "price": 23.95
-  },
-  {
-    "store": "coop",
-    "normalizedText": "hushållspapper 4p",
-    "kind": "product",
-    "gtin": "7340191138384"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "indian tonic zero",
-    "kind": "product",
-    "gtin": "7310070007070",
-    "price": 24.56
-  },
-  {
-    "store": "coop",
-    "normalizedText": "indian tonic zero",
-    "kind": "product",
-    "gtin": "7310070007070"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "jalapeno räfflade",
-    "kind": "product",
-    "gtin": "7350045591937",
-    "price": 26.97
-  },
-  {
-    "store": "coop",
-    "normalizedText": "jalapeno räfflade",
-    "kind": "product",
-    "gtin": "7350045591937"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "jubileumskakor",
-    "kind": "product",
-    "gtin": "7311800971005",
-    "price": 27.4
-  },
-  {
-    "store": "coop",
-    "normalizedText": "jubileumskakor",
-    "kind": "product",
-    "gtin": "7311800971005"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "juice ap/röd grape",
-    "kind": "product",
-    "gtin": "7300156505828",
-    "price": 33.5
-  },
-  {
-    "store": "coop",
-    "normalizedText": "juice ap/röd grape",
-    "kind": "product",
-    "gtin": "7300156505828"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "karies kontroll",
-    "kind": "product",
-    "gtin": "8718951559011",
-    "price": 20.95
-  },
-  {
-    "store": "coop",
-    "normalizedText": "karies kontroll",
-    "kind": "product",
-    "gtin": "8718951559011"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "kärnsund",
-    "kind": "product",
-    "gtin": "7311070008609"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "kidneybönor",
-    "kind": "product",
-    "gtin": "7340191144569"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "klassis köttbullar",
-    "kind": "product",
-    "gtin": "7310240039535",
-    "price": 76.5
-  },
-  {
-    "store": "coop",
-    "normalizedText": "klassis köttbullar",
-    "kind": "product",
-    "gtin": "7310240039535"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "köttbullar",
-    "kind": "product",
-    "gtin": "7300156599377",
-    "price": 64.31
-  },
-  {
-    "store": "coop",
-    "normalizedText": "köttbullar",
-    "kind": "product",
-    "gtin": "7300156599377"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "köttbullar delik",
-    "kind": "product",
-    "gtin": "7300156600608",
-    "price": 52.5
-  },
-  {
-    "store": "coop",
-    "normalizedText": "köttbullar delik",
-    "kind": "product",
-    "gtin": "7310240039511",
-    "price": 84.95
-  },
-  {
-    "store": "coop",
-    "normalizedText": "krossade tomater",
-    "kind": "product",
-    "gtin": "7340191170414",
-    "price": 10.36
-  },
-  {
-    "store": "coop",
-    "normalizedText": "krossade tomater",
-    "kind": "product",
-    "gtin": "7340191170414"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "kryd garam masala",
-    "kind": "product",
-    "gtin": "7340011495475",
-    "price": 17.93
-  },
-  {
-    "store": "coop",
-    "normalizedText": "kryd garam masala",
-    "kind": "product",
-    "gtin": "7340011495475"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "lantgoda",
-    "kind": "product",
-    "gtin": "7311070008494",
-    "price": 33.08
-  },
-  {
-    "store": "coop",
-    "normalizedText": "lantgoda",
-    "kind": "product",
-    "gtin": "7311070008494"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "läsk orange",
-    "kind": "product",
-    "gtin": "7300156600769",
-    "price": 13.2
-  },
-  {
-    "store": "coop",
-    "normalizedText": "läsk orange",
-    "kind": "product",
-    "gtin": "7300156600769"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "limejuice",
-    "kind": "product",
-    "gtin": "7340191102187",
-    "price": 20.77
-  },
-  {
-    "store": "coop",
-    "normalizedText": "limejuice",
-    "kind": "product",
-    "gtin": "7340191102187"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "lök gul kg",
-    "kind": "product",
-    "gtin": "7392304211040"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "magnesium 250mg",
-    "kind": "product",
-    "gtin": "7340191167537",
-    "price": 66.2
-  },
-  {
-    "store": "coop",
-    "normalizedText": "magnesium 250mg",
-    "kind": "product",
-    "gtin": "7340191167537"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "mahmood sella",
-    "kind": "product",
-    "gtin": "8680417214232",
-    "price": 145.72
-  },
-  {
-    "store": "coop",
-    "normalizedText": "mahmood sella",
-    "kind": "product",
-    "gtin": "8680417214232"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "majonnäs vegan",
-    "kind": "product",
-    "gtin": "8721201908590",
-    "price": 36.86
-  },
-  {
-    "store": "coop",
-    "normalizedText": "majonnäs vegan",
-    "kind": "product",
-    "gtin": "8721201908590"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "majs 3-pack",
-    "kind": "product",
-    "gtin": "7340191149496"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "matolja",
-    "kind": "product",
-    "gtin": "7340191142848",
-    "price": 49.17
-  },
-  {
-    "store": "coop",
-    "normalizedText": "matolja",
-    "kind": "product",
-    "gtin": "7340191142848"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "mini wafers cacao",
-    "kind": "product",
-    "gtin": "7340191126299",
-    "price": 13.72
-  },
-  {
-    "store": "coop",
-    "normalizedText": "mini wafers cacao",
-    "kind": "product",
-    "gtin": "7340191126299"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "morötter",
-    "kind": "product",
-    "gtin": "7311041043240",
-    "price": 43.44
-  },
-  {
-    "store": "coop",
-    "normalizedText": "morötter",
-    "kind": "product",
-    "gtin": "7311041043240"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "multigrain buscuit",
-    "kind": "product",
-    "gtin": "7300400482912",
-    "price": 26.03
-  },
-  {
-    "store": "coop",
-    "normalizedText": "multigrain buscuit",
-    "kind": "product",
-    "gtin": "7300400482912"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "multivitamin man",
-    "kind": "notInCatalog"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "nedsatt pris mejeri",
-    "kind": "notInCatalog"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "njalla",
-    "kind": "product",
-    "gtin": "7311800006479",
-    "price": 20.77
-  },
-  {
-    "store": "coop",
-    "normalizedText": "njalla",
-    "kind": "product",
-    "gtin": "7311800006479"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "original",
-    "kind": "notInCatalog"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "pan classic mini",
-    "kind": "product",
-    "gtin": "7310240077865",
-    "price": 19.4
-  },
-  {
-    "store": "coop",
-    "normalizedText": "pan classic mini",
-    "kind": "product",
-    "gtin": "7310240077865"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "pan pizza",
-    "kind": "product",
-    "gtin": "7310960713654",
-    "price": 14.15
-  },
-  {
-    "store": "coop",
-    "normalizedText": "pan pizza",
-    "kind": "product",
-    "gtin": "7310960713654"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "pan pizza original",
-    "kind": "product",
-    "gtin": "7310960024415"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "pant pet 1x2kr",
-    "kind": "notInCatalog"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "pant pet 1x3kr",
-    "kind": "notInCatalog"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "papperskasse 35l",
-    "kind": "notInCatalog"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "paprika röd",
-    "kind": "product",
-    "gtin": "7300170031952",
-    "price": 11.4
-  },
-  {
-    "store": "coop",
-    "normalizedText": "paprika röd",
-    "kind": "product",
-    "gtin": "7300170031952"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "päron i korg",
-    "kind": "notInCatalog"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "pasta penne",
-    "kind": "product",
-    "gtin": "7340191153516",
-    "price": 8.37
-  },
-  {
-    "store": "coop",
-    "normalizedText": "pasta penne",
-    "kind": "product",
-    "gtin": "7340191153516"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "pastasås arrabbia.",
-    "kind": "product",
-    "gtin": "7340191156081",
-    "price": 22.24
-  },
-  {
-    "store": "coop",
-    "normalizedText": "pastasås arrabbia.",
-    "kind": "product",
-    "gtin": "7340191156081"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "pepparsalami plb",
-    "kind": "product",
-    "gtin": "7300156591845",
-    "price": 20.77
-  },
-  {
-    "store": "coop",
-    "normalizedText": "pepparsalami plb",
-    "kind": "product",
-    "gtin": "7300156591845"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "pesto genovese",
-    "kind": "product",
-    "gtin": "7340191168947",
-    "price": 16.99
-  },
-  {
-    "store": "coop",
-    "normalizedText": "pesto genovese",
-    "kind": "product",
-    "gtin": "7340191168947"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "pesto peperonico",
-    "kind": "product",
-    "gtin": "8076809578264"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "pet 1p 1x2kr",
-    "kind": "notInCatalog"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "polarråg",
-    "kind": "product",
-    "gtin": "7311800000071",
-    "price": 34.95
-  },
-  {
-    "store": "coop",
-    "normalizedText": "polarråg",
-    "kind": "product",
-    "gtin": "7311800000071"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "prot shake va/ice",
-    "kind": "product",
-    "gtin": "5711953081330",
-    "price": 21.72
-  },
-  {
-    "store": "coop",
-    "normalizedText": "prot shake va/ice",
-    "kind": "product",
-    "gtin": "5711953081330"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "prot shake vanilj",
-    "kind": "product",
-    "gtin": "7350028543540",
-    "price": 25.95
-  },
-  {
-    "store": "coop",
-    "normalizedText": "prot shake vanilj",
-    "kind": "product",
-    "gtin": "5711953081330"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "prot.bar choco c",
-    "kind": "product",
-    "gtin": "7350104403003",
-    "price": 17.93
-  },
-  {
-    "store": "coop",
-    "normalizedText": "prot.bar choco c",
-    "kind": "product",
-    "gtin": "7350104403003"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "prot.bar cooki/cre",
-    "kind": "product",
-    "gtin": "7340001800203",
-    "price": 26.45
-  },
-  {
-    "store": "coop",
-    "normalizedText": "prot.bar cooki/cre",
-    "kind": "product",
-    "gtin": "7340001800203"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "prot.bar haz/choco",
-    "kind": "product",
-    "gtin": "7350104403058",
-    "price": 17.93
-  },
-  {
-    "store": "coop",
-    "normalizedText": "prot.bar haz/choco",
-    "kind": "product",
-    "gtin": "7350104403058"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "prot.bar trip. cho",
-    "kind": "product",
-    "gtin": "7350104403034",
-    "price": 17.93
-  },
-  {
-    "store": "coop",
-    "normalizedText": "prot.bar trip. cho",
-    "kind": "product",
-    "gtin": "7350104403034"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "prot.dr va/hnöt",
-    "kind": "product",
-    "gtin": "5711953183959"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "pumpakär rost/salt",
-    "kind": "product",
-    "gtin": "7311311024672",
-    "price": 38.95
-  },
-  {
-    "store": "coop",
-    "normalizedText": "pumpakär rost/salt",
-    "kind": "product",
-    "gtin": "7311311024672"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "pumpakärnor",
-    "kind": "product",
-    "gtin": "7311311024672",
-    "price": 122.09
-  },
-  {
-    "store": "coop",
-    "normalizedText": "pumpakärnor",
-    "kind": "product",
-    "gtin": "7311311024672"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "ramlösa original",
-    "kind": "product",
-    "gtin": "73145714",
-    "price": 15.1
-  },
-  {
-    "store": "coop",
-    "normalizedText": "ramlösa original",
-    "kind": "product",
-    "gtin": "73145714"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "salladsbuffe färsk",
-    "kind": "notInCatalog"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "salladskål kg",
-    "kind": "product",
-    "gtin": "2317455200007",
-    "price": 26.45
-  },
-  {
-    "store": "coop",
-    "normalizedText": "salladskål kg",
-    "kind": "product",
-    "gtin": "2317455200007"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "salladslök",
-    "kind": "product",
-    "gtin": "7300170040688",
-    "price": 12.9
-  },
-  {
-    "store": "coop",
-    "normalizedText": "salladslök",
-    "kind": "product",
-    "gtin": "7300170040688"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "schampo",
-    "kind": "product",
-    "gtin": "7340011321514",
-    "price": 13.95
-  },
-  {
-    "store": "coop",
-    "normalizedText": "schampo",
-    "kind": "product",
-    "gtin": "7340011321514"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "serla toapapp 18p",
-    "kind": "product",
-    "gtin": "6414301028283",
-    "price": 127
-  },
-  {
-    "store": "coop",
-    "normalizedText": "serla toapapp 18p",
-    "kind": "product",
-    "gtin": "6414301028283"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "serla toapapp 6p",
-    "kind": "notInCatalog"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "sesamfrön eko",
-    "kind": "product",
-    "gtin": "7340191141377",
-    "price": 39.7
-  },
-  {
-    "store": "coop",
-    "normalizedText": "sesamfrön eko",
-    "kind": "product",
-    "gtin": "7340191141377"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "shampoo classic",
-    "kind": "notInCatalog"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "sjögräs nori",
-    "kind": "product",
-    "gtin": "7340191106154",
-    "price": 24.56
-  },
-  {
-    "store": "coop",
-    "normalizedText": "sjögräs nori",
-    "kind": "product",
-    "gtin": "7340191106154"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "skivad eda",
-    "kind": "product",
-    "gtin": "7340011463955",
-    "price": 89.92
-  },
-  {
-    "store": "coop",
-    "normalizedText": "skivad eda",
-    "kind": "product",
-    "gtin": "7340011463955"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "soja japansk",
-    "kind": "product",
-    "gtin": "7340191158580",
-    "price": 36.86
-  },
-  {
-    "store": "coop",
-    "normalizedText": "soja japansk",
-    "kind": "product",
-    "gtin": "7340191158580"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "sojasås",
-    "kind": "product",
-    "gtin": "8850124092823",
-    "price": 23.19
-  },
-  {
-    "store": "coop",
-    "normalizedText": "sojasås",
-    "kind": "product",
-    "gtin": "8850124092823"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "soppåsar 30l g",
-    "kind": "product",
-    "gtin": "7340191170575",
-    "price": 27.95
-  },
-  {
-    "store": "coop",
-    "normalizedText": "soppåsar 30l g",
-    "kind": "product",
-    "gtin": "7340191170575"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "spaghetti",
-    "kind": "product",
-    "gtin": "7350027798170"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "spray dry fresh",
-    "kind": "notInCatalog"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "standardmjölk 3,0%",
-    "kind": "product",
-    "gtin": "7300156494153"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "strimlad rökt sk",
-    "kind": "product",
-    "gtin": "7300156579089",
-    "price": 23.5
-  },
-  {
-    "store": "coop",
-    "normalizedText": "strimlad rökt sk",
-    "kind": "product",
-    "gtin": "7300156579089"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "surdegsbaguette",
-    "kind": "product",
-    "gtin": "7340011423096",
-    "price": 15.1
-  },
-  {
-    "store": "coop",
-    "normalizedText": "surdegsbaguette",
-    "kind": "product",
-    "gtin": "7340011423096"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "sv h-kudd prot nat",
-    "kind": "product",
-    "gtin": "7312560057879"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "tärn bacon naturel",
-    "kind": "product",
-    "gtin": "7300204336008",
-    "price": 18.88
-  },
-  {
-    "store": "coop",
-    "normalizedText": "tärn bacon naturel",
-    "kind": "product",
-    "gtin": "7300204336008"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "tofu naturell eko",
-    "kind": "product",
-    "gtin": "7332040170546",
-    "price": 27.95
-  },
-  {
-    "store": "coop",
-    "normalizedText": "tofu naturell eko",
-    "kind": "product",
-    "gtin": "7332040170546",
-    "price": 23.19
-  },
-  {
-    "store": "coop",
-    "normalizedText": "tofu naturell eko",
-    "kind": "product",
-    "gtin": "7332040170546",
-    "price": 24.5
-  },
-  {
-    "store": "coop",
-    "normalizedText": "tofu naturell eko",
-    "kind": "product",
-    "gtin": "7332040170546"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "tofu naturell krav",
-    "kind": "product",
-    "gtin": "7332040170546",
-    "price": 27.95
-  },
-  {
-    "store": "coop",
-    "normalizedText": "tofu naturell krav",
-    "kind": "product",
-    "gtin": "7332040170546"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "tomat snack mix",
-    "kind": "product",
-    "gtin": "2317406300008",
-    "price": 44
-  },
-  {
-    "store": "coop",
-    "normalizedText": "tomat snack mix",
-    "kind": "product",
-    "gtin": "2317406300008"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "tomater kvist kg sve",
-    "kind": "product",
-    "gtin": "2097480700009",
-    "price": 30.31
-  },
-  {
-    "store": "coop",
-    "normalizedText": "tomater kvist kg sve",
-    "kind": "product",
-    "gtin": "2097480700009"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "tortillachips salt",
-    "kind": "product",
-    "gtin": "7340191141438",
-    "price": 24.56
-  },
-  {
-    "store": "coop",
-    "normalizedText": "tortillachips salt",
-    "kind": "product",
-    "gtin": "7340191141438"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "vaniljyoghurt 2,7%",
-    "kind": "product",
-    "gtin": "7310861012887",
-    "price": 35.5
-  },
-  {
-    "store": "coop",
-    "normalizedText": "vaniljyoghurt 2,7%",
-    "kind": "product",
-    "gtin": "7310861012887",
-    "price": 40.65
-  },
-  {
-    "store": "coop",
-    "normalizedText": "vaniljyoghurt 2,7%",
-    "kind": "product",
-    "gtin": "7310861012887"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "vegan chorizo",
-    "kind": "product",
-    "gtin": "7350037193477",
-    "price": 35.92
-  },
-  {
-    "store": "coop",
-    "normalizedText": "vegan chorizo",
-    "kind": "product",
-    "gtin": "7350037193477"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "vegofärs",
-    "kind": "product",
-    "gtin": "7310240121117",
-    "price": 74.95
-  },
-  {
-    "store": "coop",
-    "normalizedText": "vegofärs",
-    "kind": "product",
-    "gtin": "7310240121117"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "vitlök & örter",
-    "kind": "product",
-    "gtin": "7622210116444",
-    "price": 24.5
-  },
-  {
-    "store": "coop",
-    "normalizedText": "vitlök & örter",
-    "kind": "product",
-    "gtin": "7622210116444"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "vitlökssalami",
-    "kind": "product",
-    "gtin": "6409630008518",
-    "price": 50.16
-  },
-  {
-    "store": "coop",
-    "normalizedText": "vitlökssalami",
-    "kind": "product",
-    "gtin": "6409630008518"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "vittvättmedel",
-    "kind": "notInCatalog"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "x-tra hushåll 4p",
-    "kind": "notInCatalog"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "x-tra hush�ll 4p",
-    "kind": "notInCatalog"
-  },
-  {
-    "store": "coop",
-    "normalizedText": "yoghurt vanilj 2%",
-    "kind": "product",
-    "gtin": "7300156598691",
-    "price": 28.34
-  },
-  {
-    "store": "coop",
-    "normalizedText": "yoghurt vanilj 2%",
-    "kind": "product",
-    "gtin": "7300156598691"
-  }
+	{
+		"store": "coop",
+		"normalizedText": "abisko tunnbröd",
+		"kind": "product",
+		"gtin": "7313830006429",
+		"price": 22
+	},
+	{
+		"store": "coop",
+		"normalizedText": "abisko tunnbröd",
+		"kind": "product",
+		"gtin": "7313830006429"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "ägg 12-p frigående l",
+		"kind": "product",
+		"gtin": "7300156600578"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "ägg 18-p frigående m",
+		"kind": "product",
+		"gtin": "7316162107109"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "ägg 6-p frigående m/",
+		"kind": "product",
+		"gtin": "7316161337804",
+		"price": 19.9
+	},
+	{
+		"store": "coop",
+		"normalizedText": "ägg 6-p frigående m/",
+		"kind": "product",
+		"gtin": "7316161337804"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "avfallspåse vit 20",
+		"kind": "product",
+		"gtin": "7340191170551",
+		"price": 27.95
+	},
+	{
+		"store": "coop",
+		"normalizedText": "avfallspåse vit 20",
+		"kind": "product",
+		"gtin": "7340191170551"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "bacontärningar",
+		"kind": "product",
+		"gtin": "7300156596109",
+		"price": 13.72
+	},
+	{
+		"store": "coop",
+		"normalizedText": "bacontärningar",
+		"kind": "product",
+		"gtin": "7300156596109"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "baguette parisien",
+		"kind": "product",
+		"gtin": "7391288610009",
+		"price": 56.64
+	},
+	{
+		"store": "coop",
+		"normalizedText": "baguette parisien",
+		"kind": "product",
+		"gtin": "7391288610009"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "bar choklad",
+		"kind": "product",
+		"gtin": "5024278003063"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "becel omega3",
+		"kind": "product",
+		"gtin": "8719200052529",
+		"price": 26.45
+	},
+	{
+		"store": "coop",
+		"normalizedText": "becel omega3",
+		"kind": "product",
+		"gtin": "8719200052529"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "blodgrapejuice",
+		"kind": "product",
+		"gtin": "7310860007396",
+		"price": 35.92
+	},
+	{
+		"store": "coop",
+		"normalizedText": "blodgrapejuice",
+		"kind": "product",
+		"gtin": "7310860007396"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "cashew naturella",
+		"kind": "product",
+		"gtin": "7340191180581"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "cashewnötter salt",
+		"kind": "product",
+		"gtin": "7340011343769",
+		"price": 64.31
+	},
+	{
+		"store": "coop",
+		"normalizedText": "cashewnötter salt",
+		"kind": "product",
+		"gtin": "7340011343769"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "cayennepeppar",
+		"kind": "product",
+		"gtin": "7310394002089",
+		"price": 26.9
+	},
+	{
+		"store": "coop",
+		"normalizedText": "cayennepeppar",
+		"kind": "product",
+		"gtin": "7310394002089"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "champinjon 250gr",
+		"kind": "product",
+		"gtin": "7340007901034",
+		"price": 18.88
+	},
+	{
+		"store": "coop",
+		"normalizedText": "champinjon 250gr",
+		"kind": "product",
+		"gtin": "7340007901034"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "chickpeas",
+		"kind": "product",
+		"gtin": "7340191144460",
+		"price": 10.5
+	},
+	{
+		"store": "coop",
+		"normalizedText": "chickpeas",
+		"kind": "product",
+		"gtin": "7340191144460"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "chili concarn mix",
+		"kind": "product",
+		"gtin": "8721201984617",
+		"price": 14.15
+	},
+	{
+		"store": "coop",
+		"normalizedText": "chili concarn mix",
+		"kind": "product",
+		"gtin": "8721201984617"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "choco crunch",
+		"kind": "product",
+		"gtin": "7350117570327",
+		"price": 34.97
+	},
+	{
+		"store": "coop",
+		"normalizedText": "choco crunch",
+		"kind": "product",
+		"gtin": "7350117570327"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "chorizo salami",
+		"kind": "product",
+		"gtin": "7331631011824",
+		"price": 32.13
+	},
+	{
+		"store": "coop",
+		"normalizedText": "chorizo salami",
+		"kind": "product",
+		"gtin": "7331631011824"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "citronjuice",
+		"kind": "product",
+		"gtin": "7340191163348",
+		"price": 12.26
+	},
+	{
+		"store": "coop",
+		"normalizedText": "citronjuice",
+		"kind": "product",
+		"gtin": "7340191163348"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "coca-cola",
+		"kind": "product",
+		"gtin": "5000112690132",
+		"price": 26.03
+	},
+	{
+		"store": "coop",
+		"normalizedText": "coca-cola",
+		"kind": "product",
+		"gtin": "5000112690132"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "coca-cola zero",
+		"kind": "product",
+		"gtin": "5000112689792",
+		"price": 19.5
+	},
+	{
+		"store": "coop",
+		"normalizedText": "coca-cola zero",
+		"kind": "product",
+		"gtin": "5000112689792"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "corny big choklad",
+		"kind": "product",
+		"gtin": "4011800003197",
+		"price": 10.36
+	},
+	{
+		"store": "coop",
+		"normalizedText": "corny big choklad",
+		"kind": "product",
+		"gtin": "4011800003197"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "couscous",
+		"kind": "product",
+		"gtin": "7340011321767",
+		"price": 20.77
+	},
+	{
+		"store": "coop",
+		"normalizedText": "couscous",
+		"kind": "product",
+		"gtin": "7340011321767"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "dansk citronvand",
+		"kind": "product",
+		"gtin": "7311120351020",
+		"price": 16.04
+	},
+	{
+		"store": "coop",
+		"normalizedText": "dansk citronvand",
+		"kind": "product",
+		"gtin": "7311120351020"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "demae ramen kyckli",
+		"kind": "product",
+		"gtin": "8850987101090",
+		"price": 51.8
+	},
+	{
+		"store": "coop",
+		"normalizedText": "demae ramen kyckli",
+		"kind": "product",
+		"gtin": "8850987101090"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "demae ramen spicy",
+		"kind": "product",
+		"gtin": "8712429361106",
+		"price": 41.44
+	},
+	{
+		"store": "coop",
+		"normalizedText": "demae ramen spicy",
+		"kind": "product",
+		"gtin": "8712429361106"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "deospray bla&wh fr",
+		"kind": "notInCatalog"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "dillchips",
+		"kind": "product",
+		"gtin": "7310532106471",
+		"price": 27.5
+	},
+	{
+		"store": "coop",
+		"normalizedText": "dillchips",
+		"kind": "product",
+		"gtin": "7310532106471"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "diskborste",
+		"kind": "notInCatalog"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "egen/ingen påse",
+		"kind": "notInCatalog"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "ekologisk gouda",
+		"kind": "product",
+		"gtin": "7340011479307",
+		"price": 38.25
+	},
+	{
+		"store": "coop",
+		"normalizedText": "ekologisk gouda",
+		"kind": "product",
+		"gtin": "7340011479307"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "favorite nut mix",
+		"kind": "product",
+		"gtin": "7340191168497",
+		"price": 52.01
+	},
+	{
+		"store": "coop",
+		"normalizedText": "favorite nut mix",
+		"kind": "product",
+		"gtin": "7340191168497"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "feta originalet",
+		"kind": "product",
+		"gtin": "7316150970340",
+		"price": 30.24
+	},
+	{
+		"store": "coop",
+		"normalizedText": "feta originalet",
+		"kind": "product",
+		"gtin": "7316150970340"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "fetaost 2 för 46,37kr",
+		"kind": "notInCatalog"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "fiberrost",
+		"kind": "product",
+		"gtin": "7312200040797",
+		"price": 31.95
+	},
+	{
+		"store": "coop",
+		"normalizedText": "fiberrost",
+		"kind": "product",
+		"gtin": "7312200040797"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "fikabröd",
+		"kind": "notInCatalog"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "fint salt med jod",
+		"kind": "product",
+		"gtin": "5701027004211",
+		"price": 11.31
+	},
+	{
+		"store": "coop",
+		"normalizedText": "fint salt med jod",
+		"kind": "product",
+		"gtin": "5701027004211"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "gifflar kanel",
+		"kind": "product",
+		"gtin": "7311070006209",
+		"price": 21.72
+	},
+	{
+		"store": "coop",
+		"normalizedText": "gifflar kanel",
+		"kind": "product",
+		"gtin": "7311070006209"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "gran amore",
+		"kind": "product",
+		"gtin": "7350027799931",
+		"price": 41.6
+	},
+	{
+		"store": "coop",
+		"normalizedText": "gran amore",
+		"kind": "product",
+		"gtin": "7350027799931"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "grana padano 12m",
+		"kind": "product",
+		"gtin": "7340191158412",
+		"price": 46.33
+	},
+	{
+		"store": "coop",
+		"normalizedText": "grana padano 12m",
+		"kind": "product",
+		"gtin": "7350027799191",
+		"price": 49.95
+	},
+	{
+		"store": "coop",
+		"normalizedText": "grana padano 12m",
+		"kind": "product",
+		"gtin": "7350027799191",
+		"price": 48.95
+	},
+	{
+		"store": "coop",
+		"normalizedText": "granatäppeldryck",
+		"kind": "product",
+		"gtin": "8684862900085",
+		"price": 25.51
+	},
+	{
+		"store": "coop",
+		"normalizedText": "granatäppeldryck",
+		"kind": "product",
+		"gtin": "8684862900085"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "greek feta block",
+		"kind": "product",
+		"gtin": "7350002402658",
+		"price": 25.95
+	},
+	{
+		"store": "coop",
+		"normalizedText": "greek feta block",
+		"kind": "product",
+		"gtin": "7350002402658",
+		"price": 21.29
+	},
+	{
+		"store": "coop",
+		"normalizedText": "greek feta block",
+		"kind": "product",
+		"gtin": "7350002402658",
+		"price": 22.95
+	},
+	{
+		"store": "coop",
+		"normalizedText": "greek feta block",
+		"kind": "product",
+		"gtin": "7350002402658"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "grillkorv chorizo",
+		"kind": "product",
+		"gtin": "7300200134004",
+		"price": 38.76
+	},
+	{
+		"store": "coop",
+		"normalizedText": "grillkorv chorizo",
+		"kind": "product",
+		"gtin": "7300200134004"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "grönsaksbuljong",
+		"kind": "product",
+		"gtin": "7090046520221"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "gurka st",
+		"kind": "product",
+		"gtin": "2097459700009",
+		"price": 86.88
+	},
+	{
+		"store": "coop",
+		"normalizedText": "gurka st",
+		"kind": "product",
+		"gtin": "2097459700009"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "gurkmeja ekologisk",
+		"kind": "product",
+		"gtin": "7350046468054",
+		"price": 29.29
+	},
+	{
+		"store": "coop",
+		"normalizedText": "gurkmeja ekologisk",
+		"kind": "product",
+		"gtin": "7350046468054"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "hällrengöring",
+		"kind": "notInCatalog"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "havredryck naturel",
+		"kind": "product",
+		"gtin": "7300156500533",
+		"price": 17.51
+	},
+	{
+		"store": "coop",
+		"normalizedText": "havredryck naturel",
+		"kind": "product",
+		"gtin": "7300156500533"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "havregryn",
+		"kind": "product",
+		"gtin": "7300156599452",
+		"price": 18.88
+	},
+	{
+		"store": "coop",
+		"normalizedText": "havregryn",
+		"kind": "product",
+		"gtin": "7300156599445",
+		"price": 13.72
+	},
+	{
+		"store": "coop",
+		"normalizedText": "hobnobs havrekex",
+		"kind": "product",
+		"gtin": "5000396054378",
+		"price": 19.83
+	},
+	{
+		"store": "coop",
+		"normalizedText": "hobnobs havrekex",
+		"kind": "product",
+		"gtin": "5000396054378"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "hummus chili",
+		"kind": "product",
+		"gtin": "7300156587640",
+		"price": 26.03
+	},
+	{
+		"store": "coop",
+		"normalizedText": "hummus chili",
+		"kind": "product",
+		"gtin": "7350113940018",
+		"price": 27.67
+	},
+	{
+		"store": "coop",
+		"normalizedText": "hushåll dry/strong",
+		"kind": "notInCatalog"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "hushållspapper 4p",
+		"kind": "product",
+		"gtin": "7340191138384",
+		"price": 23.95
+	},
+	{
+		"store": "coop",
+		"normalizedText": "hushållspapper 4p",
+		"kind": "product",
+		"gtin": "7340191138384"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "indian tonic zero",
+		"kind": "product",
+		"gtin": "7310070007070",
+		"price": 24.56
+	},
+	{
+		"store": "coop",
+		"normalizedText": "indian tonic zero",
+		"kind": "product",
+		"gtin": "7310070007070"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "jalapeno räfflade",
+		"kind": "product",
+		"gtin": "7350045591937",
+		"price": 26.97
+	},
+	{
+		"store": "coop",
+		"normalizedText": "jalapeno räfflade",
+		"kind": "product",
+		"gtin": "7350045591937"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "jubileumskakor",
+		"kind": "product",
+		"gtin": "7311800971005",
+		"price": 27.4
+	},
+	{
+		"store": "coop",
+		"normalizedText": "jubileumskakor",
+		"kind": "product",
+		"gtin": "7311800971005"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "juice ap/röd grape",
+		"kind": "product",
+		"gtin": "7300156505828",
+		"price": 33.5
+	},
+	{
+		"store": "coop",
+		"normalizedText": "juice ap/röd grape",
+		"kind": "product",
+		"gtin": "7300156505828"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "karies kontroll",
+		"kind": "product",
+		"gtin": "8718951559011",
+		"price": 20.95
+	},
+	{
+		"store": "coop",
+		"normalizedText": "karies kontroll",
+		"kind": "product",
+		"gtin": "8718951559011"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "kärnsund",
+		"kind": "product",
+		"gtin": "7311070008609"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "kidneybönor",
+		"kind": "product",
+		"gtin": "7340191144569"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "klassis köttbullar",
+		"kind": "product",
+		"gtin": "7310240039535",
+		"price": 76.5
+	},
+	{
+		"store": "coop",
+		"normalizedText": "klassis köttbullar",
+		"kind": "product",
+		"gtin": "7310240039535"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "köttbullar",
+		"kind": "product",
+		"gtin": "7300156599377",
+		"price": 64.31
+	},
+	{
+		"store": "coop",
+		"normalizedText": "köttbullar",
+		"kind": "product",
+		"gtin": "7300156599377"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "köttbullar delik",
+		"kind": "product",
+		"gtin": "7300156600608",
+		"price": 52.5
+	},
+	{
+		"store": "coop",
+		"normalizedText": "köttbullar delik",
+		"kind": "product",
+		"gtin": "7310240039511",
+		"price": 84.95
+	},
+	{
+		"store": "coop",
+		"normalizedText": "krossade tomater",
+		"kind": "product",
+		"gtin": "7340191170414",
+		"price": 10.36
+	},
+	{
+		"store": "coop",
+		"normalizedText": "krossade tomater",
+		"kind": "product",
+		"gtin": "7340191170414"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "kryd garam masala",
+		"kind": "product",
+		"gtin": "7340011495475",
+		"price": 17.93
+	},
+	{
+		"store": "coop",
+		"normalizedText": "kryd garam masala",
+		"kind": "product",
+		"gtin": "7340011495475"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "lantgoda",
+		"kind": "product",
+		"gtin": "7311070008494",
+		"price": 33.08
+	},
+	{
+		"store": "coop",
+		"normalizedText": "lantgoda",
+		"kind": "product",
+		"gtin": "7311070008494"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "läsk orange",
+		"kind": "product",
+		"gtin": "7300156600769",
+		"price": 13.2
+	},
+	{
+		"store": "coop",
+		"normalizedText": "läsk orange",
+		"kind": "product",
+		"gtin": "7300156600769"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "limejuice",
+		"kind": "product",
+		"gtin": "7340191102187",
+		"price": 20.77
+	},
+	{
+		"store": "coop",
+		"normalizedText": "limejuice",
+		"kind": "product",
+		"gtin": "7340191102187"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "lök gul kg",
+		"kind": "product",
+		"gtin": "7392304211040"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "magnesium 250mg",
+		"kind": "product",
+		"gtin": "7340191167537",
+		"price": 66.2
+	},
+	{
+		"store": "coop",
+		"normalizedText": "magnesium 250mg",
+		"kind": "product",
+		"gtin": "7340191167537"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "mahmood sella",
+		"kind": "product",
+		"gtin": "8680417214232",
+		"price": 145.72
+	},
+	{
+		"store": "coop",
+		"normalizedText": "mahmood sella",
+		"kind": "product",
+		"gtin": "8680417214232"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "majonnäs vegan",
+		"kind": "product",
+		"gtin": "8721201908590",
+		"price": 36.86
+	},
+	{
+		"store": "coop",
+		"normalizedText": "majonnäs vegan",
+		"kind": "product",
+		"gtin": "8721201908590"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "majs 3-pack",
+		"kind": "product",
+		"gtin": "7340191149496"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "matolja",
+		"kind": "product",
+		"gtin": "7340191142848",
+		"price": 49.17
+	},
+	{
+		"store": "coop",
+		"normalizedText": "matolja",
+		"kind": "product",
+		"gtin": "7340191142848"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "mini wafers cacao",
+		"kind": "product",
+		"gtin": "7340191126299",
+		"price": 13.72
+	},
+	{
+		"store": "coop",
+		"normalizedText": "mini wafers cacao",
+		"kind": "product",
+		"gtin": "7340191126299"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "morötter",
+		"kind": "product",
+		"gtin": "7311041043240",
+		"price": 43.44
+	},
+	{
+		"store": "coop",
+		"normalizedText": "morötter",
+		"kind": "product",
+		"gtin": "7311041043240"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "multigrain buscuit",
+		"kind": "product",
+		"gtin": "7300400482912",
+		"price": 26.03
+	},
+	{
+		"store": "coop",
+		"normalizedText": "multigrain buscuit",
+		"kind": "product",
+		"gtin": "7300400482912"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "multivitamin man",
+		"kind": "notInCatalog"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "nedsatt pris mejeri",
+		"kind": "notInCatalog"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "njalla",
+		"kind": "product",
+		"gtin": "7311800006479",
+		"price": 20.77
+	},
+	{
+		"store": "coop",
+		"normalizedText": "njalla",
+		"kind": "product",
+		"gtin": "7311800006479"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "original",
+		"kind": "notInCatalog"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "pan classic mini",
+		"kind": "product",
+		"gtin": "7310240077865",
+		"price": 19.4
+	},
+	{
+		"store": "coop",
+		"normalizedText": "pan classic mini",
+		"kind": "product",
+		"gtin": "7310240077865"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "pan pizza",
+		"kind": "product",
+		"gtin": "7310960713654",
+		"price": 14.15
+	},
+	{
+		"store": "coop",
+		"normalizedText": "pan pizza",
+		"kind": "product",
+		"gtin": "7310960713654"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "pan pizza original",
+		"kind": "product",
+		"gtin": "7310960024415"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "pant pet 1x2kr",
+		"kind": "notInCatalog"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "pant pet 1x3kr",
+		"kind": "notInCatalog"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "papperskasse 35l",
+		"kind": "notInCatalog"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "paprika röd",
+		"kind": "product",
+		"gtin": "7300170031952",
+		"price": 11.4
+	},
+	{
+		"store": "coop",
+		"normalizedText": "paprika röd",
+		"kind": "product",
+		"gtin": "7300170031952"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "päron i korg",
+		"kind": "notInCatalog"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "pasta penne",
+		"kind": "product",
+		"gtin": "7340191153516",
+		"price": 8.37
+	},
+	{
+		"store": "coop",
+		"normalizedText": "pasta penne",
+		"kind": "product",
+		"gtin": "7340191153516"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "pastasås arrabbia.",
+		"kind": "product",
+		"gtin": "7340191156081",
+		"price": 22.24
+	},
+	{
+		"store": "coop",
+		"normalizedText": "pastasås arrabbia.",
+		"kind": "product",
+		"gtin": "7340191156081"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "pepparsalami plb",
+		"kind": "product",
+		"gtin": "7300156591845",
+		"price": 20.77
+	},
+	{
+		"store": "coop",
+		"normalizedText": "pepparsalami plb",
+		"kind": "product",
+		"gtin": "7300156591845"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "pesto genovese",
+		"kind": "product",
+		"gtin": "7340191168947",
+		"price": 16.99
+	},
+	{
+		"store": "coop",
+		"normalizedText": "pesto genovese",
+		"kind": "product",
+		"gtin": "7340191168947"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "pesto peperonico",
+		"kind": "product",
+		"gtin": "8076809578264"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "pet 1p 1x2kr",
+		"kind": "notInCatalog"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "polarråg",
+		"kind": "product",
+		"gtin": "7311800000071",
+		"price": 34.95
+	},
+	{
+		"store": "coop",
+		"normalizedText": "polarråg",
+		"kind": "product",
+		"gtin": "7311800000071"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "prot shake va/ice",
+		"kind": "product",
+		"gtin": "5711953081330",
+		"price": 21.72
+	},
+	{
+		"store": "coop",
+		"normalizedText": "prot shake va/ice",
+		"kind": "product",
+		"gtin": "5711953081330"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "prot shake vanilj",
+		"kind": "product",
+		"gtin": "7350028543540",
+		"price": 25.95
+	},
+	{
+		"store": "coop",
+		"normalizedText": "prot shake vanilj",
+		"kind": "product",
+		"gtin": "5711953081330"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "prot.bar choco c",
+		"kind": "product",
+		"gtin": "7350104403003",
+		"price": 17.93
+	},
+	{
+		"store": "coop",
+		"normalizedText": "prot.bar choco c",
+		"kind": "product",
+		"gtin": "7350104403003"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "prot.bar cooki/cre",
+		"kind": "product",
+		"gtin": "7340001800203",
+		"price": 26.45
+	},
+	{
+		"store": "coop",
+		"normalizedText": "prot.bar cooki/cre",
+		"kind": "product",
+		"gtin": "7340001800203"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "prot.bar haz/choco",
+		"kind": "product",
+		"gtin": "7350104403058",
+		"price": 17.93
+	},
+	{
+		"store": "coop",
+		"normalizedText": "prot.bar haz/choco",
+		"kind": "product",
+		"gtin": "7350104403058"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "prot.bar trip. cho",
+		"kind": "product",
+		"gtin": "7350104403034",
+		"price": 17.93
+	},
+	{
+		"store": "coop",
+		"normalizedText": "prot.bar trip. cho",
+		"kind": "product",
+		"gtin": "7350104403034"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "prot.dr va/hnöt",
+		"kind": "product",
+		"gtin": "5711953183959"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "pumpakär rost/salt",
+		"kind": "product",
+		"gtin": "7311311024672",
+		"price": 38.95
+	},
+	{
+		"store": "coop",
+		"normalizedText": "pumpakär rost/salt",
+		"kind": "product",
+		"gtin": "7311311024672"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "pumpakärnor",
+		"kind": "product",
+		"gtin": "7311311024672",
+		"price": 122.09
+	},
+	{
+		"store": "coop",
+		"normalizedText": "pumpakärnor",
+		"kind": "product",
+		"gtin": "7311311024672"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "ramlösa original",
+		"kind": "product",
+		"gtin": "73145714",
+		"price": 15.1
+	},
+	{
+		"store": "coop",
+		"normalizedText": "ramlösa original",
+		"kind": "product",
+		"gtin": "73145714"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "salladsbuffe färsk",
+		"kind": "notInCatalog"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "salladskål kg",
+		"kind": "product",
+		"gtin": "2317455200007",
+		"price": 26.45
+	},
+	{
+		"store": "coop",
+		"normalizedText": "salladskål kg",
+		"kind": "product",
+		"gtin": "2317455200007"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "salladslök",
+		"kind": "product",
+		"gtin": "7300170040688",
+		"price": 12.9
+	},
+	{
+		"store": "coop",
+		"normalizedText": "salladslök",
+		"kind": "product",
+		"gtin": "7300170040688"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "schampo",
+		"kind": "product",
+		"gtin": "7340011321514",
+		"price": 13.95
+	},
+	{
+		"store": "coop",
+		"normalizedText": "schampo",
+		"kind": "product",
+		"gtin": "7340011321514"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "serla toapapp 18p",
+		"kind": "product",
+		"gtin": "6414301028283",
+		"price": 127
+	},
+	{
+		"store": "coop",
+		"normalizedText": "serla toapapp 18p",
+		"kind": "product",
+		"gtin": "6414301028283"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "serla toapapp 6p",
+		"kind": "notInCatalog"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "sesamfrön eko",
+		"kind": "product",
+		"gtin": "7340191141377",
+		"price": 39.7
+	},
+	{
+		"store": "coop",
+		"normalizedText": "sesamfrön eko",
+		"kind": "product",
+		"gtin": "7340191141377"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "shampoo classic",
+		"kind": "notInCatalog"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "sjögräs nori",
+		"kind": "product",
+		"gtin": "7340191106154",
+		"price": 24.56
+	},
+	{
+		"store": "coop",
+		"normalizedText": "sjögräs nori",
+		"kind": "product",
+		"gtin": "7340191106154"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "skivad eda",
+		"kind": "product",
+		"gtin": "7340011463955",
+		"price": 89.92
+	},
+	{
+		"store": "coop",
+		"normalizedText": "skivad eda",
+		"kind": "product",
+		"gtin": "7340011463955"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "soja japansk",
+		"kind": "product",
+		"gtin": "7340191158580",
+		"price": 36.86
+	},
+	{
+		"store": "coop",
+		"normalizedText": "soja japansk",
+		"kind": "product",
+		"gtin": "7340191158580"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "sojasås",
+		"kind": "product",
+		"gtin": "8850124092823",
+		"price": 23.19
+	},
+	{
+		"store": "coop",
+		"normalizedText": "sojasås",
+		"kind": "product",
+		"gtin": "8850124092823"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "soppåsar 30l g",
+		"kind": "product",
+		"gtin": "7340191170575",
+		"price": 27.95
+	},
+	{
+		"store": "coop",
+		"normalizedText": "soppåsar 30l g",
+		"kind": "product",
+		"gtin": "7340191170575"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "spaghetti",
+		"kind": "product",
+		"gtin": "7350027798170"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "spray dry fresh",
+		"kind": "notInCatalog"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "standardmjölk 3,0%",
+		"kind": "product",
+		"gtin": "7300156494153"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "strimlad rökt sk",
+		"kind": "product",
+		"gtin": "7300156579089",
+		"price": 23.5
+	},
+	{
+		"store": "coop",
+		"normalizedText": "strimlad rökt sk",
+		"kind": "product",
+		"gtin": "7300156579089"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "surdegsbaguette",
+		"kind": "product",
+		"gtin": "7340011423096",
+		"price": 15.1
+	},
+	{
+		"store": "coop",
+		"normalizedText": "surdegsbaguette",
+		"kind": "product",
+		"gtin": "7340011423096"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "sv h-kudd prot nat",
+		"kind": "product",
+		"gtin": "7312560057879"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "tärn bacon naturel",
+		"kind": "product",
+		"gtin": "7300204336008",
+		"price": 18.88
+	},
+	{
+		"store": "coop",
+		"normalizedText": "tärn bacon naturel",
+		"kind": "product",
+		"gtin": "7300204336008"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "tofu naturell eko",
+		"kind": "product",
+		"gtin": "7332040170546",
+		"price": 27.95
+	},
+	{
+		"store": "coop",
+		"normalizedText": "tofu naturell eko",
+		"kind": "product",
+		"gtin": "7332040170546",
+		"price": 23.19
+	},
+	{
+		"store": "coop",
+		"normalizedText": "tofu naturell eko",
+		"kind": "product",
+		"gtin": "7332040170546",
+		"price": 24.5
+	},
+	{
+		"store": "coop",
+		"normalizedText": "tofu naturell eko",
+		"kind": "product",
+		"gtin": "7332040170546"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "tofu naturell krav",
+		"kind": "product",
+		"gtin": "7332040170546",
+		"price": 27.95
+	},
+	{
+		"store": "coop",
+		"normalizedText": "tofu naturell krav",
+		"kind": "product",
+		"gtin": "7332040170546"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "tomat snack mix",
+		"kind": "product",
+		"gtin": "2317406300008",
+		"price": 44
+	},
+	{
+		"store": "coop",
+		"normalizedText": "tomat snack mix",
+		"kind": "product",
+		"gtin": "2317406300008"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "tomater kvist kg sve",
+		"kind": "product",
+		"gtin": "2097480700009",
+		"price": 30.31
+	},
+	{
+		"store": "coop",
+		"normalizedText": "tomater kvist kg sve",
+		"kind": "product",
+		"gtin": "2097480700009"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "tortillachips salt",
+		"kind": "product",
+		"gtin": "7340191141438",
+		"price": 24.56
+	},
+	{
+		"store": "coop",
+		"normalizedText": "tortillachips salt",
+		"kind": "product",
+		"gtin": "7340191141438"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "vaniljyoghurt 2,7%",
+		"kind": "product",
+		"gtin": "7310861012887",
+		"price": 35.5
+	},
+	{
+		"store": "coop",
+		"normalizedText": "vaniljyoghurt 2,7%",
+		"kind": "product",
+		"gtin": "7310861012887",
+		"price": 40.65
+	},
+	{
+		"store": "coop",
+		"normalizedText": "vaniljyoghurt 2,7%",
+		"kind": "product",
+		"gtin": "7310861012887"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "vegan chorizo",
+		"kind": "product",
+		"gtin": "7350037193477",
+		"price": 35.92
+	},
+	{
+		"store": "coop",
+		"normalizedText": "vegan chorizo",
+		"kind": "product",
+		"gtin": "7350037193477"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "vegofärs",
+		"kind": "product",
+		"gtin": "7310240121117",
+		"price": 74.95
+	},
+	{
+		"store": "coop",
+		"normalizedText": "vegofärs",
+		"kind": "product",
+		"gtin": "7310240121117"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "vitlök & örter",
+		"kind": "product",
+		"gtin": "7622210116444",
+		"price": 24.5
+	},
+	{
+		"store": "coop",
+		"normalizedText": "vitlök & örter",
+		"kind": "product",
+		"gtin": "7622210116444"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "vitlökssalami",
+		"kind": "product",
+		"gtin": "6409630008518",
+		"price": 50.16
+	},
+	{
+		"store": "coop",
+		"normalizedText": "vitlökssalami",
+		"kind": "product",
+		"gtin": "6409630008518"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "vittvättmedel",
+		"kind": "notInCatalog"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "x-tra hushåll 4p",
+		"kind": "notInCatalog"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "x-tra hush�ll 4p",
+		"kind": "notInCatalog"
+	},
+	{
+		"store": "coop",
+		"normalizedText": "yoghurt vanilj 2%",
+		"kind": "product",
+		"gtin": "7300156598691",
+		"price": 28.34
+	},
+	{
+		"store": "coop",
+		"normalizedText": "yoghurt vanilj 2%",
+		"kind": "product",
+		"gtin": "7300156598691"
+	}
 ]

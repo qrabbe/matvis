@@ -1,36 +1,36 @@
 {
-  "name": "@matvis/landing",
-  "version": "0.0.0",
-  "private": true,
-  "type": "module",
-  "description": "Matvis landing page (distributor page for the portals)",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/qrabbe/matvis.git",
-    "directory": "packages/landing"
-  },
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
-    "test": "vitest run",
-    "typecheck": "tsc -b"
-  },
-  "dependencies": {
-    "@matvis/shared": "workspace:*",
-    "@matvis/ui": "workspace:*",
-    "@wordpress/icons": "^15.2.0",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1"
-  },
-  "devDependencies": {
-    "@testing-library/jest-dom": "^7.0.0",
-    "@testing-library/react": "^16.3.2",
-    "@types/react": "^18",
-    "@types/react-dom": "^18",
-    "@vitejs/plugin-react": "^6.0.3",
-    "jsdom": "^26.1.0",
-    "vite": "^8.1.5",
-    "vitest": "^4.1.10"
-  }
+	"name": "@matvis/landing",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"description": "Matvis landing page (distributor page for the portals)",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/qrabbe/matvis.git",
+		"directory": "packages/landing"
+	},
+	"scripts": {
+		"dev": "vite",
+		"build": "vite build",
+		"preview": "vite preview",
+		"test": "vitest run",
+		"typecheck": "tsc -b"
+	},
+	"dependencies": {
+		"@matvis/shared": "workspace:*",
+		"@matvis/ui": "workspace:*",
+		"@wordpress/icons": "^15.2.0",
+		"react": "^18.3.1",
+		"react-dom": "^18.3.1"
+	},
+	"devDependencies": {
+		"@testing-library/jest-dom": "^7.0.0",
+		"@testing-library/react": "^16.3.2",
+		"@types/react": "^18",
+		"@types/react-dom": "^18",
+		"@vitejs/plugin-react": "^6.0.3",
+		"jsdom": "^26.1.0",
+		"vite": "^8.1.5",
+		"vitest": "^4.1.10"
+	}
 }

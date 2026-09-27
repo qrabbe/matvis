@@ -1,90 +1,107 @@
 import {
-  CATALOG_UNITS,
-  SOLD_BY,
-  STORES,
-  type CatalogItem,
+	CATALOG_UNITS,
+	SOLD_BY,
+	STORES,
+	type CatalogItem,
 } from '@matvis/shared';
 import { v, type Infer } from 'convex/values';
 
-type Equal<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
+type Equal< A, B > = [ A ] extends [ B ]
+	? [ B ] extends [ A ]
+		? true
+		: false
+	: false;
 
-/** Must stay a constraint on a concrete argument. The shorter
- * `AssertEqual<A extends B, B extends A>` is circular and passes on any drift. */
-type Assert<T extends true> = T;
+/**
+ * Must stay a constraint on a concrete argument. The shorter
+ * `AssertEqual<A extends B, B extends A>` is circular and passes on any drift.
+ */
+type Assert< T extends true > = T;
 
-export const storeValidator = v.union(...STORES.map((slug) => v.literal(slug)));
-
-export const unitValidator = v.union(
-  ...CATALOG_UNITS.map((unit) => v.literal(unit)),
+export const storeValidator = v.union(
+	...STORES.map( ( slug ) => v.literal( slug ) )
 );
 
-export const soldByValidator = v.union(...SOLD_BY.map((how) => v.literal(how)));
+export const unitValidator = v.union(
+	...CATALOG_UNITS.map( ( unit ) => v.literal( unit ) )
+);
 
-export const quantityValidator = v.object({
-  value: v.number(),
-  unit: unitValidator,
-});
+export const soldByValidator = v.union(
+	...SOLD_BY.map( ( how ) => v.literal( how ) )
+);
 
-export const nutritionValidator = v.object({
-  basisQuantity: v.number(),
-  basisUnit: unitValidator,
-  energyKcal: v.optional(v.number()),
-  energyKj: v.optional(v.number()),
-  fatG: v.optional(v.number()),
-  saturatedFatG: v.optional(v.number()),
-  carbohydrateG: v.optional(v.number()),
-  sugarsG: v.optional(v.number()),
-  fiberG: v.optional(v.number()),
-  proteinG: v.optional(v.number()),
-  saltG: v.optional(v.number()),
-});
+export const quantityValidator = v.object( {
+	value: v.number(),
+	unit: unitValidator,
+} );
 
-export const foodValidator = v.object({
-  ingredients: v.optional(v.string()),
-  nutrition: v.optional(nutritionValidator),
-});
+export const nutritionValidator = v.object( {
+	basisQuantity: v.number(),
+	basisUnit: unitValidator,
+	energyKcal: v.optional( v.number() ),
+	energyKj: v.optional( v.number() ),
+	fatG: v.optional( v.number() ),
+	saturatedFatG: v.optional( v.number() ),
+	carbohydrateG: v.optional( v.number() ),
+	sugarsG: v.optional( v.number() ),
+	fiberG: v.optional( v.number() ),
+	proteinG: v.optional( v.number() ),
+	saltG: v.optional( v.number() ),
+} );
+
+export const foodValidator = v.object( {
+	ingredients: v.optional( v.string() ),
+	nutrition: v.optional( nutritionValidator ),
+} );
 
 export const catalogFields = {
-  ean: v.string(),
-  name: v.string(),
-  store: storeValidator,
+	ean: v.string(),
+	name: v.string(),
+	store: storeValidator,
 
-  brand: v.optional(v.string()),
-  imageUrl: v.optional(v.string()),
-  netContent: v.optional(quantityValidator),
-  packageSizeText: v.optional(v.string()),
-  soldBy: v.optional(soldByValidator),
-  categoryPath: v.optional(v.array(v.string())),
+	brand: v.optional( v.string() ),
+	imageUrl: v.optional( v.string() ),
+	netContent: v.optional( quantityValidator ),
+	packageSizeText: v.optional( v.string() ),
+	soldBy: v.optional( soldByValidator ),
+	categoryPath: v.optional( v.array( v.string() ) ),
 
-  description: v.optional(v.string()),
-  countryOfOrigin: v.optional(v.string()),
-  labels: v.optional(v.array(v.string())),
+	description: v.optional( v.string() ),
+	countryOfOrigin: v.optional( v.string() ),
+	labels: v.optional( v.array( v.string() ) ),
 
-  food: v.optional(foodValidator),
+	food: v.optional( foodValidator ),
 
-  /** Optional because every row written before this field existed has no value
-   * for it, and there is no honest one to backfill: `_creationTime` survives a
-   * replace and so means first write, never last fetch. Absent reads as "not
-   * verified since this landed", which is the truth. */
-  fetchedAt: v.optional(v.number()),
+	/**
+	 * Optional because every row written before this field existed has no value
+	 * for it, and there is no honest one to backfill: `_creationTime` survives a
+	 * replace and so means first write, never last fetch. Absent reads as "not
+	 * verified since this landed", which is the truth.
+	 */
+	fetchedAt: v.optional( v.number() ),
 } as const;
 
 // Written by upsertClean, not part of the published contract, stripped from
 // every public read. Optional: rows written before this backfill have neither.
 export const catalogInternalFields = {
-  searchText: v.optional(v.string()),
-  categoryKey: v.optional(v.string()),
-  nameKey: v.optional(v.string()),
+	searchText: v.optional( v.string() ),
+	categoryKey: v.optional( v.string() ),
+	nameKey: v.optional( v.string() ),
 } as const;
 
-export const catalogDocValidator = v.object({
-  _id: v.id('catalog'),
-  _creationTime: v.number(),
-  ...catalogFields,
-});
+export const catalogDocValidator = v.object( {
+	_id: v.id( 'catalog' ),
+	_creationTime: v.number(),
+	...catalogFields,
+} );
 
-/** Exported so `noUnusedLocals` cannot delete the pin: this is the compile-time
- * assertion that the table and `@matvis/shared`'s `CatalogItem` stay identical. */
+/**
+ * Exported so `noUnusedLocals` cannot delete the pin: this is the compile-time
+ * assertion that the table and `@matvis/shared`'s `CatalogItem` stay identical.
+ */
 export type CatalogItemMatches = Assert<
-  Equal<Infer<ReturnType<typeof v.object<typeof catalogFields>>>, CatalogItem>
+	Equal<
+		Infer< ReturnType< typeof v.object< typeof catalogFields > > >,
+		CatalogItem
+	>
 >;

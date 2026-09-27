@@ -1,33 +1,33 @@
 {
-  "name": "@matvis/catalog",
-  "version": "0.0.0",
-  "description": "Matvis catalog",
-  "private": true,
-  "type": "module",
-  "sideEffects": false,
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
-  "exports": {
-    ".": "./src/index.ts",
-    "./api": "./convex/_generated/api.js"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/qrabbe/matvis.git",
-    "directory": "packages/catalog"
-  },
-  "scripts": {
-    "dev": "convex dev",
-    "typecheck": "tsc -b",
-    "test": "vitest run"
-  },
-  "dependencies": {
-    "@matvis/shared": "workspace:*",
-    "convex": "^1.42.3"
-  },
-  "devDependencies": {
-    "@edge-runtime/vm": "^5.0.0",
-    "convex-test": "^0.0.54",
-    "vitest": "^4.1.10"
-  }
+	"name": "@matvis/catalog",
+	"version": "0.0.0",
+	"description": "Matvis catalog",
+	"private": true,
+	"type": "module",
+	"sideEffects": false,
+	"main": "./src/index.ts",
+	"types": "./src/index.ts",
+	"exports": {
+		".": "./src/index.ts",
+		"./api": "./convex/_generated/api.js"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/qrabbe/matvis.git",
+		"directory": "packages/catalog"
+	},
+	"scripts": {
+		"dev": "convex dev",
+		"typecheck": "tsc -b",
+		"test": "vitest run"
+	},
+	"dependencies": {
+		"@matvis/shared": "workspace:*",
+		"convex": "^1.42.3"
+	},
+	"devDependencies": {
+		"@edge-runtime/vm": "^5.0.0",
+		"convex-test": "^0.0.54",
+		"vitest": "^4.1.10"
+	}
 }

@@ -8,57 +8,68 @@ import { MODELS, type ModelField } from '../../src/lib/contract';
  * added without a `.meta({ description })` fails here.
  */
 
-describe('models', () => {
-  it('names CatalogItem and the blocks it references', () => {
-    // One root. The referenced blocks are nested inside the fields that
-    // carry them rather than listed beside them.
-    expect(MODELS.map((model) => model.name)).toEqual(['CatalogItem']);
-  });
+describe( 'models', () => {
+	it( 'names CatalogItem and the blocks it references', () => {
+		// One root. The referenced blocks are nested inside the fields that
+		// carry them rather than listed beside them.
+		expect( MODELS.map( ( model ) => model.name ) ).toEqual( [
+			'CatalogItem',
+		] );
+	} );
 
-  it('derives required from .optional() rather than from a hand-kept list', () => {
-    const item = MODELS[0]!;
-    const required = item.fields
-      .filter((field) => field.required)
-      .map((field) => field.name);
-    expect(required).toEqual(['ean', 'name', 'store']);
-    expect(item.fields.map((field) => field.name)).toEqual(
-      Object.keys(CatalogItem.shape),
-    );
-  });
+	it( 'derives required from .optional() rather than from a hand-kept list', () => {
+		const item = MODELS[ 0 ]!;
+		const required = item.fields
+			.filter( ( field ) => field.required )
+			.map( ( field ) => field.name );
+		expect( required ).toEqual( [ 'ean', 'name', 'store' ] );
+		expect( item.fields.map( ( field ) => field.name ) ).toEqual(
+			Object.keys( CatalogItem.shape )
+		);
+	} );
 
-  it('expands store to the real slugs and nests the referenced blocks', () => {
-    const item = MODELS[0]!;
-    const field = (fields: ModelField[], name: string) =>
-      fields.find((f) => f.name === name);
+	it( 'expands store to the real slugs and nests the referenced blocks', () => {
+		const item = MODELS[ 0 ]!;
+		const field = ( fields: ModelField[], name: string ) =>
+			fields.find( ( f ) => f.name === name );
 
-    expect(field(item.fields, 'store')!.type).toContain('"coop"');
-    expect(field(item.fields, 'categoryPath')!.type).toBe('string[]');
+		expect( field( item.fields, 'store' )!.type ).toContain( '"coop"' );
+		expect( field( item.fields, 'categoryPath' )!.type ).toBe( 'string[]' );
 
-    const food = field(item.fields, 'food')!;
-    expect(food.type).toBe('CatalogFood');
-    // The link that used to be thrown away at render: the block is inside the
-    // field that carries it, not a sibling section further down.
-    expect(food.fields?.map((f) => f.name)).toEqual([
-      'ingredients',
-      'nutrition',
-    ]);
+		const food = field( item.fields, 'food' )!;
+		expect( food.type ).toBe( 'CatalogFood' );
+		// The link that used to be thrown away at render: the block is inside the
+		// field that carries it, not a sibling section further down.
+		expect( food.fields?.map( ( f ) => f.name ) ).toEqual( [
+			'ingredients',
+			'nutrition',
+		] );
 
-    const nutrition = field(food.fields!, 'nutrition')!;
-    expect(nutrition.type).toBe('CatalogNutrition');
-    expect(nutrition.fields?.map((f) => f.name)).toContain('basisUnit');
+		const nutrition = field( food.fields!, 'nutrition' )!;
+		expect( nutrition.type ).toBe( 'CatalogNutrition' );
+		expect( nutrition.fields?.map( ( f ) => f.name ) ).toContain(
+			'basisUnit'
+		);
 
-    const netContent = field(item.fields, 'netContent')!;
-    expect(netContent.fields?.map((f) => f.name)).toEqual(['value', 'unit']);
-  });
+		const netContent = field( item.fields, 'netContent' )!;
+		expect( netContent.fields?.map( ( f ) => f.name ) ).toEqual( [
+			'value',
+			'unit',
+		] );
+	} );
 
-  it('has a note on every field, nested ones included', () => {
-    const walk = (fields: ModelField[], path: string): string[] =>
-      fields.flatMap((field) => [
-        ...(field.note === '' ? [`${path}.${field.name}`] : []),
-        ...(field.fields ? walk(field.fields, `${path}.${field.name}`) : []),
-      ]);
+	it( 'has a note on every field, nested ones included', () => {
+		const walk = ( fields: ModelField[], path: string ): string[] =>
+			fields.flatMap( ( field ) => [
+				...( field.note === '' ? [ `${ path }.${ field.name }` ] : [] ),
+				...( field.fields
+					? walk( field.fields, `${ path }.${ field.name }` )
+					: [] ),
+			] );
 
-    const unnoted = MODELS.flatMap((model) => walk(model.fields, model.name));
-    expect(unnoted).toEqual([]);
-  });
-});
+		const unnoted = MODELS.flatMap( ( model ) =>
+			walk( model.fields, model.name )
+		);
+		expect( unnoted ).toEqual( [] );
+	} );
+} );

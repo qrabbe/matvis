@@ -1,10 +1,10 @@
 :root {
-  color-scheme: dark;
+	color-scheme: dark;
 }
 
 .matvis-theme {
-  isolation: isolate; /* so portaled popovers layer correctly */
-  min-height: 100dvh;
-  background-color: var(--wpds-color-background-surface-neutral);
-  color: var(--wpds-color-foreground-content-neutral);
+	isolation: isolate; /* so portaled popovers layer correctly */
+	min-height: 100dvh;
+	background-color: var(--wpds-color-background-surface-neutral);
+	color: var(--wpds-color-foreground-content-neutral);
 }

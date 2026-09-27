@@ -5,10 +5,10 @@ import { defineConfig } from 'vitest/config';
 // Bun's test runner ignores them — the root `test` script is a bare `bun test`
 // and would otherwise pick them up and fail. The bun:test suite in `test/` runs
 // separately (see `test` script + packages/connector/bunfig.toml).
-export default defineConfig({
-  test: {
-    environment: 'edge-runtime',
-    include: ['convex/**/*.vitest.ts'],
-    server: { deps: { inline: ['convex-test'] } },
-  },
-});
+export default defineConfig( {
+	test: {
+		environment: 'edge-runtime',
+		include: [ 'convex/**/*.vitest.ts' ],
+		server: { deps: { inline: [ 'convex-test' ] } },
+	},
+} );

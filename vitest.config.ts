@@ -11,15 +11,15 @@ import { defineConfig } from 'vitest/config';
  *
  * The pure-logic suites stay on bun test — see the root `test` script.
  */
-export default defineConfig({
-  test: {
-    projects: [
-      'packages/connector',
-      'packages/catalog',
-      'packages/app',
-      'packages/connector-portal',
-      'packages/catalog-portal',
-      'packages/landing',
-    ],
-  },
-});
+export default defineConfig( {
+	test: {
+		projects: [
+			'packages/connector',
+			'packages/catalog',
+			'packages/app',
+			'packages/connector-portal',
+			'packages/catalog-portal',
+			'packages/landing',
+		],
+	},
+} );

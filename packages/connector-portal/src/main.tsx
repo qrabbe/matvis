@@ -4,10 +4,10 @@ import { mountApp, requireConvexUrl } from '@matvis/ui';
 import { App } from './App';
 
 const convex = new ConvexReactClient(
-  requireConvexUrl(
-    'packages/connector-portal/.env.local',
-    'VITE_CONNECTOR_CONVEX_URL',
-  ),
+	requireConvexUrl(
+		'packages/connector-portal/.env.local',
+		'VITE_CONNECTOR_CONVEX_URL'
+	)
 );
 
-mountApp({ client: convex, Provider: ConvexAuthProvider, children: <App /> });
+mountApp( { client: convex, Provider: ConvexAuthProvider, children: <App /> } );
