@@ -57,13 +57,34 @@ export default defineSchema({
    * which is what retires `by_store`.
    *
    * `search_text` matches name, brand and every category name, past the
-   * Swedish compounds `name` alone missed. Filterable by store. */
+   * Swedish compounds `name` alone missed. Filterable by store.
+   *
+   * `by_store_key_name` serves browsing: products within a category, in shelf
+   * order. Indexed on `nameKey` (Swedish-folded) rather than `name`, since an
+   * index sorts by code unit and would put Ä/Ö before every ASCII letter. */
   catalog: defineTable({ ...catalogFields, ...catalogInternalFields })
     .index('by_ean_store', ['ean', 'store'])
+    .index('by_store_key_name', ['store', 'categoryKey', 'nameKey'])
     .searchIndex('search_text', {
       searchField: 'searchText',
       filterFields: ['store'],
     }),
+
+  /** One row per category per chain: the tree walked by browsing screens.
+   * Parent is a slug path, "" for top-level. Index by (store, parentSlug)
+   * for level reads and "has children" checks, by (store, categoryKey) for
+   * product branch reads, and by (store, slug) for a single node. */
+  categoryTree: defineTable({
+    store: storeValidator,
+    categoryKey: v.string(),
+    slug: v.string(),
+    parentSlug: v.string(),
+    name: v.string(),
+    count: v.number(),
+  })
+    .index('by_store_parent', ['store', 'parentSlug'])
+    .index('by_store_key', ['store', 'categoryKey'])
+    .index('by_store_slug', ['store', 'slug']),
 
   /** One row per settled search term. `visitor` is a random id the browser
    * makes up, not a signed-in identity: the catalog site has no sign-in and

@@ -49,6 +49,7 @@ const PUBLIC_ADMIN_FUNCTIONS = [
   'enqueueEans',
   'overview',
   'queueRows',
+  'rebuildCategoryTree',
   'rebuildCounters',
   'removeQueueRows',
   'repairNetContent',

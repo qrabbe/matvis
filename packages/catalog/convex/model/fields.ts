@@ -74,6 +74,7 @@ export const catalogFields = {
 export const catalogInternalFields = {
   searchText: v.optional(v.string()),
   categoryKey: v.optional(v.string()),
+  nameKey: v.optional(v.string()),
 } as const;
 
 export const catalogDocValidator = v.object({

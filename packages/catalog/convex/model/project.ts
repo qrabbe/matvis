@@ -16,7 +16,26 @@ import {
 } from './counters';
 import type { CoopProduct } from '../coop/sanitize';
 import { netContentFromName, type IcaProduct } from '../ica/parse';
-import { categoryKeyFor, searchTextFor } from './categoryKey';
+import { categoryKeyFor, foldSegment, searchTextFor } from './categoryKey';
+
+// Helper to bump/decrement a category count in categoryTree.
+async function bumpCategoryCount(
+  ctx: MutationCtx,
+  store: StoreSlug,
+  categoryKey: string,
+  delta: number,
+): Promise<void> {
+  if (delta === 0) return;
+  const row = await ctx.db
+    .query('categoryTree')
+    .withIndex('by_store_key', (q) =>
+      q.eq('store', store).eq('categoryKey', categoryKey),
+    )
+    .first();
+  if (!row) return;
+  const newCount = Math.max(0, row.count + delta);
+  await ctx.db.patch(row._id, { count: newCount });
+}
 
 /** What a projector produces. `fetchedAt` is excluded because a projection is a
  * pure function of a payload and the time it arrived is not in the payload:
@@ -306,10 +325,12 @@ export function projectIcaProduct(doc: IcaProduct): CleanFields | null {
 export function deriveSearchFields(fields: CleanFields): {
   searchText: string;
   categoryKey: string;
+  nameKey: string;
 } {
   return {
     searchText: searchTextFor(fields),
     categoryKey: categoryKeyFor(fields.categoryPath),
+    nameKey: foldSegment(fields.name),
   };
 }
 
@@ -339,6 +360,11 @@ export async function upsertClean(
     if (existing.fetchedAt === undefined) {
       await bumpCounter(ctx, CATALOG_VERIFIED_KEY, 1);
     }
+    // If the category changed, move the count.
+    if (existing.categoryKey !== derived.categoryKey) {
+      await bumpCategoryCount(ctx, fields.store, existing.categoryKey, -1);
+      await bumpCategoryCount(ctx, fields.store, derived.categoryKey, 1);
+    }
     await ctx.db.replace(existing._id, { ...fields, ...derived, fetchedAt });
     return false;
   }
@@ -346,6 +372,7 @@ export async function upsertClean(
   await bumpCounter(ctx, CATALOG_COUNT_KEY, 1);
   await bumpCounter(ctx, catalogStoreKey(fields.store), 1);
   await bumpCounter(ctx, CATALOG_VERIFIED_KEY, 1);
+  await bumpCategoryCount(ctx, fields.store, derived.categoryKey, 1);
   return true;
 }
 

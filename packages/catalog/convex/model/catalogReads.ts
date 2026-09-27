@@ -15,13 +15,13 @@ function looksLikeEan(term: string): boolean {
   return EAN_QUERY_PATTERN.test(term);
 }
 
-// searchText/categoryKey are internal, not in the published contract. The
-// return validator rejects an undeclared field rather than stripping it, so
-// every public read goes through this first.
+// searchText/categoryKey/nameKey are internal, not in the published contract.
+// The return validator rejects an undeclared field rather than stripping it,
+// so every public read goes through this first.
 export function toCatalogItem(
   row: Doc<'catalog'>,
-): Omit<Doc<'catalog'>, 'searchText' | 'categoryKey'> {
-  const { searchText, categoryKey, ...rest } = row;
+): Omit<Doc<'catalog'>, 'searchText' | 'categoryKey' | 'nameKey'> {
+  const { searchText, categoryKey, nameKey, ...rest } = row;
   return rest;
 }
 

@@ -1,9 +1,19 @@
 import { v } from 'convex/values';
-import { internalAction, internalMutation } from './_generated/server';
+import {
+  internalAction,
+  internalMutation,
+  internalQuery,
+} from './_generated/server';
 import { internal } from './_generated/api';
 import { STORES } from '@matvis/shared';
 import { QUEUE_STATUSES } from './model/ingest';
 import { storeValidator } from './model/fields';
+import {
+  categoryKeyFor,
+  categoryKeyForPrefix,
+  OTHER_CATEGORY_KEY,
+  slugSegment,
+} from './model/categoryKey';
 import {
   deriveSearchFields,
   netContentFrom,
@@ -250,7 +260,8 @@ export const backfillSearchFieldsPage = internalMutation({
       const derived = deriveSearchFields(row);
       if (
         row.searchText === derived.searchText &&
-        row.categoryKey === derived.categoryKey
+        row.categoryKey === derived.categoryKey &&
+        row.nameKey === derived.nameKey
       ) {
         continue;
       }
@@ -456,5 +467,160 @@ export const rebuildCounters = internalAction({
       }
     }
     return { queue, catalog, pages };
+  },
+});
+
+type CategoryTreeRow = {
+  store: string;
+  categoryKey: string;
+  slug: string;
+  parentSlug: string;
+  name: string;
+  count: number;
+};
+
+// One page of (store, categoryPath) pairs, for the action to tally in memory
+// across every page before writing anything.
+export const categoryTallyPage = internalQuery({
+  args: { cursor: v.union(v.string(), v.null()) },
+  returns: v.object({
+    rows: v.array(
+      v.object({
+        store: storeValidator,
+        categoryPath: v.optional(v.array(v.string())),
+      }),
+    ),
+    continueCursor: v.string(),
+    isDone: v.boolean(),
+  }),
+  handler: async (ctx, { cursor }) => {
+    const page = await ctx.db
+      .query('catalog')
+      .paginate({ cursor, numItems: RECOUNT_CATALOG_PAGE });
+    return {
+      rows: page.page.map((row) => ({
+        store: row.store,
+        categoryPath: row.categoryPath,
+      })),
+      continueCursor: page.continueCursor,
+      isDone: page.isDone,
+    };
+  },
+});
+
+export const clearCategoryTreePage = internalMutation({
+  args: {},
+  returns: v.object({ isDone: v.boolean() }),
+  handler: async (ctx) => {
+    const page = await ctx.db.query('categoryTree').take(RECOUNT_CATALOG_PAGE);
+    for (const row of page) await ctx.db.delete(row._id);
+    return { isDone: page.length === 0 };
+  },
+});
+
+export const insertCategoryTreeRows = internalMutation({
+  args: {
+    rows: v.array(
+      v.object({
+        store: storeValidator,
+        categoryKey: v.string(),
+        slug: v.string(),
+        parentSlug: v.string(),
+        name: v.string(),
+        count: v.number(),
+      }),
+    ),
+  },
+  returns: v.null(),
+  handler: async (ctx, { rows }) => {
+    for (const row of rows) await ctx.db.insert('categoryTree', row);
+    return null;
+  },
+});
+
+const INSERT_BATCH = 200;
+
+/** Pause ingest before running this. It pages across many transactions and a
+ * live drain writing rows underneath it is one more thing to reason about.
+ *
+ * Every prefix of a row's category path becomes its own tree node (a branch's
+ * key is a prefix of every leaf beneath it, per `categoryKeyForPrefix`), so a
+ * top-level category's count already rolls up everything under it. Tallied in
+ * the action's own memory across every page before any write, so a category
+ * split across pages gets one row with the right count rather than one row
+ * per page. */
+export const rebuildCategoryTree = internalAction({
+  args: {},
+  returns: v.object({ rows: v.number(), pages: v.number() }),
+  handler: async (ctx) => {
+    for (;;) {
+      const { isDone } = await ctx.runMutation(
+        internal.backfill.clearCategoryTreePage,
+        {},
+      );
+      if (isDone) break;
+    }
+
+    const tally = new Map<string, CategoryTreeRow>();
+    function bump(
+      store: string,
+      slug: string,
+      parentSlug: string,
+      name: string,
+      categoryKey: string,
+    ) {
+      const mapKey = `${store}:${slug}`;
+      const existing = tally.get(mapKey);
+      if (existing) {
+        existing.count += 1;
+        return;
+      }
+      tally.set(mapKey, {
+        store,
+        categoryKey,
+        slug,
+        parentSlug,
+        name,
+        count: 1,
+      });
+    }
+
+    let pages = 0;
+    let cursor: string | null = null;
+    for (;;) {
+      const page = await ctx.runQuery(internal.backfill.categoryTallyPage, {
+        cursor,
+      });
+      for (const row of page.rows) {
+        const categoryKey = categoryKeyFor(row.categoryPath);
+        if (categoryKey === OTHER_CATEGORY_KEY) {
+          bump(row.store, 'other', '', 'Other', OTHER_CATEGORY_KEY);
+          continue;
+        }
+        const trimmed = row.categoryPath!.map((segment) => segment.trim());
+        const slugs = trimmed.map(slugSegment);
+        for (let depth = 0; depth < trimmed.length; depth++) {
+          bump(
+            row.store,
+            slugs.slice(0, depth + 1).join('/'),
+            depth === 0 ? '' : slugs.slice(0, depth).join('/'),
+            trimmed[depth],
+            categoryKeyForPrefix(trimmed.slice(0, depth + 1)),
+          );
+        }
+      }
+      pages += 1;
+      if (page.isDone) break;
+      cursor = page.continueCursor;
+    }
+
+    const rows = [...tally.values()];
+    for (let i = 0; i < rows.length; i += INSERT_BATCH) {
+      await ctx.runMutation(internal.backfill.insertCategoryTreeRows, {
+        rows: rows.slice(i, i + INSERT_BATCH),
+      });
+    }
+
+    return { rows: rows.length, pages };
   },
 });

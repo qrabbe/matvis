@@ -489,6 +489,23 @@ export const rebuildCounters = adminAction({
   },
 });
 
+/** Rebuilds the category tree from the catalog. Refuses unless ingest is
+ * paused for the same reason rebuildCounters does. */
+export const rebuildCategoryTree = adminAction({
+  args: {},
+  returns: v.object({
+    rows: v.number(),
+    pages: v.number(),
+  }),
+  handler: async (ctx) => {
+    const paused: boolean = await ctx.runQuery(internal.runLog.isPaused, {});
+    if (!paused) {
+      throw new Error('Pause ingest before rebuilding the category tree');
+    }
+    return await ctx.runAction(internal.backfill.rebuildCategoryTree, {});
+  },
+});
+
 /** One or many EANs into one store's lane. `eans` is the console paste and
  * `rows` is the loader's form, which additionally carries the store's own
  * product id where an EAN cannot address the source on its own.
