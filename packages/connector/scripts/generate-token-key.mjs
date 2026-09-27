@@ -14,26 +14,27 @@ import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const prod = process.argv.includes('--prod');
-const envFlags = prod ? ['--prod'] : [];
+const prod = process.argv.includes( '--prod' );
+const envFlags = prod ? [ '--prod' ] : [];
 
 // Same CLI resolution as generate-auth-keys.mjs: run the Convex CLI's JS entry
 // with `node` directly so no shell touches the argument values.
-const here = dirname(fileURLToPath(import.meta.url));
+const here = dirname( fileURLToPath( import.meta.url ) );
 const convexCli = [
-  join(here, '..', 'node_modules', 'convex', 'bin', 'main.js'),
-  join(here, '..', '..', '..', 'node_modules', 'convex', 'bin', 'main.js'),
-].find(existsSync);
-if (!convexCli)
-  throw new Error('Could not locate the Convex CLI (convex/bin/main.js)');
+	join( here, '..', 'node_modules', 'convex', 'bin', 'main.js' ),
+	join( here, '..', '..', '..', 'node_modules', 'convex', 'bin', 'main.js' ),
+].find( existsSync );
+if ( ! convexCli ) {
+	throw new Error( 'Could not locate the Convex CLI (convex/bin/main.js)' );
+}
 
-const key = randomBytes(32).toString('base64');
+const key = randomBytes( 32 ).toString( 'base64' );
 
 const target = prod ? 'PRODUCTION' : 'the current (dev)';
-console.log(`Setting TOKEN_ENC_KEY on ${target} deployment…`);
+console.log( `Setting TOKEN_ENC_KEY on ${ target } deployment…` );
 execFileSync(
-  process.execPath,
-  [convexCli, 'env', 'set', ...envFlags, `TOKEN_ENC_KEY=${key}`],
-  { stdio: ['ignore', 'inherit', 'inherit'] },
+	process.execPath,
+	[ convexCli, 'env', 'set', ...envFlags, `TOKEN_ENC_KEY=${ key }` ],
+	{ stdio: [ 'ignore', 'inherit', 'inherit' ] }
 );
-console.log('Done. (Key was piped, not printed.)');
+console.log( 'Done. (Key was piped, not printed.)' );

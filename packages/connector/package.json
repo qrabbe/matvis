@@ -1,35 +1,35 @@
 {
-  "name": "@matvis/connector",
-  "version": "0.0.0",
-  "description": "Matvis Connectors",
-  "private": true,
-  "type": "module",
-  "sideEffects": false,
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
-  "exports": {
-    ".": "./src/index.ts"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/qrabbe/matvis.git",
-    "directory": "packages/connector"
-  },
-  "scripts": {
-    "dev": "convex dev",
-    "typecheck": "tsc -b"
-  },
-  "dependencies": {
-    "@auth/core": "0.41.1",
-    "@convex-dev/auth": "0.0.94",
-    "@matvis/shared": "workspace:*",
-    "convex": "^1.42.3",
-    "unpdf": "^0.11.0",
-    "zod": "^4.1.13"
-  },
-  "devDependencies": {
-    "@edge-runtime/vm": "^5.0.0",
-    "convex-test": "^0.0.54",
-    "vitest": "^4.1.10"
-  }
+	"name": "@matvis/connector",
+	"version": "0.0.0",
+	"description": "Matvis Connectors",
+	"private": true,
+	"type": "module",
+	"sideEffects": false,
+	"main": "./src/index.ts",
+	"types": "./src/index.ts",
+	"exports": {
+		".": "./src/index.ts"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/qrabbe/matvis.git",
+		"directory": "packages/connector"
+	},
+	"scripts": {
+		"dev": "convex dev",
+		"typecheck": "tsc -b"
+	},
+	"dependencies": {
+		"@auth/core": "0.41.1",
+		"@convex-dev/auth": "0.0.94",
+		"@matvis/shared": "workspace:*",
+		"convex": "^1.42.3",
+		"unpdf": "^0.11.0",
+		"zod": "^4.1.13"
+	},
+	"devDependencies": {
+		"@edge-runtime/vm": "^5.0.0",
+		"convex-test": "^0.0.54",
+		"vitest": "^4.1.10"
+	}
 }

@@ -4,59 +4,62 @@ import { v } from 'convex/values';
 import { query } from './_generated/server';
 import { catalogDocValidator, storeValidator } from './model/fields';
 import {
-  readCounter,
-  catalogStoreKey,
-  CATALOG_COUNT_KEY,
+	readCounter,
+	catalogStoreKey,
+	CATALOG_COUNT_KEY,
 } from './model/counters';
 import { readCoverage, readFreshness } from './model/metrics';
 import { rowsForEan, searchCatalog } from './model/catalogReads';
 
 const catalogItem = catalogDocValidator;
 
-export const search = query({
-  args: {
-    q: v.optional(v.string()),
-    store: v.optional(storeValidator),
-    paginationOpts: paginationOptsValidator,
-  },
-  returns: v.object({
-    page: v.array(catalogItem),
-    isDone: v.boolean(),
-    continueCursor: v.string(),
-    splitCursor: v.optional(v.union(v.string(), v.null())),
-    pageStatus: v.optional(
-      v.union(
-        v.literal('SplitRecommended'),
-        v.literal('SplitRequired'),
-        v.null(),
-      ),
-    ),
-  }),
-  handler: (ctx, args) => searchCatalog(ctx, args),
-});
+export const search = query( {
+	args: {
+		q: v.optional( v.string() ),
+		store: v.optional( storeValidator ),
+		paginationOpts: paginationOptsValidator,
+	},
+	returns: v.object( {
+		page: v.array( catalogItem ),
+		isDone: v.boolean(),
+		continueCursor: v.string(),
+		splitCursor: v.optional( v.union( v.string(), v.null() ) ),
+		pageStatus: v.optional(
+			v.union(
+				v.literal( 'SplitRecommended' ),
+				v.literal( 'SplitRequired' ),
+				v.null()
+			)
+		),
+	} ),
+	handler: ( ctx, args ) => searchCatalog( ctx, args ),
+} );
 
-export const getByEan = query({
-  args: { ean: v.string() },
-  returns: v.array(catalogItem),
-  handler: async (ctx, { ean }) => await rowsForEan(ctx, ean),
-});
+export const getByEan = query( {
+	args: { ean: v.string() },
+	returns: v.array( catalogItem ),
+	handler: async ( ctx, { ean } ) => await rowsForEan( ctx, ean ),
+} );
 
-export const getManyByEan = query({
-  args: { eans: v.array(v.string()) },
-  returns: v.array(catalogItem),
-  handler: async (ctx, { eans }) => {
-    const unique = [...new Set(eans)];
-    if (unique.length > MAX_EANS_PER_LOOKUP) {
-      throw new Error(
-        `getManyByEan accepts at most ${MAX_EANS_PER_LOOKUP} EANs, got ${unique.length}`,
-      );
-    }
-    const rows = await Promise.all(unique.map((ean) => rowsForEan(ctx, ean)));
-    return rows.flat();
-  },
-});
+export const getManyByEan = query( {
+	args: { eans: v.array( v.string() ) },
+	returns: v.array( catalogItem ),
+	handler: async ( ctx, { eans } ) => {
+		const unique = [ ...new Set( eans ) ];
+		if ( unique.length > MAX_EANS_PER_LOOKUP ) {
+			throw new Error(
+				`getManyByEan accepts at most ${ MAX_EANS_PER_LOOKUP } EANs, got ${ unique.length }`
+			);
+		}
+		const rows = await Promise.all(
+			unique.map( ( ean ) => rowsForEan( ctx, ean ) )
+		);
+		return rows.flat();
+	},
+} );
 
-/** What the catalog holds and how much of it you should trust, for an audience
+/**
+ * What the catalog holds and how much of it you should trust, for an audience
  * that will never see the admin console.
  *
  * **What is deliberately not here.** Queue depth, failure counts and the fill
@@ -79,44 +82,50 @@ export const getManyByEan = query({
  *
  * This is the only published read of those totals. It absorbed a `stats` query
  * that returned `total` and `stores` and nothing else, which was these same two
- * fields computed by the same code. */
-export const health = query({
-  args: {},
-  returns: v.object({
-    total: v.number(),
-    stores: v.array(v.object({ store: storeValidator, count: v.number() })),
-    freshness: v.object({
-      verified: v.number(),
-      neverFetched: v.number(),
-      sampleSize: v.number(),
-      sampleWithinMonth: v.number(),
-    }),
-    coverage: v.object({
-      measuredAt: v.union(v.number(), v.null()),
-      fields: v.array(v.object({ field: v.string(), count: v.number() })),
-    }),
-  }),
-  handler: async (ctx) => {
-    const freshness = await readFreshness(ctx);
-    const coverage = await readCoverage(ctx);
-    return {
-      total: await readCounter(ctx, CATALOG_COUNT_KEY),
-      stores: await Promise.all(
-        STORES.map(async (store) => ({
-          store,
-          count: await readCounter(ctx, catalogStoreKey(store)),
-        })),
-      ),
-      freshness: {
-        verified: freshness.verified,
-        neverFetched: freshness.never,
-        sampleSize: freshness.sample.size,
-        sampleWithinMonth: freshness.sample.week + freshness.sample.month,
-      },
-      coverage: {
-        measuredAt: coverage.measuredAt,
-        fields: coverage.fields,
-      },
-    };
-  },
-});
+ * fields computed by the same code.
+ */
+export const health = query( {
+	args: {},
+	returns: v.object( {
+		total: v.number(),
+		stores: v.array(
+			v.object( { store: storeValidator, count: v.number() } )
+		),
+		freshness: v.object( {
+			verified: v.number(),
+			neverFetched: v.number(),
+			sampleSize: v.number(),
+			sampleWithinMonth: v.number(),
+		} ),
+		coverage: v.object( {
+			measuredAt: v.union( v.number(), v.null() ),
+			fields: v.array(
+				v.object( { field: v.string(), count: v.number() } )
+			),
+		} ),
+	} ),
+	handler: async ( ctx ) => {
+		const freshness = await readFreshness( ctx );
+		const coverage = await readCoverage( ctx );
+		return {
+			total: await readCounter( ctx, CATALOG_COUNT_KEY ),
+			stores: await Promise.all(
+				STORES.map( async ( store ) => ( {
+					store,
+					count: await readCounter( ctx, catalogStoreKey( store ) ),
+				} ) )
+			),
+			freshness: {
+				verified: freshness.verified,
+				neverFetched: freshness.never,
+				sampleSize: freshness.sample.size,
+				sampleWithinMonth:
+					freshness.sample.week + freshness.sample.month,
+			},
+			coverage: {
+				measuredAt: coverage.measuredAt,
+				fields: coverage.fields,
+			},
+		};
+	},
+} );

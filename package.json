@@ -1,33 +1,42 @@
 {
-  "name": "matvis",
-  "version": "0.0.0",
-  "private": true,
-  "type": "module",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/qrabbe/matvis.git"
-  },
-  "engines": {
-    "bun": ">=1.2.0"
-  },
-  "workspaces": [
-    "packages/*"
-  ],
-  "scripts": {
-    "typecheck": "tsc -b",
-    "test": "bun test && vitest run",
-    "build": "tsc -b",
-    "build:site": "bun tools/build-site.ts",
-    "spec": "bun tools/catalog-api-spec.ts",
-    "spec:check": "bun tools/catalog-api-spec.ts --check",
-    "clean": "tsc -b --clean",
-    "format": "prettier --write .",
-    "format:check": "prettier --check ."
-  },
-  "devDependencies": {
-    "@types/bun": "latest",
-    "prettier": "^3.8.1",
-    "typescript": "^5.9.2",
-    "vitest": "^4.1.10"
-  }
+	"name": "matvis",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/qrabbe/matvis.git"
+	},
+	"engines": {
+		"bun": ">=1.2.0"
+	},
+	"workspaces": [
+		"packages/*"
+	],
+	"scripts": {
+		"typecheck": "tsc -b",
+		"dev": "bun run --filter '*' --if-present dev",
+		"test": "bun test && vitest run",
+		"build": "tsc -b",
+		"build:site": "bun tools/build-site.ts",
+		"spec": "bun tools/catalog-api-spec.ts",
+		"spec:check": "bun tools/catalog-api-spec.ts --check",
+		"clean": "tsc -b --clean",
+		"format": "prettier --write .",
+		"format:check": "prettier --check .",
+		"lint": "eslint .",
+		"lint:fix": "eslint . --fix"
+	},
+	"devDependencies": {
+		"@types/bun": "latest",
+		"@wordpress/eslint-plugin": "^27.0.0",
+		"@wordpress/prettier-config": "^4.56.0",
+		"eslint": "^10.11.0",
+		"prettier": "npm:wp-prettier@^3.9.6",
+		"typescript": "^5.9.2",
+		"vitest": "^4.1.10"
+	},
+	"trustedDependencies": [
+		"unrs-resolver"
+	]
 }

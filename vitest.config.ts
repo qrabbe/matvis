@@ -1,25 +1,18 @@
 import { defineConfig } from 'vitest/config';
 
-/**
- * One `vitest run` for the whole repo.
- *
- * Each package keeps its own config, because they do not agree on an
- * environment: the two backends' convex-test files need the edge runtime, and
- * the four frontends need a DOM. Listing the projects rather than globbing
- * `packages/*` keeps a package without a vitest config from being picked up as
- * an empty project that then fails for having no test files.
- *
- * The pure-logic suites stay on bun test — see the root `test` script.
- */
-export default defineConfig({
-  test: {
-    projects: [
-      'packages/connector',
-      'packages/catalog',
-      'packages/app',
-      'packages/connector-portal',
-      'packages/catalog-portal',
-      'packages/landing',
-    ],
-  },
-});
+// One `vitest run` for the whole repo. Packages are listed rather than
+// globbed so a package without a vitest config isn't picked up as an empty
+// project that fails for having no test files. Pure-logic suites stay on bun
+// test, per the root `test` script.
+export default defineConfig( {
+	test: {
+		projects: [
+			'packages/connector',
+			'packages/catalog',
+			'packages/app',
+			'packages/connector-portal',
+			'packages/catalog-portal',
+			'packages/landing',
+		],
+	},
+} );

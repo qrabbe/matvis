@@ -1,43 +1,40 @@
 {
-  "name": "@matvis/connector-portal",
-  "version": "0.0.0",
-  "private": true,
-  "type": "module",
-  "description": "Matvis Connector portal (link flow + developer docs)",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/qrabbe/matvis.git",
-    "directory": "packages/connector-portal"
-  },
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
-    "test": "vitest run",
-    "typecheck": "tsc -b"
-  },
-  "dependencies": {
-    "@auth/core": "0.41.1",
-    "@convex-dev/auth": "0.0.94",
-    "@matvis/shared": "workspace:*",
-    "@matvis/ui": "workspace:*",
-    "@wordpress/components": "^37.0.0",
-    "@wordpress/dataviews": "^17.2.0",
-    "@wordpress/icons": "^15.2.0",
-    "convex": "^1.42.3",
-    "qrcode": "^1.5.4",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1"
-  },
-  "devDependencies": {
-    "@testing-library/jest-dom": "^7.0.0",
-    "@testing-library/react": "^16.3.2",
-    "@types/qrcode": "^1.5.5",
-    "@types/react": "^18",
-    "@types/react-dom": "^18",
-    "@vitejs/plugin-react": "^6.0.3",
-    "jsdom": "^26.1.0",
-    "vite": "^8.1.5",
-    "vitest": "^4.1.10"
-  }
+	"name": "@matvis/connector-portal",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"description": "Matvis Connector portal (link flow + developer docs)",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/qrabbe/matvis.git",
+		"directory": "packages/connector-portal"
+	},
+	"scripts": {
+		"dev": "vite",
+		"build": "vite build",
+		"preview": "vite preview",
+		"test": "vitest run",
+		"typecheck": "tsc -b"
+	},
+	"dependencies": {
+		"@auth/core": "0.41.1",
+		"@convex-dev/auth": "0.0.94",
+		"@matvis/shared": "workspace:*",
+		"@matvis/ui": "workspace:*",
+		"@wordpress/dataviews": "^17.2.0",
+		"@wordpress/icons": "^15.2.0",
+		"convex": "^1.42.3",
+		"qrcode": "^1.5.4",
+		"react": "^18.3.1",
+		"react-dom": "^18.3.1"
+	},
+	"devDependencies": {
+		"@testing-library/react": "^16.3.2",
+		"@types/qrcode": "^1.5.5",
+		"@types/react": "^18",
+		"@types/react-dom": "^18",
+		"jsdom": "^26.1.0",
+		"vite": "^8.1.5",
+		"vitest": "^4.1.10"
+	}
 }

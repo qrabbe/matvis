@@ -1,12 +1,10 @@
-// @matvis/connector
-
 export type { FetchLike, HttpResponse } from './http';
 export { defaultFetch } from './http';
 
 export type {
-  Connector,
-  ParseReceiptOptions,
-  StartAuthOptions,
+	Connector,
+	ParseReceiptOptions,
+	StartAuthOptions,
 } from './connector';
 
 export { getConnector, hasConnector, supportedStores } from './registry';
@@ -15,43 +13,43 @@ export type { ConnectorFactory, ConnectorOptions } from './registry';
 export { stripQuantitySuffix } from './matching';
 
 export {
-  decryptSecret,
-  decryptTokenPair,
-  encryptSecret,
-  encryptTokenPair,
-  generateTokenKey,
-  importTokenKey,
-  TOKEN_KEY_ENV_VAR,
-  TOKEN_KEY_VERSION,
-  tokenEncryptionKey,
+	decryptSecret,
+	decryptTokenPair,
+	encryptSecret,
+	encryptTokenPair,
+	generateTokenKey,
+	importTokenKey,
+	TOKEN_KEY_ENV_VAR,
+	TOKEN_KEY_VERSION,
+	tokenEncryptionKey,
 } from './crypto';
 export type { EncryptedSecret } from './crypto';
 
 export { CoopConnector } from './coop/connector';
 export type { CoopConnectorOptions } from './coop/connector';
 export {
-  COOP_HOSTS,
-  COOP_USER_AGENT,
-  DEFAULT_COOP_CONFIG,
-  SCANPAY_CLIENT_ID,
+	COOP_HOSTS,
+	COOP_USER_AGENT,
+	DEFAULT_COOP_CONFIG,
+	SCANPAY_CLIENT_ID,
 } from './coop/config';
 export type { CoopConfig } from './coop/config';
 export {
-  pollBankId,
-  refreshBankId,
-  startBankId,
-  toTokenSet,
+	pollBankId,
+	refreshBankId,
+	startBankId,
+	toTokenSet,
 } from './coop/auth/bankid';
 export {
-  CoopReceiptListResponse,
-  CoopReceiptListRow,
-  listReceipts,
+	CoopReceiptListResponse,
+	CoopReceiptListRow,
+	listReceipts,
 } from './coop/receipts/list';
 export { fetchReceiptPdf } from './coop/receipts/pdf';
 export { extractPdfText } from './coop/parse/extract-pdf';
 export {
-  extractPurchaseItemLines,
-  parseCoopReceiptItems,
+	extractPurchaseItemLines,
+	parseCoopReceiptItems,
 } from './coop/parse/items';
 export { parseCoopReceiptMetadata } from './coop/parse/metadata';
 export type { CoopReceiptMetadata } from './coop/parse/metadata';

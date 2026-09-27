@@ -3,276 +3,334 @@ import { convexTest } from 'convex-test';
 import { describe, expect, test } from 'vitest';
 import { api } from './_generated/api';
 import schema from './schema';
+import { actingAs, TEST_SEALED_SECRET } from './testSupport';
 
-const modules = import.meta.glob('./**/*.ts');
+const modules = import.meta.glob( './**/*.ts' );
 
-const as = (t: ReturnType<typeof convexTest>, subject: string) =>
-  t.withIdentity({ subject });
-
-async function seed(t: ReturnType<typeof convexTest>) {
-  return await t.run(async (ctx) => {
-    const accountA = await ctx.db.insert('accounts', { subject: 'sub-a' });
-    const accountB = await ctx.db.insert('accounts', { subject: 'sub-b' });
-    const sealed = { keyVersion: 1, iv: 'aXY=', ciphertext: 'Y3Q=' };
-    const conn = (accountId: typeof accountA) =>
-      ctx.db.insert('connections', {
-        accountId,
-        store: 'coop',
-        accessToken: sealed,
-        accessTokenExpiresAt: 0,
-        refreshToken: sealed,
-        status: 'active' as const,
-      });
-    const connA = await conn(accountA);
-    const connB = await conn(accountB);
-    const mk = (
-      accountId: typeof accountA,
-      connectionId: typeof connA,
-      externalId: string,
-      extra: {
-        pdfStorageId?: Awaited<ReturnType<typeof ctx.storage.store>>;
-      } = {},
-    ) =>
-      ctx.db.insert('receipts', {
-        connectionId,
-        accountId,
-        source: 'coop',
-        externalId,
-        store: { name: 'Stora Coop' },
-        currency: 'SEK',
-        vat: [],
-        ...extra,
-      });
-    const r1 = await mk(accountA, connA, 'a-1');
-    const r2 = await mk(accountA, connA, 'a-2');
-    const pdfStorageId = await ctx.storage.store(
-      new Blob([new Uint8Array([1, 2, 3])], { type: 'application/pdf' }),
-    );
-    const r3 = await mk(accountA, connA, 'a-3', { pdfStorageId });
-    await ctx.db.insert('receiptItems', {
-      receiptId: r3,
-      lineNo: 0,
-      text: 'MJÖLK',
-      price: 12.5,
-      isDiscount: false,
-    });
-    await ctx.db.insert('receiptItems', {
-      receiptId: r3,
-      lineNo: 1,
-      text: 'RABATT',
-      price: -5,
-      isDiscount: true,
-    });
-    const rb = await mk(accountB, connB, 'b-1');
-    return { r1, r2, r3, rb };
-  });
+async function seed( t: ReturnType< typeof convexTest > ) {
+	return await t.run( async ( ctx ) => {
+		const accountA = await ctx.db.insert( 'accounts', {
+			subject: 'sub-a',
+		} );
+		const accountB = await ctx.db.insert( 'accounts', {
+			subject: 'sub-b',
+		} );
+		const conn = ( accountId: typeof accountA ) =>
+			ctx.db.insert( 'connections', {
+				accountId,
+				store: 'coop',
+				accessToken: TEST_SEALED_SECRET,
+				accessTokenExpiresAt: 0,
+				refreshToken: TEST_SEALED_SECRET,
+				status: 'active' as const,
+			} );
+		const connA = await conn( accountA );
+		const connB = await conn( accountB );
+		const mk = (
+			accountId: typeof accountA,
+			connectionId: typeof connA,
+			externalId: string,
+			extra: {
+				pdfStorageId?: Awaited<
+					ReturnType< typeof ctx.storage.store >
+				>;
+			} = {}
+		) =>
+			ctx.db.insert( 'receipts', {
+				connectionId,
+				accountId,
+				source: 'coop',
+				externalId,
+				store: { name: 'Stora Coop' },
+				currency: 'SEK',
+				vat: [],
+				...extra,
+			} );
+		const r1 = await mk( accountA, connA, 'a-1' );
+		const r2 = await mk( accountA, connA, 'a-2' );
+		const pdfStorageId = await ctx.storage.store(
+			new Blob( [ new Uint8Array( [ 1, 2, 3 ] ) ], {
+				type: 'application/pdf',
+			} )
+		);
+		const r3 = await mk( accountA, connA, 'a-3', { pdfStorageId } );
+		await ctx.db.insert( 'receiptItems', {
+			receiptId: r3,
+			lineNo: 0,
+			text: 'MJÖLK',
+			price: 12.5,
+			isDiscount: false,
+		} );
+		await ctx.db.insert( 'receiptItems', {
+			receiptId: r3,
+			lineNo: 1,
+			text: 'RABATT',
+			price: -5,
+			isDiscount: true,
+		} );
+		const rb = await mk( accountB, connB, 'b-1' );
+		return { r1, r2, r3, rb };
+	} );
 }
 
-describe('receipts read API', () => {
-  test('list paginates one account newest-first, trimmed', async () => {
-    const t = convexTest(schema, modules);
-    await seed(t);
-    const page = await as(t, 'sub-a').query(api.receipts.list, {
-      paginationOpts: { numItems: 10, cursor: null },
-    });
-    expect(page.page.map((r) => r.externalId)).toEqual(['a-3', 'a-2', 'a-1']);
-    expect(page.page.some((r) => r.externalId === 'b-1')).toBe(false);
-    expect(page.page.every((r) => !('rawText' in r))).toBe(true);
-  });
+describe( 'receipts read API', () => {
+	test( 'list paginates one account newest-first, trimmed', async () => {
+		const t = convexTest( schema, modules );
+		await seed( t );
+		const page = await actingAs( t, 'sub-a' ).query( api.receipts.list, {
+			paginationOpts: { numItems: 10, cursor: null },
+		} );
+		expect( page.page.map( ( r ) => r.externalId ) ).toEqual( [
+			'a-3',
+			'a-2',
+			'a-1',
+		] );
+		expect( page.page.some( ( r ) => r.externalId === 'b-1' ) ).toBe(
+			false
+		);
+		expect( page.page.every( ( r ) => ! ( 'rawText' in r ) ) ).toBe( true );
+	} );
 
-  test('unknown account yields an empty page', async () => {
-    const t = convexTest(schema, modules);
-    await seed(t);
-    const page = await as(t, 'nobody').query(api.receipts.list, {
-      paginationOpts: { numItems: 10, cursor: null },
-    });
-    expect(page.page).toEqual([]);
-    expect(page.isDone).toBe(true);
-  });
+	test( 'unknown account yields an empty page', async () => {
+		const t = convexTest( schema, modules );
+		await seed( t );
+		const page = await actingAs( t, 'nobody' ).query( api.receipts.list, {
+			paginationOpts: { numItems: 10, cursor: null },
+		} );
+		expect( page.page ).toEqual( [] );
+		expect( page.isDone ).toBe( true );
+	} );
 
-  test('changes returns all from since:0 then nothing at the cursor', async () => {
-    const t = convexTest(schema, modules);
-    await seed(t);
-    const first = await as(t, 'sub-a').query(api.receipts.changes, {
-      since: 0,
-    });
-    expect(first.receipts.map((r) => r.externalId)).toEqual([
-      'a-1',
-      'a-2',
-      'a-3',
-    ]);
-    expect(first.hasMore).toBe(false);
-    const second = await as(t, 'sub-a').query(api.receipts.changes, {
-      since: first.cursor,
-    });
-    expect(second.receipts).toEqual([]);
-    expect(second.hasMore).toBe(false);
-    expect(second.cursor).toBe(first.cursor);
-  });
+	test( 'changes returns all from since:0 then nothing at the cursor', async () => {
+		const t = convexTest( schema, modules );
+		await seed( t );
+		const first = await actingAs( t, 'sub-a' ).query(
+			api.receipts.changes,
+			{
+				since: 0,
+			}
+		);
+		expect( first.receipts.map( ( r ) => r.externalId ) ).toEqual( [
+			'a-1',
+			'a-2',
+			'a-3',
+		] );
+		expect( first.hasMore ).toBe( false );
+		const second = await actingAs( t, 'sub-a' ).query(
+			api.receipts.changes,
+			{
+				since: first.cursor,
+			}
+		);
+		expect( second.receipts ).toEqual( [] );
+		expect( second.hasMore ).toBe( false );
+		expect( second.cursor ).toBe( first.cursor );
+	} );
 
-  test('changes honors limit and reports hasMore', async () => {
-    const t = convexTest(schema, modules);
-    await seed(t);
-    const first = await as(t, 'sub-a').query(api.receipts.changes, {
-      since: 0,
-      limit: 2,
-    });
-    expect(first.receipts.map((r) => r.externalId)).toEqual(['a-1', 'a-2']);
-    expect(first.hasMore).toBe(true);
-    const rest = await as(t, 'sub-a').query(api.receipts.changes, {
-      since: first.cursor,
-      limit: 2,
-    });
-    expect(rest.receipts.map((r) => r.externalId)).toEqual(['a-3']);
-    expect(rest.hasMore).toBe(false);
-  });
+	test( 'changes honors limit and reports hasMore', async () => {
+		const t = convexTest( schema, modules );
+		await seed( t );
+		const first = await actingAs( t, 'sub-a' ).query(
+			api.receipts.changes,
+			{
+				since: 0,
+				limit: 2,
+			}
+		);
+		expect( first.receipts.map( ( r ) => r.externalId ) ).toEqual( [
+			'a-1',
+			'a-2',
+		] );
+		expect( first.hasMore ).toBe( true );
+		const rest = await actingAs( t, 'sub-a' ).query( api.receipts.changes, {
+			since: first.cursor,
+			limit: 2,
+		} );
+		expect( rest.receipts.map( ( r ) => r.externalId ) ).toEqual( [
+			'a-3',
+		] );
+		expect( rest.hasMore ).toBe( false );
+	} );
 
-  test('getReceipt returns header + items in lineNo order for the owner', async () => {
-    const t = convexTest(schema, modules);
-    const { r3 } = await seed(t);
-    const got = await as(t, 'sub-a').query(api.receipts.getReceipt, {
-      receiptId: r3,
-    });
-    expect(got?.receipt.externalId).toBe('a-3');
-    expect(got?.items.map((i) => i.text)).toEqual(['MJÖLK', 'RABATT']);
-  });
+	test( 'getReceipt returns header + items in lineNo order for the owner', async () => {
+		const t = convexTest( schema, modules );
+		const { r3 } = await seed( t );
+		const got = await actingAs( t, 'sub-a' ).query(
+			api.receipts.getReceipt,
+			{
+				receiptId: r3,
+			}
+		);
+		expect( got?.receipt.externalId ).toBe( 'a-3' );
+		expect( got?.items.map( ( i ) => i.text ) ).toEqual( [
+			'MJÖLK',
+			'RABATT',
+		] );
+	} );
 
-  test('getReceipt does not leak another account row', async () => {
-    const t = convexTest(schema, modules);
-    const { r3 } = await seed(t);
-    const cross = await as(t, 'sub-b').query(api.receipts.getReceipt, {
-      receiptId: r3,
-    });
-    expect(cross).toBeNull();
-  });
+	test( 'getReceipt does not leak another account row', async () => {
+		const t = convexTest( schema, modules );
+		const { r3 } = await seed( t );
+		const cross = await actingAs( t, 'sub-b' ).query(
+			api.receipts.getReceipt,
+			{
+				receiptId: r3,
+			}
+		);
+		expect( cross ).toBeNull();
+	} );
 
-  test('getReceipt and getPdf are null for a receipt that is gone', async () => {
-    const t = convexTest(schema, modules);
-    const { r3 } = await seed(t);
-    await t.run(async (ctx) => await ctx.db.delete(r3));
-    const got = await as(t, 'sub-a').query(api.receipts.getReceipt, {
-      receiptId: r3,
-    });
-    expect(got).toBeNull();
-    const url = await as(t, 'sub-a').query(api.receipts.getPdf, {
-      receiptId: r3,
-    });
-    expect(url).toBeNull();
-  });
+	test( 'getReceipt and getPdf are null for a receipt that is gone', async () => {
+		const t = convexTest( schema, modules );
+		const { r3 } = await seed( t );
+		await t.run( async ( ctx ) => await ctx.db.delete( r3 ) );
+		const got = await actingAs( t, 'sub-a' ).query(
+			api.receipts.getReceipt,
+			{
+				receiptId: r3,
+			}
+		);
+		expect( got ).toBeNull();
+		const url = await actingAs( t, 'sub-a' ).query( api.receipts.getPdf, {
+			receiptId: r3,
+		} );
+		expect( url ).toBeNull();
+	} );
 
-  test('getPdf: signed URL for owner, null cross-account, null when no PDF', async () => {
-    const t = convexTest(schema, modules);
-    const { r1, r3 } = await seed(t);
-    const url = await as(t, 'sub-a').query(api.receipts.getPdf, {
-      receiptId: r3,
-    });
-    expect(typeof url).toBe('string');
-    const cross = await as(t, 'sub-b').query(api.receipts.getPdf, {
-      receiptId: r3,
-    });
-    expect(cross).toBeNull();
-    const noPdf = await as(t, 'sub-a').query(api.receipts.getPdf, {
-      receiptId: r1,
-    });
-    expect(noPdf).toBeNull();
-  });
+	test( 'getPdf: signed URL for owner, null cross-account, null when no PDF', async () => {
+		const t = convexTest( schema, modules );
+		const { r1, r3 } = await seed( t );
+		const url = await actingAs( t, 'sub-a' ).query( api.receipts.getPdf, {
+			receiptId: r3,
+		} );
+		expect( typeof url ).toBe( 'string' );
+		const cross = await actingAs( t, 'sub-b' ).query( api.receipts.getPdf, {
+			receiptId: r3,
+		} );
+		expect( cross ).toBeNull();
+		const noPdf = await actingAs( t, 'sub-a' ).query( api.receipts.getPdf, {
+			receiptId: r1,
+		} );
+		expect( noPdf ).toBeNull();
+	} );
 
-  test('getReceipt resolves gtin live against itemGtinMap, even rows added after the receipt existed', async () => {
-    const t = convexTest(schema, modules);
-    const { r3 } = await seed(t);
-    const before = await as(t, 'sub-a').query(api.receipts.getReceipt, {
-      receiptId: r3,
-    });
-    expect(before?.items.map((i) => i.gtin)).toEqual([undefined, undefined]);
+	test( 'getReceipt resolves gtin live against itemGtinMap, even rows added after the receipt existed', async () => {
+		const t = convexTest( schema, modules );
+		const { r3 } = await seed( t );
+		const before = await actingAs( t, 'sub-a' ).query(
+			api.receipts.getReceipt,
+			{
+				receiptId: r3,
+			}
+		);
+		expect( before?.items.map( ( i ) => i.gtin ) ).toEqual( [
+			undefined,
+			undefined,
+		] );
 
-    // Mapping added long after the receipt was synced — nothing re-patches
-    // receiptItems, so this only works if getReceipt joins live.
-    await t.run(async (ctx) => {
-      await ctx.db.insert('itemGtinMap', {
-        store: 'coop',
-        normalizedText: 'mjölk',
-        kind: 'product',
-        gtin: '7310865004703',
-        source: 'seed',
-      });
-    });
-    const after = await as(t, 'sub-a').query(api.receipts.getReceipt, {
-      receiptId: r3,
-    });
-    expect(after?.items.map((i) => i.gtin)).toEqual([
-      '7310865004703',
-      undefined, // the discount line is never matched
-    ]);
-    expect(after?.items.map((i) => i.kind)).toEqual(['product', undefined]);
-  });
+		// Mapping added long after the receipt was synced — nothing re-patches
+		// receiptItems, so this only works if getReceipt joins live.
+		await t.run( async ( ctx ) => {
+			await ctx.db.insert( 'itemGtinMap', {
+				store: 'coop',
+				normalizedText: 'mjölk',
+				kind: 'product',
+				gtin: '7310865004703',
+				source: 'seed',
+			} );
+		} );
+		const after = await actingAs( t, 'sub-a' ).query(
+			api.receipts.getReceipt,
+			{
+				receiptId: r3,
+			}
+		);
+		expect( after?.items.map( ( i ) => i.gtin ) ).toEqual( [
+			'7310865004703',
+			undefined, // the discount line is never matched
+		] );
+		expect( after?.items.map( ( i ) => i.kind ) ).toEqual( [
+			'product',
+			undefined,
+		] );
+	} );
 
-  test('getReceipt resolves non-product kinds without a gtin', async () => {
-    const t = convexTest(schema, modules);
-    const { r3 } = await seed(t);
-    await t.run(async (ctx) => {
-      await ctx.db.insert('itemGtinMap', {
-        store: 'coop',
-        normalizedText: 'mjölk',
-        kind: 'notFood',
-        source: 'app',
-      });
-    });
-    const got = await as(t, 'sub-a').query(api.receipts.getReceipt, {
-      receiptId: r3,
-    });
-    expect(got?.items[0]?.gtin).toBeUndefined();
-    expect(got?.items[0]?.kind).toBe('notFood');
-  });
+	test( 'getReceipt resolves non-product kinds without a gtin', async () => {
+		const t = convexTest( schema, modules );
+		const { r3 } = await seed( t );
+		await t.run( async ( ctx ) => {
+			await ctx.db.insert( 'itemGtinMap', {
+				store: 'coop',
+				normalizedText: 'mjölk',
+				kind: 'notFood',
+				source: 'app',
+			} );
+		} );
+		const got = await actingAs( t, 'sub-a' ).query(
+			api.receipts.getReceipt,
+			{
+				receiptId: r3,
+			}
+		);
+		expect( got?.items[ 0 ]?.gtin ).toBeUndefined();
+		expect( got?.items[ 0 ]?.kind ).toBe( 'notFood' );
+	} );
 
-  test('getReceipt picks the priced itemGtinMap row that fits the line', async () => {
-    const t = convexTest(schema, modules);
-    const { r3 } = await seed(t);
-    await t.run(async (ctx) => {
-      // The MJÖLK line costs 12.50 — two sizes share the same printed text.
-      await ctx.db.insert('itemGtinMap', {
-        store: 'coop',
-        normalizedText: 'mjölk',
-        kind: 'product',
-        gtin: 'small-carton',
-        price: 12.5,
-        source: 'seed',
-      });
-      await ctx.db.insert('itemGtinMap', {
-        store: 'coop',
-        normalizedText: 'mjölk',
-        kind: 'product',
-        gtin: 'large-carton',
-        price: 22.9,
-        source: 'seed',
-      });
-    });
-    const got = await as(t, 'sub-a').query(api.receipts.getReceipt, {
-      receiptId: r3,
-    });
-    expect(got?.items[0]?.gtin).toBe('small-carton');
-  });
+	test( 'getReceipt picks the priced itemGtinMap row that fits the line', async () => {
+		const t = convexTest( schema, modules );
+		const { r3 } = await seed( t );
+		await t.run( async ( ctx ) => {
+			// The MJÖLK line costs 12.50 — two sizes share the same printed text.
+			await ctx.db.insert( 'itemGtinMap', {
+				store: 'coop',
+				normalizedText: 'mjölk',
+				kind: 'product',
+				gtin: 'small-carton',
+				price: 12.5,
+				source: 'seed',
+			} );
+			await ctx.db.insert( 'itemGtinMap', {
+				store: 'coop',
+				normalizedText: 'mjölk',
+				kind: 'product',
+				gtin: 'large-carton',
+				price: 22.9,
+				source: 'seed',
+			} );
+		} );
+		const got = await actingAs( t, 'sub-a' ).query(
+			api.receipts.getReceipt,
+			{
+				receiptId: r3,
+			}
+		);
+		expect( got?.items[ 0 ]?.gtin ).toBe( 'small-carton' );
+	} );
 
-  test('getReceipt respects an already-stored gtin rather than recomputing it', async () => {
-    const t = convexTest(schema, modules);
-    const { r3 } = await seed(t);
-    await t.run(async (ctx) => {
-      const [mjolk] = await ctx.db
-        .query('receiptItems')
-        .withIndex('by_receipt', (q) => q.eq('receiptId', r3))
-        .collect();
-      await ctx.db.patch(mjolk!._id, { gtin: 'already' });
-      await ctx.db.insert('itemGtinMap', {
-        store: 'coop',
-        normalizedText: 'mjölk',
-        kind: 'product',
-        gtin: '7310865004703',
-        source: 'seed',
-      });
-    });
-    const got = await as(t, 'sub-a').query(api.receipts.getReceipt, {
-      receiptId: r3,
-    });
-    expect(got?.items[0]?.gtin).toBe('already');
-    expect(got?.items[0]?.kind).toBe('product');
-  });
-});
+	test( 'getReceipt respects an already-stored gtin rather than recomputing it', async () => {
+		const t = convexTest( schema, modules );
+		const { r3 } = await seed( t );
+		await t.run( async ( ctx ) => {
+			const [ mjolk ] = await ctx.db
+				.query( 'receiptItems' )
+				.withIndex( 'by_receipt', ( q ) => q.eq( 'receiptId', r3 ) )
+				.collect();
+			await ctx.db.patch( mjolk!._id, { gtin: 'already' } );
+			await ctx.db.insert( 'itemGtinMap', {
+				store: 'coop',
+				normalizedText: 'mjölk',
+				kind: 'product',
+				gtin: '7310865004703',
+				source: 'seed',
+			} );
+		} );
+		const got = await actingAs( t, 'sub-a' ).query(
+			api.receipts.getReceipt,
+			{
+				receiptId: r3,
+			}
+		);
+		expect( got?.items[ 0 ]?.gtin ).toBe( 'already' );
+		expect( got?.items[ 0 ]?.kind ).toBe( 'product' );
+	} );
+} );

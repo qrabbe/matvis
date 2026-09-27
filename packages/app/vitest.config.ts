@@ -9,12 +9,12 @@ import { matvisTest } from '@matvis/ui/vitest';
 // without moving the pure `src/lib` logic off `bun test` in `test/lib`.
 const base = matvisTest();
 
-export default defineConfig({
-  ...base,
-  test: {
-    ...base.test,
-    include: ['test/**/*.vitest.{ts,tsx}', 'convex/**/*.vitest.ts'],
-    environmentMatchGlobs: [['convex/**', 'edge-runtime']],
-    server: { deps: { inline: ['convex-test'] } },
-  },
-});
+export default defineConfig( {
+	...base,
+	test: {
+		...base.test,
+		include: [ 'test/**/*.vitest.{ts,tsx}', 'convex/**/*.vitest.ts' ],
+		environmentMatchGlobs: [ [ 'convex/**', 'edge-runtime' ] ],
+		server: { deps: { inline: [ 'convex-test' ] } },
+	},
+} );

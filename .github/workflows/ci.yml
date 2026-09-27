@@ -9,92 +9,93 @@ name: CI + Deploy
 # deployments, so the two environments always run the same backend code. Only a
 # push to main additionally rebuilds the public site.
 on:
-  push:
-    branches: [main, dev]
-  pull_request:
-  workflow_dispatch:
+    push:
+        branches: [main, dev]
+    pull_request:
+    workflow_dispatch:
 
 # Nothing in this pipeline writes back to the repository.
 permissions:
-  contents: read
+    contents: read
 
 jobs:
-  verify:
-    name: format · spec · typecheck · build · test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-      - run: bun install --frozen-lockfile
-      - run: bun run format:check
-      # Regenerates the catalog's public API spec from convex/catalog.ts and
-      # fails on a diff, so a change to the contract has to show up in the pull
-      # request that causes it rather than surfacing after a deploy. Reads the
-      # source, not a deployment, so it needs no deploy key.
-      - run: bun run spec:check
-      - run: bun run typecheck # tsc -b: typechecks + builds every package
-      - run: bun run test # bun unit tests, then vitest: convex-test + the frontends on jsdom
+    verify:
+        name: format · spec · typecheck · build · test
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+            - uses: oven-sh/setup-bun@v2
+              with:
+                  bun-version: latest
+            - run: bun install --frozen-lockfile
+            - run: bun run format:check
+            - run: bun run lint
+            # Regenerates the catalog's public API spec from convex/catalog.ts and
+            # fails on a diff, so a change to the contract has to show up in the pull
+            # request that causes it rather than surfacing after a deploy. Reads the
+            # source, not a deployment, so it needs no deploy key.
+            - run: bun run spec:check
+            - run: bun run typecheck # tsc -b: typechecks + builds every package
+            - run: bun run test # bun unit tests, then vitest: convex-test + the frontends on jsdom
 
-  secrets:
-    name: secret scan
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: gitleaks/gitleaks-action@v2
+    secrets:
+        name: secret scan
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+            - uses: gitleaks/gitleaks-action@v2
 
-  deploy:
-    name: Convex dev + prod
-    # Gate: only after every check is green, and only for a real push to dev or
-    # main (never on pull_request runs, which can come from forks).
-    needs: [verify, secrets]
-    if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev') && github.event_name == 'push'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-      - run: bun install --frozen-lockfile
+    deploy:
+        name: Convex dev + prod
+        # Gate: only after every check is green, and only for a real push to dev or
+        # main (never on pull_request runs, which can come from forks).
+        needs: [verify, secrets]
+        if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev') && github.event_name == 'push'
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+            - uses: oven-sh/setup-bun@v2
+              with:
+                  bun-version: latest
+            - run: bun install --frozen-lockfile
 
-      # `convex deploy` ships schema, indexes and functions. Which deployment it
-      # lands on is decided entirely by CONVEX_DEPLOY_KEY, so the four steps
-      # below are the same push aimed at four targets: development and
-      # production, for each of the two projects. Both environments are kept on
-      # the same code whichever branch was pushed. The frontends are not built
-      # here, statichost.eu builds them from this repo (see statichost.yml).
-      - name: Deploy connector Convex (dev)
-        working-directory: packages/connector
-        env:
-          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY_DEV }}
-        run: bunx convex deploy
+            # `convex deploy` ships schema, indexes and functions. Which deployment it
+            # lands on is decided entirely by CONVEX_DEPLOY_KEY, so the four steps
+            # below are the same push aimed at four targets: development and
+            # production, for each of the two projects. Both environments are kept on
+            # the same code whichever branch was pushed. The frontends are not built
+            # here, statichost.eu builds them from this repo (see statichost.yml).
+            - name: Deploy connector Convex (dev)
+              working-directory: packages/connector
+              env:
+                  CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY_DEV }}
+              run: bunx convex deploy
 
-      - name: Deploy catalog Convex (dev)
-        working-directory: packages/catalog
-        env:
-          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY_CATALOG_DEV }}
-        run: bunx convex deploy
+            - name: Deploy catalog Convex (dev)
+              working-directory: packages/catalog
+              env:
+                  CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY_CATALOG_DEV }}
+              run: bunx convex deploy
 
-      - name: Deploy connector Convex (prod)
-        working-directory: packages/connector
-        env:
-          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
-        run: bunx convex deploy
+            - name: Deploy connector Convex (prod)
+              working-directory: packages/connector
+              env:
+                  CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
+              run: bunx convex deploy
 
-      - name: Deploy catalog Convex (prod)
-        working-directory: packages/catalog
-        env:
-          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY_CATALOG }}
-        run: bunx convex deploy
+            - name: Deploy catalog Convex (prod)
+              working-directory: packages/catalog
+              env:
+                  CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY_CATALOG }}
+              run: bunx convex deploy
 
-      # statichost.eu builds the site itself. Its build is triggered from here
-      # rather than from a raw push webhook on the repository, so it only starts
-      # after every check went green and after the Convex backends the portals
-      # talk to are already live. Only main rebuilds the public site, the
-      # backends move on either branch.
-      - name: Trigger statichost.eu build
-        if: github.ref == 'refs/heads/main'
-        run: curl -fsS -X POST https://builder.statichost.eu/matvis
+            # statichost.eu builds the site itself. Its build is triggered from here
+            # rather than from a raw push webhook on the repository, so it only starts
+            # after every check went green and after the Convex backends the portals
+            # talk to are already live. Only main rebuilds the public site, the
+            # backends move on either branch.
+            - name: Trigger statichost.eu build
+              if: github.ref == 'refs/heads/main'
+              run: curl -fsS -X POST https://builder.statichost.eu/matvis

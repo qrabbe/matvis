@@ -14,13 +14,17 @@ import type * as connections from "../connections.js";
 import type * as crons from "../crons.js";
 import type * as http from "../http.js";
 import type * as links from "../links.js";
+import type * as mappings from "../mappings.js";
 import type * as matching from "../matching.js";
 import type * as model_accounts from "../model/accounts.js";
 import type * as model_auth from "../model/auth.js";
 import type * as model_receipts from "../model/receipts.js";
+import type * as model_reparseItems from "../model/reparseItems.js";
 import type * as model_syncRuns from "../model/syncRuns.js";
 import type * as receipts from "../receipts.js";
+import type * as reparseItems from "../reparseItems.js";
 import type * as sync from "../sync.js";
+import type * as testSupport from "../testSupport.js";
 import type * as validators from "../validators.js";
 
 import type {
@@ -36,13 +40,17 @@ declare const fullApi: ApiFromModules<{
   crons: typeof crons;
   http: typeof http;
   links: typeof links;
+  mappings: typeof mappings;
   matching: typeof matching;
   "model/accounts": typeof model_accounts;
   "model/auth": typeof model_auth;
   "model/receipts": typeof model_receipts;
+  "model/reparseItems": typeof model_reparseItems;
   "model/syncRuns": typeof model_syncRuns;
   receipts: typeof receipts;
+  reparseItems: typeof reparseItems;
   sync: typeof sync;
+  testSupport: typeof testSupport;
   validators: typeof validators;
 }>;
 

@@ -1,35 +1,35 @@
 import { v } from 'convex/values';
 import {
-  internalAction,
-  internalMutation,
-  internalQuery,
+	internalAction,
+	internalMutation,
+	internalQuery,
 } from './_generated/server';
 import { internal } from './_generated/api';
 import { STORES, type StoreSlug } from '@matvis/shared';
 import { QUEUE_STATUSES } from './model/ingest';
 import { storeValidator } from './model/fields';
 import {
-  categoryKeyFor,
-  categoryKeyForPrefix,
-  OTHER_CATEGORY_KEY,
-  slugSegment,
-} from '../src/categoryKey';
+	categoryKeyFor,
+	categoryKeyForPrefix,
+	OTHER_CATEGORY_KEY,
+	slugSegment,
+} from '../src/category-key';
 import {
-  deriveSearchFields,
-  netContentFrom,
-  soldByFrom,
+	deriveSearchFields,
+	netContentFrom,
+	soldByFrom,
 } from './model/project';
 import {
-  catalogStoreKey,
-  coverageKey,
-  queueCountKey,
-  setCounter,
-  CATALOG_COUNT_KEY,
-  CATALOG_VERIFIED_KEY,
-  COVERAGE_FIELDS,
-  COVERAGE_MEASURED_AT_KEY,
-  EANS_COUNT_KEY,
-  type CoverageField,
+	catalogStoreKey,
+	coverageKey,
+	queueCountKey,
+	setCounter,
+	CATALOG_COUNT_KEY,
+	CATALOG_VERIFIED_KEY,
+	COVERAGE_FIELDS,
+	COVERAGE_MEASURED_AT_KEY,
+	EANS_COUNT_KEY,
+	type CoverageField,
 } from './model/counters';
 import type { Doc } from './_generated/dataModel';
 
@@ -37,100 +37,147 @@ const RECOUNT_QUEUE_PAGE = 1000;
 export const RECOUNT_CATALOG_PAGE = 500;
 
 const countedTableValidator = v.union(
-  v.literal('ingest_queue'),
-  v.literal('catalog'),
-  v.literal('eans'),
+	v.literal( 'ingest_queue' ),
+	v.literal( 'catalog' ),
+	v.literal( 'eans' )
 );
 
 type CountedTable = 'ingest_queue' | 'catalog' | 'eans';
 
-/** One row against one coverage field. Nested fields are spelled out rather
+/**
+ * Drives one page-cursor loop to the end, handing each page to `onPage`
+ * before asking for the next. Shared by every backfill that pages an action
+ * across many mutation or query transactions.
+ */
+async function paginateAll<
+	Page extends { continueCursor: string; isDone: boolean },
+>(
+	fetchPage: ( cursor: string | null ) => Promise< Page >,
+	onPage: ( page: Page ) => void
+): Promise< number > {
+	let pages = 0;
+	let cursor: string | null = null;
+	for (;;) {
+		const page = await fetchPage( cursor );
+		onPage( page );
+		pages += 1;
+		if ( page.isDone ) {
+			return pages;
+		}
+		cursor = page.continueCursor;
+	}
+}
+
+/**
+ * One row against one coverage field. Nested fields are spelled out rather
  * than reached by path, so a rename breaks the build instead of quietly
  * measuring nothing and reporting 0%. An empty array counts as absent: a
- * product with no labels has no label coverage. */
-function hasField(row: Doc<'catalog'>, field: CoverageField): boolean {
-  switch (field) {
-    case 'brand':
-      return row.brand !== undefined;
-    case 'imageUrl':
-      return row.imageUrl !== undefined;
-    case 'netContent':
-      return row.netContent !== undefined;
-    case 'categoryPath':
-      return (row.categoryPath?.length ?? 0) > 0;
-    case 'countryOfOrigin':
-      return row.countryOfOrigin !== undefined;
-    case 'labels':
-      return (row.labels?.length ?? 0) > 0;
-    case 'food':
-      return row.food !== undefined;
-    case 'foodIngredients':
-      return row.food?.ingredients !== undefined;
-    case 'foodNutrition':
-      return row.food?.nutrition !== undefined;
-  }
+ * product with no labels has no label coverage.
+ */
+function hasField( row: Doc< 'catalog' >, field: CoverageField ): boolean {
+	switch ( field ) {
+		case 'brand':
+			return row.brand !== undefined;
+		case 'imageUrl':
+			return row.imageUrl !== undefined;
+		case 'netContent':
+			return row.netContent !== undefined;
+		case 'categoryPath':
+			return ( row.categoryPath?.length ?? 0 ) > 0;
+		case 'countryOfOrigin':
+			return row.countryOfOrigin !== undefined;
+		case 'labels':
+			return ( row.labels?.length ?? 0 ) > 0;
+		case 'food':
+			return row.food !== undefined;
+		case 'foodIngredients':
+			return row.food?.ingredients !== undefined;
+		case 'foodNutrition':
+			return row.food?.nutrition !== undefined;
+	}
 }
 
 type CountPage = {
-  counts: Record<string, number>;
-  continueCursor: string;
-  isDone: boolean;
+	counts: Record< string, number >;
+	continueCursor: string;
+	isDone: boolean;
 };
 
-/** One page of one table, tallied into counter keys. Each table derives its own
+/**
+ * One page of one table, tallied into counter keys. Each table derives its own
  * keys, so the paging, the cursor and the return shape are written once.
  *
  * Separate from `rebuildCounters` because the action drives the cursor and
- * cannot read the database itself. */
-export const countTablePage = internalMutation({
-  args: { table: countedTableValidator, cursor: v.union(v.string(), v.null()) },
-  returns: v.object({
-    counts: v.record(v.string(), v.number()),
-    continueCursor: v.string(),
-    isDone: v.boolean(),
-  }),
-  handler: async (ctx, { table, cursor }) => {
-    const numItems =
-      table === 'ingest_queue' ? RECOUNT_QUEUE_PAGE : RECOUNT_CATALOG_PAGE;
-    const page = await ctx.db.query(table).paginate({ cursor, numItems });
+ * cannot read the database itself.
+ */
+export const countTablePage = internalMutation( {
+	args: {
+		table: countedTableValidator,
+		cursor: v.union( v.string(), v.null() ),
+	},
+	returns: v.object( {
+		counts: v.record( v.string(), v.number() ),
+		continueCursor: v.string(),
+		isDone: v.boolean(),
+	} ),
+	handler: async ( ctx, { table, cursor } ) => {
+		const numItems =
+			table === 'ingest_queue'
+				? RECOUNT_QUEUE_PAGE
+				: RECOUNT_CATALOG_PAGE;
+		const page = await ctx.db
+			.query( table )
+			.paginate( { cursor, numItems } );
 
-    const counts: Record<string, number> = {};
-    const tally = (key: string) => {
-      counts[key] = (counts[key] ?? 0) + 1;
-    };
-    // Narrowed by field rather than by `table`: one paginate call means
-    // `page.page` is a union, and the table name does not narrow it.
-    for (const row of page.page) {
-      if ('status' in row) tally(queueCountKey(row.status));
-      else if ('name' in row) {
-        tally(catalogStoreKey(row.store));
-        if (row.fetchedAt !== undefined) tally(CATALOG_VERIFIED_KEY);
-        for (const field of COVERAGE_FIELDS) {
-          if (hasField(row, field)) tally(coverageKey(field));
-        }
-      }
-    }
-    if (table === 'catalog') counts[CATALOG_COUNT_KEY] = page.page.length;
-    if (table === 'eans') counts[EANS_COUNT_KEY] = page.page.length;
+		const counts: Record< string, number > = {};
+		const tally = ( key: string ) => {
+			counts[ key ] = ( counts[ key ] ?? 0 ) + 1;
+		};
+		// Narrowed by field rather than by `table`: one paginate call means
+		// `page.page` is a union, and the table name does not narrow it.
+		for ( const row of page.page ) {
+			if ( 'status' in row ) {
+				tally( queueCountKey( row.status ) );
+			} else if ( 'name' in row ) {
+				tally( catalogStoreKey( row.store ) );
+				if ( row.fetchedAt !== undefined ) {
+					tally( CATALOG_VERIFIED_KEY );
+				}
+				for ( const field of COVERAGE_FIELDS ) {
+					if ( hasField( row, field ) ) {
+						tally( coverageKey( field ) );
+					}
+				}
+			}
+		}
+		if ( table === 'catalog' ) {
+			counts[ CATALOG_COUNT_KEY ] = page.page.length;
+		}
+		if ( table === 'eans' ) {
+			counts[ EANS_COUNT_KEY ] = page.page.length;
+		}
 
-    return {
-      counts,
-      continueCursor: page.continueCursor,
-      isDone: page.isDone,
-    };
-  },
-});
+		return {
+			counts,
+			continueCursor: page.continueCursor,
+			isDone: page.isDone,
+		};
+	},
+} );
 
-/** The shape a pre-migration `catalog` row carries: three fields the schema no
+/**
+ * The shape a pre-migration `catalog` row carries: three fields the schema no
  * longer declares, still sitting in stored data. Read through a cast because
- * the generated `Doc` type describes the schema, not the rows on disk. */
+ * the generated `Doc` type describes the schema, not the rows on disk.
+ */
 type LegacySizeFields = {
-  packageSize?: number;
-  packageSizeUnit?: string;
-  salesUnit?: string;
+	packageSize?: number;
+	packageSizeUnit?: string;
+	salesUnit?: string;
 };
 
-/** One page of the unit migration.
+/**
+ * One page of the unit migration.
  *
  * This is a local re-derivation, not a re-fetch. `packageSizeUnit` was stored
  * verbatim on the clean row, so resolving it to a canonical unit is a pure
@@ -143,404 +190,434 @@ type LegacySizeFields = {
  * what fails validation when schema checking is turned back on.
  *
  * `fetchedAt` is carried forward untouched. Rewriting a row is not verifying
- * it, and stamping it here would claim a freshness this never earned. */
-export const normalizeUnitsPage = internalMutation({
-  args: { cursor: v.union(v.string(), v.null()) },
-  returns: v.object({
-    scanned: v.number(),
-    rewritten: v.number(),
-    unresolved: v.number(),
-    continueCursor: v.string(),
-    isDone: v.boolean(),
-  }),
-  handler: async (ctx, { cursor }) => {
-    const page = await ctx.db
-      .query('catalog')
-      .paginate({ cursor, numItems: RECOUNT_CATALOG_PAGE });
+ * it, and stamping it here would claim a freshness this never earned.
+ */
+export const normalizeUnitsPage = internalMutation( {
+	args: { cursor: v.union( v.string(), v.null() ) },
+	returns: v.object( {
+		scanned: v.number(),
+		rewritten: v.number(),
+		unresolved: v.number(),
+		continueCursor: v.string(),
+		isDone: v.boolean(),
+	} ),
+	handler: async ( ctx, { cursor } ) => {
+		const page = await ctx.db
+			.query( 'catalog' )
+			.paginate( { cursor, numItems: RECOUNT_CATALOG_PAGE } );
 
-    let rewritten = 0;
-    let unresolved = 0;
+		let rewritten = 0;
+		let unresolved = 0;
 
-    for (const row of page.page) {
-      const legacy = row as unknown as LegacySizeFields;
-      const hasLegacy =
-        legacy.packageSize !== undefined ||
-        legacy.packageSizeUnit !== undefined ||
-        legacy.salesUnit !== undefined;
-      if (!hasLegacy) continue;
+		for ( const row of page.page ) {
+			const legacy = row as unknown as LegacySizeFields;
+			const hasLegacy =
+				legacy.packageSize !== undefined ||
+				legacy.packageSizeUnit !== undefined ||
+				legacy.salesUnit !== undefined;
+			if ( ! hasLegacy ) {
+				continue;
+			}
 
-      const netContent =
-        row.netContent ??
-        netContentFrom(legacy.packageSize, legacy.packageSizeUnit);
-      const soldBy = row.soldBy ?? soldByFrom(legacy.salesUnit);
+			const netContent =
+				row.netContent ??
+				netContentFrom( legacy.packageSize, legacy.packageSizeUnit );
+			const soldBy = row.soldBy ?? soldByFrom( legacy.salesUnit );
 
-      // A size that was stated but did not resolve is worth counting: it is the
-      // only signal that the lookup table has a gap.
-      if (netContent === undefined && legacy.packageSize !== undefined) {
-        unresolved += 1;
-      }
+			// A size that was stated but did not resolve is worth counting: it is the
+			// only signal that the lookup table has a gap.
+			if (
+				netContent === undefined &&
+				legacy.packageSize !== undefined
+			) {
+				unresolved += 1;
+			}
 
-      const { _id, _creationTime, ...fields } = row;
-      const next = { ...fields, netContent, soldBy };
-      delete (next as LegacySizeFields).packageSize;
-      delete (next as LegacySizeFields).packageSizeUnit;
-      delete (next as LegacySizeFields).salesUnit;
+			const { _id, _creationTime, ...fields } = row;
+			const next = { ...fields, netContent, soldBy };
+			delete ( next as LegacySizeFields ).packageSize;
+			delete ( next as LegacySizeFields ).packageSizeUnit;
+			delete ( next as LegacySizeFields ).salesUnit;
 
-      await ctx.db.replace(_id, next);
-      rewritten += 1;
-    }
+			await ctx.db.replace( _id, next );
+			rewritten += 1;
+		}
 
-    return {
-      scanned: page.page.length,
-      rewritten,
-      unresolved,
-      continueCursor: page.continueCursor,
-      isDone: page.isDone,
-    };
-  },
-});
+		return {
+			scanned: page.page.length,
+			rewritten,
+			unresolved,
+			continueCursor: page.continueCursor,
+			isDone: page.isDone,
+		};
+	},
+} );
 
-/** Pause ingest before running this, for the same reason `rebuildCounters`
+/**
+ * Pause ingest before running this, for the same reason `rebuildCounters`
  * says so: it pages across many transactions and a live drain writing rows
  * underneath it is one more thing to reason about for no benefit.
  *
  * Idempotent. A row already carrying `netContent` keeps it, and a row with no
  * legacy fields is skipped, so a re-run after a failure resumes rather than
- * double-converting. */
-export const normalizeUnits = internalAction({
-  args: {},
-  returns: v.object({
-    scanned: v.number(),
-    rewritten: v.number(),
-    unresolved: v.number(),
-    pages: v.number(),
-  }),
-  handler: async (ctx) => {
-    const totals = { scanned: 0, rewritten: 0, unresolved: 0, pages: 0 };
-    let cursor: string | null = null;
-    for (;;) {
-      const page: {
-        scanned: number;
-        rewritten: number;
-        unresolved: number;
-        continueCursor: string;
-        isDone: boolean;
-      } = await ctx.runMutation(internal.backfill.normalizeUnitsPage, {
-        cursor,
-      });
-      totals.scanned += page.scanned;
-      totals.rewritten += page.rewritten;
-      totals.unresolved += page.unresolved;
-      totals.pages += 1;
-      if (page.isDone) break;
-      cursor = page.continueCursor;
-    }
-    return totals;
-  },
-});
+ * double-converting.
+ */
+export const normalizeUnits = internalAction( {
+	args: {},
+	returns: v.object( {
+		scanned: v.number(),
+		rewritten: v.number(),
+		unresolved: v.number(),
+		pages: v.number(),
+	} ),
+	handler: async ( ctx ) => {
+		const totals = { scanned: 0, rewritten: 0, unresolved: 0, pages: 0 };
+		totals.pages = await paginateAll(
+			( cursor ) =>
+				ctx.runMutation( internal.backfill.normalizeUnitsPage, {
+					cursor,
+				} ),
+			( page ) => {
+				totals.scanned += page.scanned;
+				totals.rewritten += page.rewritten;
+				totals.unresolved += page.unresolved;
+			}
+		);
+		return totals;
+	},
+} );
 
 // Idempotent by comparison: a row already matching deriveSearchFields is left
 // alone, so a second run patches nothing. patch rather than replace since this
 // only ever touches these two fields.
-export const backfillSearchFieldsPage = internalMutation({
-  args: { cursor: v.union(v.string(), v.null()) },
-  returns: v.object({
-    scanned: v.number(),
-    updated: v.number(),
-    continueCursor: v.string(),
-    isDone: v.boolean(),
-  }),
-  handler: async (ctx, { cursor }) => {
-    const page = await ctx.db
-      .query('catalog')
-      .paginate({ cursor, numItems: RECOUNT_CATALOG_PAGE });
+export const backfillSearchFieldsPage = internalMutation( {
+	args: { cursor: v.union( v.string(), v.null() ) },
+	returns: v.object( {
+		scanned: v.number(),
+		updated: v.number(),
+		continueCursor: v.string(),
+		isDone: v.boolean(),
+	} ),
+	handler: async ( ctx, { cursor } ) => {
+		const page = await ctx.db
+			.query( 'catalog' )
+			.paginate( { cursor, numItems: RECOUNT_CATALOG_PAGE } );
 
-    let updated = 0;
-    for (const row of page.page) {
-      const derived = deriveSearchFields(row);
-      if (
-        row.searchText === derived.searchText &&
-        row.categoryKey === derived.categoryKey &&
-        row.nameKey === derived.nameKey
-      ) {
-        continue;
-      }
-      await ctx.db.patch(row._id, derived);
-      updated += 1;
-    }
+		let updated = 0;
+		for ( const row of page.page ) {
+			const derived = deriveSearchFields( row );
+			if (
+				row.searchText === derived.searchText &&
+				row.categoryKey === derived.categoryKey &&
+				row.nameKey === derived.nameKey
+			) {
+				continue;
+			}
+			await ctx.db.patch( row._id, derived );
+			updated += 1;
+		}
 
-    return {
-      scanned: page.page.length,
-      updated,
-      continueCursor: page.continueCursor,
-      isDone: page.isDone,
-    };
-  },
-});
+		return {
+			scanned: page.page.length,
+			updated,
+			continueCursor: page.continueCursor,
+			isDone: page.isDone,
+		};
+	},
+} );
 
 // Pause ingest before running this: it pages across many transactions and a
 // live drain writing rows underneath it is one more thing to reason about.
-export const backfillSearchFields = internalAction({
-  args: {},
-  returns: v.object({
-    scanned: v.number(),
-    updated: v.number(),
-    pages: v.number(),
-  }),
-  handler: async (ctx) => {
-    const totals = { scanned: 0, updated: 0, pages: 0 };
-    let cursor: string | null = null;
-    for (;;) {
-      const page: {
-        scanned: number;
-        updated: number;
-        continueCursor: string;
-        isDone: boolean;
-      } = await ctx.runMutation(internal.backfill.backfillSearchFieldsPage, {
-        cursor,
-      });
-      totals.scanned += page.scanned;
-      totals.updated += page.updated;
-      totals.pages += 1;
-      if (page.isDone) break;
-      cursor = page.continueCursor;
-    }
-    return totals;
-  },
-});
+export const backfillSearchFields = internalAction( {
+	args: {},
+	returns: v.object( {
+		scanned: v.number(),
+		updated: v.number(),
+		pages: v.number(),
+	} ),
+	handler: async ( ctx ) => {
+		const totals = { scanned: 0, updated: 0, pages: 0 };
+		totals.pages = await paginateAll(
+			( cursor ) =>
+				ctx.runMutation( internal.backfill.backfillSearchFieldsPage, {
+					cursor,
+				} ),
+			( page ) => {
+				totals.scanned += page.scanned;
+				totals.updated += page.updated;
+			}
+		);
+		return totals;
+	},
+} );
 
-/** Repairs rows the unit migration emptied because `UNIT_BY_SOURCE` had no
+/**
+ * Repairs rows the unit migration emptied because `UNIT_BY_SOURCE` had no
  * entry for their spelling.
  *
  * `normalizeUnitsPage` drops the three legacy fields whether or not the unit
  * resolved, and its re-run guard is "does this row still carry legacy fields".
- * Together that means a row whose unit was unknown cannot be repaired in place:
- * the evidence needed to retry went with the rewrite. Adding the spelling and
- * re-running, which MIGRATION-canonical-units.md used to advise, reaches
- * nothing.
+ * Together that means a row whose unit was unknown cannot be repaired in place,
+ * since the evidence needed to retry went with the rewrite. Adding the missing
+ * spelling and re-running the migration reaches nothing.
  *
  * So the legacy values come back in from the pre-migration snapshot and are
  * re-resolved here, through the same lookup a fetch would use, rather than a
  * caller computing the answer and this trusting it.
  *
  * Only fills a gap. A row that already carries `netContent` is left alone, so
- * this can be replayed over the whole snapshot without undoing good data. */
-export const repairNetContent = internalMutation({
-  args: {
-    rows: v.array(
-      v.object({
-        ean: v.string(),
-        store: storeValidator,
-        packageSize: v.optional(v.number()),
-        packageSizeUnit: v.optional(v.string()),
-        salesUnit: v.optional(v.string()),
-      }),
-    ),
-  },
-  returns: v.object({
-    patched: v.number(),
-    skipped: v.number(),
-    stillUnresolved: v.number(),
-    absent: v.number(),
-  }),
-  handler: async (ctx, { rows }) => {
-    const totals = { patched: 0, skipped: 0, stillUnresolved: 0, absent: 0 };
+ * this can be replayed over the whole snapshot without undoing good data.
+ */
+export const repairNetContent = internalMutation( {
+	args: {
+		rows: v.array(
+			v.object( {
+				ean: v.string(),
+				store: storeValidator,
+				packageSize: v.optional( v.number() ),
+				packageSizeUnit: v.optional( v.string() ),
+				salesUnit: v.optional( v.string() ),
+			} )
+		),
+	},
+	returns: v.object( {
+		patched: v.number(),
+		skipped: v.number(),
+		stillUnresolved: v.number(),
+		absent: v.number(),
+	} ),
+	handler: async ( ctx, { rows } ) => {
+		const totals = {
+			patched: 0,
+			skipped: 0,
+			stillUnresolved: 0,
+			absent: 0,
+		};
 
-    for (const row of rows) {
-      const held = await ctx.db
-        .query('catalog')
-        .withIndex('by_ean_store', (q) =>
-          q.eq('ean', row.ean).eq('store', row.store),
-        )
-        .first();
-      if (!held) {
-        totals.absent += 1;
-        continue;
-      }
-      if (held.netContent !== undefined) {
-        totals.skipped += 1;
-        continue;
-      }
+		for ( const row of rows ) {
+			const held = await ctx.db
+				.query( 'catalog' )
+				.withIndex( 'by_ean_store', ( q ) =>
+					q.eq( 'ean', row.ean ).eq( 'store', row.store )
+				)
+				.first();
+			if ( ! held ) {
+				totals.absent += 1;
+				continue;
+			}
+			if ( held.netContent !== undefined ) {
+				totals.skipped += 1;
+				continue;
+			}
 
-      const netContent = netContentFrom(row.packageSize, row.packageSizeUnit);
-      if (netContent === undefined) {
-        totals.stillUnresolved += 1;
-        continue;
-      }
+			const netContent = netContentFrom(
+				row.packageSize,
+				row.packageSizeUnit
+			);
+			if ( netContent === undefined ) {
+				totals.stillUnresolved += 1;
+				continue;
+			}
 
-      await ctx.db.patch(held._id, {
-        netContent,
-        soldBy: held.soldBy ?? soldByFrom(row.salesUnit),
-      });
-      totals.patched += 1;
-    }
-    return totals;
-  },
-});
+			await ctx.db.patch( held._id, {
+				netContent,
+				soldBy: held.soldBy ?? soldByFrom( row.salesUnit ),
+			} );
+			totals.patched += 1;
+		}
+		return totals;
+	},
+} );
 
-/** The write half of the rebuild, not a second way to rebuild. Every page is
+/**
+ * The write half of the rebuild, not a second way to rebuild. Every page is
  * tallied first and the totals land here in one call, because the action doing
- * the tallying cannot write. */
-export const saveCounters = internalMutation({
-  args: { counts: v.record(v.string(), v.number()) },
-  returns: v.null(),
-  handler: async (ctx, { counts }) => {
-    for (const [key, value] of Object.entries(counts)) {
-      await setCounter(ctx, key, value);
-    }
-    return null;
-  },
-});
+ * the tallying cannot write.
+ */
+export const saveCounters = internalMutation( {
+	args: { counts: v.record( v.string(), v.number() ) },
+	returns: v.null(),
+	handler: async ( ctx, { counts } ) => {
+		for ( const [ key, value ] of Object.entries( counts ) ) {
+			await setCounter( ctx, key, value );
+		}
+		return null;
+	},
+} );
 
-/** Pause ingest before running this. It pages across many transactions while
- * the live helpers keep bumping, so a run against a working drain lands off. */
-export const rebuildCounters = internalAction({
-  args: {
-    scope: v.optional(
-      v.union(v.literal('queue'), v.literal('catalog'), v.literal('all')),
-    ),
-  },
-  returns: v.object({
-    queue: v.union(v.record(v.string(), v.number()), v.null()),
-    catalog: v.union(v.record(v.string(), v.number()), v.null()),
-    pages: v.number(),
-  }),
-  handler: async (ctx, { scope }) => {
-    const doQueue = scope !== 'catalog';
-    const doCatalog = scope !== 'queue';
+/**
+ * Pause ingest before running this. It pages across many transactions while
+ * the live helpers keep bumping, so a run against a working drain lands off.
+ */
+export const rebuildCounters = internalAction( {
+	args: {
+		scope: v.optional(
+			v.union(
+				v.literal( 'queue' ),
+				v.literal( 'catalog' ),
+				v.literal( 'all' )
+			)
+		),
+	},
+	returns: v.object( {
+		queue: v.union( v.record( v.string(), v.number() ), v.null() ),
+		catalog: v.union( v.record( v.string(), v.number() ), v.null() ),
+		pages: v.number(),
+	} ),
+	handler: async ( ctx, { scope } ) => {
+		const doQueue = scope !== 'catalog';
+		const doCatalog = scope !== 'queue';
 
-    const totals: Record<string, number> = {};
-    if (doQueue) {
-      for (const status of QUEUE_STATUSES) totals[queueCountKey(status)] = 0;
-    }
-    if (doCatalog) {
-      totals[CATALOG_COUNT_KEY] = 0;
-      totals[EANS_COUNT_KEY] = 0;
-      totals[CATALOG_VERIFIED_KEY] = 0;
-      for (const store of STORES) totals[catalogStoreKey(store)] = 0;
-      for (const field of COVERAGE_FIELDS) totals[coverageKey(field)] = 0;
-    }
+		const totals: Record< string, number > = {};
+		if ( doQueue ) {
+			for ( const status of QUEUE_STATUSES ) {
+				totals[ queueCountKey( status ) ] = 0;
+			}
+		}
+		if ( doCatalog ) {
+			totals[ CATALOG_COUNT_KEY ] = 0;
+			totals[ EANS_COUNT_KEY ] = 0;
+			totals[ CATALOG_VERIFIED_KEY ] = 0;
+			for ( const store of STORES ) {
+				totals[ catalogStoreKey( store ) ] = 0;
+			}
+			for ( const field of COVERAGE_FIELDS ) {
+				totals[ coverageKey( field ) ] = 0;
+			}
+		}
 
-    const tables: CountedTable[] = [
-      ...(doQueue ? (['ingest_queue'] as const) : []),
-      ...(doCatalog ? (['catalog', 'eans'] as const) : []),
-    ];
+		const tables: CountedTable[] = [
+			...( doQueue ? ( [ 'ingest_queue' ] as const ) : [] ),
+			...( doCatalog ? ( [ 'catalog', 'eans' ] as const ) : [] ),
+		];
 
-    let pages = 0;
-    for (const table of tables) {
-      let cursor: string | null = null;
-      for (;;) {
-        const page: CountPage = await ctx.runMutation(
-          internal.backfill.countTablePage,
-          { table, cursor },
-        );
-        for (const [key, value] of Object.entries(page.counts)) {
-          totals[key] = (totals[key] ?? 0) + value;
-        }
-        pages += 1;
-        if (page.isDone) break;
-        cursor = page.continueCursor;
-      }
-    }
+		let pages = 0;
+		for ( const table of tables ) {
+			pages += await paginateAll(
+				( cursor ) =>
+					ctx.runMutation( internal.backfill.countTablePage, {
+						table,
+						cursor,
+					} ),
+				( page: CountPage ) => {
+					for ( const [ key, value ] of Object.entries(
+						page.counts
+					) ) {
+						totals[ key ] = ( totals[ key ] ?? 0 ) + value;
+					}
+				}
+			);
+		}
 
-    // Stamped just before the write, so the timestamp means "these counts are
-    // as of here" rather than "a recount started at some point".
-    if (doCatalog) totals[COVERAGE_MEASURED_AT_KEY] = Date.now();
-    await ctx.runMutation(internal.backfill.saveCounters, { counts: totals });
+		// Stamped just before the write, so the timestamp means "these counts are
+		// as of here" rather than "a recount started at some point".
+		if ( doCatalog ) {
+			totals[ COVERAGE_MEASURED_AT_KEY ] = Date.now();
+		}
+		await ctx.runMutation( internal.backfill.saveCounters, {
+			counts: totals,
+		} );
 
-    let queue: Record<string, number> | null = null;
-    if (doQueue) {
-      queue = {};
-      for (const status of QUEUE_STATUSES) {
-        queue[status] = totals[queueCountKey(status)] ?? 0;
-      }
-    }
-    let catalog: Record<string, number> | null = null;
-    if (doCatalog) {
-      catalog = {
-        total: totals[CATALOG_COUNT_KEY] ?? 0,
-        eans: totals[EANS_COUNT_KEY] ?? 0,
-        verified: totals[CATALOG_VERIFIED_KEY] ?? 0,
-      };
-      for (const store of STORES) {
-        catalog[store] = totals[catalogStoreKey(store)] ?? 0;
-      }
-    }
-    return { queue, catalog, pages };
-  },
-});
+		let queue: Record< string, number > | null = null;
+		if ( doQueue ) {
+			queue = {};
+			for ( const status of QUEUE_STATUSES ) {
+				queue[ status ] = totals[ queueCountKey( status ) ] ?? 0;
+			}
+		}
+		let catalog: Record< string, number > | null = null;
+		if ( doCatalog ) {
+			catalog = {
+				total: totals[ CATALOG_COUNT_KEY ] ?? 0,
+				eans: totals[ EANS_COUNT_KEY ] ?? 0,
+				verified: totals[ CATALOG_VERIFIED_KEY ] ?? 0,
+			};
+			for ( const store of STORES ) {
+				catalog[ store ] = totals[ catalogStoreKey( store ) ] ?? 0;
+			}
+		}
+		return { queue, catalog, pages };
+	},
+} );
 
 type CategoryTreeRow = {
-  store: StoreSlug;
-  categoryKey: string;
-  slug: string;
-  parentSlug: string;
-  name: string;
-  count: number;
+	store: StoreSlug;
+	categoryKey: string;
+	slug: string;
+	parentSlug: string;
+	name: string;
+	count: number;
 };
 
 // One page of (store, categoryPath) pairs, for the action to tally in memory
 // across every page before writing anything.
-export const categoryTallyPage = internalQuery({
-  args: { cursor: v.union(v.string(), v.null()) },
-  returns: v.object({
-    rows: v.array(
-      v.object({
-        store: storeValidator,
-        categoryPath: v.optional(v.array(v.string())),
-      }),
-    ),
-    continueCursor: v.string(),
-    isDone: v.boolean(),
-  }),
-  handler: async (ctx, { cursor }) => {
-    const page = await ctx.db
-      .query('catalog')
-      .paginate({ cursor, numItems: RECOUNT_CATALOG_PAGE });
-    return {
-      rows: page.page.map((row) => ({
-        store: row.store,
-        categoryPath: row.categoryPath,
-      })),
-      continueCursor: page.continueCursor,
-      isDone: page.isDone,
-    };
-  },
-});
+export const categoryTallyPage = internalQuery( {
+	args: { cursor: v.union( v.string(), v.null() ) },
+	returns: v.object( {
+		rows: v.array(
+			v.object( {
+				store: storeValidator,
+				categoryPath: v.optional( v.array( v.string() ) ),
+			} )
+		),
+		continueCursor: v.string(),
+		isDone: v.boolean(),
+	} ),
+	handler: async ( ctx, { cursor } ) => {
+		const page = await ctx.db
+			.query( 'catalog' )
+			.paginate( { cursor, numItems: RECOUNT_CATALOG_PAGE } );
+		return {
+			rows: page.page.map( ( row ) => ( {
+				store: row.store,
+				categoryPath: row.categoryPath,
+			} ) ),
+			continueCursor: page.continueCursor,
+			isDone: page.isDone,
+		};
+	},
+} );
 
-export const clearCategoryTreePage = internalMutation({
-  args: {},
-  returns: v.object({ isDone: v.boolean() }),
-  handler: async (ctx) => {
-    const page = await ctx.db.query('categoryTree').take(RECOUNT_CATALOG_PAGE);
-    for (const row of page) await ctx.db.delete(row._id);
-    return { isDone: page.length === 0 };
-  },
-});
+export const clearCategoryTreePage = internalMutation( {
+	args: {},
+	returns: v.object( { isDone: v.boolean() } ),
+	handler: async ( ctx ) => {
+		const page = await ctx.db
+			.query( 'categoryTree' )
+			.take( RECOUNT_CATALOG_PAGE );
+		for ( const row of page ) {
+			await ctx.db.delete( row._id );
+		}
+		return { isDone: page.length === 0 };
+	},
+} );
 
-export const insertCategoryTreeRows = internalMutation({
-  args: {
-    rows: v.array(
-      v.object({
-        store: storeValidator,
-        categoryKey: v.string(),
-        slug: v.string(),
-        parentSlug: v.string(),
-        name: v.string(),
-        count: v.number(),
-      }),
-    ),
-  },
-  returns: v.null(),
-  handler: async (ctx, { rows }) => {
-    for (const row of rows) await ctx.db.insert('categoryTree', row);
-    return null;
-  },
-});
+export const insertCategoryTreeRows = internalMutation( {
+	args: {
+		rows: v.array(
+			v.object( {
+				store: storeValidator,
+				categoryKey: v.string(),
+				slug: v.string(),
+				parentSlug: v.string(),
+				name: v.string(),
+				count: v.number(),
+			} )
+		),
+	},
+	returns: v.null(),
+	handler: async ( ctx, { rows } ) => {
+		for ( const row of rows ) {
+			await ctx.db.insert( 'categoryTree', row );
+		}
+		return null;
+	},
+} );
 
 const INSERT_BATCH = 200;
 
-/** Pause ingest before running this. It pages across many transactions and a
+/**
+ * Pause ingest before running this. It pages across many transactions and a
  * live drain writing rows underneath it is one more thing to reason about.
  *
  * Every prefix of a row's category path becomes its own tree node (a branch's
@@ -548,81 +625,98 @@ const INSERT_BATCH = 200;
  * top-level category's count already rolls up everything under it. Tallied in
  * the action's own memory across every page before any write, so a category
  * split across pages gets one row with the right count rather than one row
- * per page. */
-export const rebuildCategoryTree = internalAction({
-  args: {},
-  returns: v.object({ rows: v.number(), pages: v.number() }),
-  handler: async (ctx) => {
-    for (;;) {
-      const cleared: { isDone: boolean } = await ctx.runMutation(
-        internal.backfill.clearCategoryTreePage,
-        {},
-      );
-      if (cleared.isDone) break;
-    }
+ * per page.
+ */
+export const rebuildCategoryTree = internalAction( {
+	args: {},
+	returns: v.object( { rows: v.number(), pages: v.number() } ),
+	handler: async ( ctx ) => {
+		for (;;) {
+			const cleared: { isDone: boolean } = await ctx.runMutation(
+				internal.backfill.clearCategoryTreePage,
+				{}
+			);
+			if ( cleared.isDone ) {
+				break;
+			}
+		}
 
-    const tally = new Map<string, CategoryTreeRow>();
-    function bump(
-      store: StoreSlug,
-      slug: string,
-      parentSlug: string,
-      name: string,
-      categoryKey: string,
-    ) {
-      const mapKey = `${store}:${slug}`;
-      const existing = tally.get(mapKey);
-      if (existing) {
-        existing.count += 1;
-        return;
-      }
-      tally.set(mapKey, {
-        store,
-        categoryKey,
-        slug,
-        parentSlug,
-        name,
-        count: 1,
-      });
-    }
+		const tally = new Map< string, CategoryTreeRow >();
+		function bump(
+			store: StoreSlug,
+			slug: string,
+			parentSlug: string,
+			name: string,
+			categoryKey: string
+		) {
+			const mapKey = `${ store }:${ slug }`;
+			const existing = tally.get( mapKey );
+			if ( existing ) {
+				existing.count += 1;
+				return;
+			}
+			tally.set( mapKey, {
+				store,
+				categoryKey,
+				slug,
+				parentSlug,
+				name,
+				count: 1,
+			} );
+		}
 
-    let pages = 0;
-    let cursor: string | null = null;
-    for (;;) {
-      const page: {
-        rows: { store: StoreSlug; categoryPath?: string[] }[];
-        continueCursor: string;
-        isDone: boolean;
-      } = await ctx.runQuery(internal.backfill.categoryTallyPage, { cursor });
-      for (const row of page.rows) {
-        const categoryKey = categoryKeyFor(row.categoryPath);
-        if (categoryKey === OTHER_CATEGORY_KEY) {
-          bump(row.store, 'other', '', 'Other', OTHER_CATEGORY_KEY);
-          continue;
-        }
-        const trimmed = row.categoryPath!.map((segment) => segment.trim());
-        const slugs = trimmed.map(slugSegment);
-        for (let depth = 0; depth < trimmed.length; depth++) {
-          bump(
-            row.store,
-            slugs.slice(0, depth + 1).join('/'),
-            depth === 0 ? '' : slugs.slice(0, depth).join('/'),
-            trimmed[depth]!,
-            categoryKeyForPrefix(trimmed.slice(0, depth + 1)),
-          );
-        }
-      }
-      pages += 1;
-      if (page.isDone) break;
-      cursor = page.continueCursor;
-    }
+		const pages: number = await paginateAll(
+			(
+				cursor
+			): Promise< {
+				rows: { store: StoreSlug; categoryPath?: string[] }[];
+				continueCursor: string;
+				isDone: boolean;
+			} > =>
+				ctx.runQuery( internal.backfill.categoryTallyPage, {
+					cursor,
+				} ),
+			( page ) => {
+				for ( const row of page.rows ) {
+					const categoryKey = categoryKeyFor( row.categoryPath );
+					if ( categoryKey === OTHER_CATEGORY_KEY ) {
+						bump(
+							row.store,
+							'other',
+							'',
+							'Other',
+							OTHER_CATEGORY_KEY
+						);
+						continue;
+					}
+					const trimmed = row.categoryPath!.map( ( segment ) =>
+						segment.trim()
+					);
+					const slugs = trimmed.map( slugSegment );
+					for ( let depth = 0; depth < trimmed.length; depth++ ) {
+						bump(
+							row.store,
+							slugs.slice( 0, depth + 1 ).join( '/' ),
+							depth === 0
+								? ''
+								: slugs.slice( 0, depth ).join( '/' ),
+							trimmed[ depth ]!,
+							categoryKeyForPrefix(
+								trimmed.slice( 0, depth + 1 )
+							)
+						);
+					}
+				}
+			}
+		);
 
-    const rows = [...tally.values()];
-    for (let i = 0; i < rows.length; i += INSERT_BATCH) {
-      await ctx.runMutation(internal.backfill.insertCategoryTreeRows, {
-        rows: rows.slice(i, i + INSERT_BATCH),
-      });
-    }
+		const rows = [ ...tally.values() ];
+		for ( let i = 0; i < rows.length; i += INSERT_BATCH ) {
+			await ctx.runMutation( internal.backfill.insertCategoryTreeRows, {
+				rows: rows.slice( i, i + INSERT_BATCH ),
+			} );
+		}
 
-    return { rows: rows.length, pages };
-  },
-});
+		return { rows: rows.length, pages };
+	},
+} );

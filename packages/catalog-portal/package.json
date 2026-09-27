@@ -1,40 +1,37 @@
 {
-  "name": "@matvis/catalog-portal",
-  "version": "0.0.0",
-  "private": true,
-  "type": "module",
-  "description": "Matvis Catalog portal (search + docs)",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/qrabbe/matvis.git",
-    "directory": "packages/catalog-portal"
-  },
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
-    "test": "vitest run",
-    "typecheck": "tsc -b"
-  },
-  "dependencies": {
-    "@matvis/catalog": "workspace:*",
-    "@matvis/shared": "workspace:*",
-    "@matvis/ui": "workspace:*",
-    "@wordpress/components": "^37.0.0",
-    "@wordpress/dataviews": "^17.2.0",
-    "convex": "^1.42.3",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "zod": "^4.1.13"
-  },
-  "devDependencies": {
-    "@testing-library/jest-dom": "^7.0.0",
-    "@testing-library/react": "^16.3.2",
-    "@types/react": "^18",
-    "@types/react-dom": "^18",
-    "@vitejs/plugin-react": "^6.0.3",
-    "jsdom": "^26.1.0",
-    "vite": "^8.1.5",
-    "vitest": "^4.1.10"
-  }
+	"name": "@matvis/catalog-portal",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"description": "Matvis Catalog portal (search + docs)",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/qrabbe/matvis.git",
+		"directory": "packages/catalog-portal"
+	},
+	"scripts": {
+		"dev": "vite",
+		"build": "vite build",
+		"preview": "vite preview",
+		"test": "vitest run",
+		"typecheck": "tsc -b"
+	},
+	"dependencies": {
+		"@matvis/catalog": "workspace:*",
+		"@matvis/shared": "workspace:*",
+		"@matvis/ui": "workspace:*",
+		"@wordpress/dataviews": "^17.2.0",
+		"convex": "^1.42.3",
+		"react": "^18.3.1",
+		"react-dom": "^18.3.1",
+		"zod": "^4.1.13"
+	},
+	"devDependencies": {
+		"@testing-library/react": "^16.3.2",
+		"@types/react": "^18",
+		"@types/react-dom": "^18",
+		"jsdom": "^26.1.0",
+		"vite": "^8.1.5",
+		"vitest": "^4.1.10"
+	}
 }

@@ -1,10 +1,10 @@
 export { MatvisThemeProvider } from './theme';
-export { mountApp, requireConvexUrl } from './mountApp';
-export { createLocalStorageStore } from './localStorageStore';
-export type { LocalStorageStore } from './localStorageStore';
-export { ErrorNotice } from './components/ErrorNotice';
-export { InlineSpinner } from './components/InlineSpinner';
-export { SkeletonList } from './components/SkeletonList';
-export { CopyButton } from './components/CopyButton';
-export { JsonView } from './components/JsonView';
+export { mountApp, requireConvexUrl } from './mount-app';
+export { createLocalStorageStore } from './local-storage-store';
+export type { LocalStorageStore } from './local-storage-store';
+export { ErrorNotice } from './components/error-notice';
+export { InlineSpinner } from './components/inline-spinner';
+export { SkeletonList } from './components/skeleton-list';
+export { CopyButton } from './components/copy-button';
+export { JsonView } from './components/json-view';
 export { sizedImageUrl } from './images';

@@ -8,15 +8,19 @@ const TRAILING_QUANTITY = /\s*\d+(?:[.,]\d+)?\s+(?:kg|st|l|ml|g)$/;
 
 const LEADING_NOISE = /^[\s*•\-]+/;
 
-/** Deliberately not part of `normalizeItemText`: it merges lines that may well
- * be different products. */
-export function stripQuantitySuffix(text: string): string {
-  let out = normalizeItemText(text).replace(LEADING_NOISE, '');
-  let changed = true;
-  while (changed) {
-    const before = out;
-    out = out.replace(TRAILING_QUANTITY, '').replace(TRAILING_PRICE, '');
-    changed = out !== before;
-  }
-  return out.trim();
+/**
+ * Deliberately not part of `normalizeItemText`: it merges lines that may well
+ * be different products.
+ */
+export function stripQuantitySuffix( text: string ): string {
+	let out = normalizeItemText( text ).replace( LEADING_NOISE, '' );
+	let changed = true;
+	while ( changed ) {
+		const before = out;
+		out = out
+			.replace( TRAILING_QUANTITY, '' )
+			.replace( TRAILING_PRICE, '' );
+		changed = out !== before;
+	}
+	return out.trim();
 }
