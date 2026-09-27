@@ -1,11 +1,11 @@
 import { globe, grid, key, lock, receipt, store } from '@wordpress/icons';
-import { Door } from '../components/Door';
-import { ChainLogos } from '../components/ChainLogos';
-import { ReceiptPreview } from '../components/ReceiptPreview';
-import { ShelfPreview } from '../components/ShelfPreview';
-import { PantryPreview } from '../components/PantryPreview';
-import { ALL_CHAINS, CONNECTED_CHAINS } from '../lib/chains';
-import { PLACEHOLDER_PRODUCTS } from '../lib/products';
+import { Door } from '../../components/door';
+import { ChainLogos } from '../../components/chain-logos';
+import { ReceiptPreview } from '../../components/receipt-preview';
+import { ShelfPreview } from '../../components/shelf-preview';
+import { PantryPreview } from '../../components/pantry-preview';
+import { ALL_CHAINS, CONNECTED_CHAINS } from '../../lib/chains';
+import { PLACEHOLDER_PRODUCTS } from '../../lib/products';
 
 const ACCESS = {
 	catalog: { label: 'Open to everyone', hint: 'open to everyone' },

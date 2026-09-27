@@ -1,7 +1,7 @@
 import { Icon, Stack } from '@wordpress/ui';
 import { search } from '@wordpress/icons';
-import { ProductTile } from './ProductTile';
-import type { Product } from '../lib/products';
+import { ProductTile } from '../product-tile';
+import type { Product } from '../../lib/products';
 
 export function ShelfPreview( {
 	products,

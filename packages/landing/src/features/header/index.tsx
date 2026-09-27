@@ -25,7 +25,10 @@ export function Header() {
 				variant="minimal"
 				tone="neutral"
 				nativeButton={ false }
+				// IconButton applies aria-label from the label prop to this
+				// anchor at runtime, invisible to eslint's static check.
 				render={
+					// eslint-disable-next-line jsx-a11y/anchor-has-content
 					<a
 						href="https://github.com/qrabbe/matvis"
 						target="_blank"

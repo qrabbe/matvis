@@ -1,16 +1,16 @@
 import { Icon } from '@wordpress/ui';
 import { chartBar, cog, grid, receipt } from '@wordpress/icons';
-import { ProductTile } from './ProductTile';
-import type { Product } from '../lib/products';
+import { ProductTile } from '../product-tile';
+import type { Product } from '../../lib/products';
 
 const PANTRY = [ 0, 1, 4, 3, 5, 6 ];
 const COUNTS = [ '×3', '×2', '', '×1', '×4', '' ];
 const DAY_DOTS = [
-	'color-foreground-content-success',
-	'color-foreground-content-warning',
-	'color-foreground-content-error',
-	'color-foreground-content-warning',
-	'color-foreground-content-success',
+	'var(--wpds-color-foreground-content-success)',
+	'var(--wpds-color-foreground-content-warning)',
+	'var(--wpds-color-foreground-content-error)',
+	'var(--wpds-color-foreground-content-warning)',
+	'var(--wpds-color-foreground-content-success)',
 ];
 const TABS = [ grid, chartBar, receipt, cog ];
 
@@ -26,7 +26,7 @@ export function PantryPreview( {
 			<div className="days">
 				{ DAY_DOTS.map( ( dot, i ) => (
 					<span key={ i } className={ i === 3 ? 'day sel' : 'day' }>
-						<i style={ { background: `var(--wpds-${ dot })` } } />
+						<i style={ { background: dot } } />
 					</span>
 				) ) }
 			</div>

@@ -1,6 +1,6 @@
 import './styles.css';
-import { Header } from './features/Header';
-import { Flow } from './features/Flow';
+import { Header } from './features/header';
+import { Flow } from './features/flow';
 
 export function App() {
 	return (

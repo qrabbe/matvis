@@ -1,5 +1,5 @@
-import { Silhouette } from './Silhouette';
-import type { Product } from '../lib/products';
+import { Silhouette } from '../silhouette';
+import type { Product } from '../../lib/products';
 
 export function ProductTile( {
 	product,

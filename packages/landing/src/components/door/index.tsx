@@ -25,6 +25,10 @@ export function Door( {
 } ) {
 	return (
 		<Card.Root
+			// Card.Root merges its children into this element at runtime, so
+			// the anchor does get accessible content, invisible to eslint's
+			// static check of the render prop.
+			// eslint-disable-next-line jsx-a11y/anchor-has-content
 			render={ <a href={ href } /> }
 			className={ primary ? 'door primary' : 'door' }
 		>

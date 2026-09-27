@@ -1,4 +1,4 @@
-import type { Chain } from '../lib/chains';
+import type { Chain } from '../../lib/chains';
 
 export function ChainLogos( {
 	chains,

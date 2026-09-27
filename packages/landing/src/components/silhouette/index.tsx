@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import type { Product } from '../lib/products';
+import type { Product } from '../../lib/products';
 
 const FILL_LABEL = { fill: '#fff', opacity: 0.7 };
 
