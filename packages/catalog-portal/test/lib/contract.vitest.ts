@@ -1,19 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { CatalogItem } from '@matvis/shared';
-import {
-  MODELS,
-  OPERATIONS,
-  operationName,
-  signature,
-  typeExpression,
-  type ModelField,
-} from '../../src/lib/contract';
+import { MODELS, type ModelField } from '../../src/lib/contract';
 
 /**
- * The dev portal is generated from two sources — the zod contract and the
- * committed function spec — so these assert the generated result still says
- * what the page promises. A field added without a `.meta({ description })`, or
- * a signature that stops matching the deployment, fails here.
+ * The dev portal's field list is generated from the zod contract, so this
+ * asserts the generated result still says what the page promises. A field
+ * added without a `.meta({ description })` fails here.
  */
 
 describe('models', () => {
@@ -68,38 +60,5 @@ describe('models', () => {
 
     const unnoted = MODELS.flatMap((model) => walk(model.fields, model.name));
     expect(unnoted).toEqual([]);
-  });
-});
-
-describe('operations', () => {
-  it('lists the public catalog queries, and only queries', () => {
-    // `search:logSearch` is deliberately absent: it is a write, and it lives
-    // outside the module the spec walks so the contract stays read-only.
-    expect(OPERATIONS.map(operationName)).toEqual([
-      'getByEan',
-      'getManyByEan',
-      'health',
-      'search',
-    ]);
-    expect(OPERATIONS.every((op) => op.functionType === 'Query')).toBe(true);
-  });
-
-  it('builds each signature from the declared arguments', () => {
-    expect(OPERATIONS.map(signature)).toEqual([
-      'catalog.getByEan({ ean })',
-      'catalog.getManyByEan({ eans })',
-      'catalog.health()',
-      'catalog.search({ q?, paginationOpts })',
-    ]);
-  });
-
-  it('collapses a catalog row in a response back to its model name', () => {
-    const byName = (name: string) =>
-      OPERATIONS.find((op) => operationName(op) === name)!;
-    expect(typeExpression(byName('getByEan').returns)).toBe('CatalogItem[]');
-    expect(typeExpression(byName('search').returns)).toContain(
-      'page: CatalogItem[]',
-    );
-    expect(typeExpression(byName('health').returns)).toContain('total: number');
   });
 });

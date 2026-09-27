@@ -2,9 +2,11 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import {
   ADMIN_PATH,
+  DEVELOPERS_PATH,
   eanFromPath,
   href,
   isAdminPath,
+  isDevelopersPath,
   navigate,
   productPath,
   useRoute,
@@ -67,5 +69,17 @@ describe('the admin path', () => {
 
   it('makes a real anchor href, so middle-click and copy-link work', () => {
     expect(href(ADMIN_PATH)).toBe('#/admin');
+  });
+});
+
+describe('the developers path', () => {
+  it('matches with or without a trailing slash', () => {
+    expect(isDevelopersPath(DEVELOPERS_PATH)).toBe(true);
+    expect(isDevelopersPath(`${DEVELOPERS_PATH}/`)).toBe(true);
+    expect(isDevelopersPath('/developers/x')).toBe(false);
+  });
+
+  it('can be linked to', () => {
+    expect(href(DEVELOPERS_PATH)).toBe('#/developers');
   });
 });

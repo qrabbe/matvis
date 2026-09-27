@@ -1,125 +1,96 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { getFunctionName, type FunctionReference } from 'convex/server';
 
 /**
- * The developer page. Everything it says about shape is generated and covered
- * by the contract tests, so what is worth asserting here is the half that is
- * not documentation: "Try it" calls the real function with the arguments the
- * form built, and prints what actually came back.
+ * The developer page. It now calls the real HTTP endpoints with `fetch`
+ * rather than the Convex client, so what is worth asserting here is: the base
+ * URL is derived (not hard-coded), Try it builds the URL it says it built and
+ * shows what came back, and the folded field list still renders.
  */
 
 const backend = vi.hoisted(() => ({
   url: 'https://example-deployment.convex.cloud',
-  calls: [] as { reference: unknown; args: unknown }[],
-  result: [] as unknown,
-  error: null as string | null,
-  health: {
-    total: 3,
-    stores: [{ store: 'coop', count: 3 }],
-    freshness: {
-      verified: 1,
-      neverFetched: 2,
-      sampleSize: 3,
-      sampleWithinMonth: 1,
-    },
-    coverage: { measuredAt: null, fields: [] },
-  },
 }));
 
 vi.mock('convex/react', () => ({
-  // The health block reads `catalog.health` reactively. It is not what these
-  // tests are about, so it resolves to a fixed shape rather than undefined,
-  // which would leave the block in its skeleton state forever.
-  useQuery: () => backend.health,
-  useConvex: () => ({
-    url: backend.url,
-    query: async (reference: unknown, args: unknown) => {
-      backend.calls.push({ reference, args });
-      if (backend.error) throw new Error(backend.error);
-      return backend.result;
-    },
-  }),
+  useConvex: () => ({ url: backend.url }),
 }));
 
 const { DevPortal } = await import('../../src/features/DevPortal');
 
-/** The collapsed cards are triggers, named by the signature they carry. */
-function expand(signature: string) {
-  const trigger = screen
-    .getAllByRole('button')
-    .find((button) => button.textContent?.includes(signature));
-  if (!trigger) throw new Error(`no operation card for ${signature}`);
-  fireEvent.click(trigger);
-}
-
 beforeEach(() => {
-  backend.calls = [];
-  backend.result = [];
-  backend.error = null;
+  vi.restoreAllMocks();
 });
 
 describe('DevPortal', () => {
-  it('offers every public operation, and the deployment to call it on', () => {
+  it('derives the .convex.site base URL rather than hard-coding it', () => {
     render(<DevPortal />);
-
-    for (const signature of [
-      'catalog.getByEan({ ean })',
-      'catalog.getManyByEan({ eans })',
-      'catalog.search({ q?, paginationOpts })',
-    ]) {
-      expect(screen.getByText(signature)).toBeInTheDocument();
-    }
-    expect(screen.getByText(new RegExp(backend.url))).toBeInTheDocument();
-  });
-
-  it('says plainly that source payloads are not kept', () => {
-    render(<DevPortal />);
-
     expect(
-      screen.getByText(/Source payloads are not stored\./),
+      screen.getByText('https://example-deployment.convex.site'),
     ).toBeInTheDocument();
-    expect(screen.getByText(/whatever it asks for/)).toBeInTheDocument();
   });
 
-  it('runs the real query with the arguments the form built', async () => {
-    backend.result = [{ ean: '11210000155', name: 'Tabasco' }];
+  it('opens the EAN endpoint by default and keeps the search one folded', () => {
     render(<DevPortal />);
-    expand('catalog.getByEan');
-
-    fireEvent.click(screen.getByRole('button', { name: 'Run' }));
-
-    await waitFor(() => expect(backend.calls).toHaveLength(1));
-    const call = backend.calls[0]!;
-    expect(getFunctionName(call.reference as FunctionReference<'query'>)).toBe(
-      'catalog:getByEan',
-    );
-    expect(call.args).toEqual({ ean: '11210000155' });
-    expect(await screen.findByText(/"Tabasco"/)).toBeInTheDocument();
+    expect(screen.getByText('GET /product?ean=…&store=…')).toBeVisible();
+    expect(
+      screen.queryByRole('textbox', { name: 'q' }),
+    ).not.toBeInTheDocument();
   });
 
-  it('supplies paginationOpts itself and drops a blank optional', async () => {
-    render(<DevPortal />);
-    expand('catalog.search');
-
-    fireEvent.click(screen.getByRole('button', { name: 'Run' }));
-
-    await waitFor(() => expect(backend.calls).toHaveLength(1));
-    expect(backend.calls[0]?.args).toEqual({
-      q: 'kaffe',
-      paginationOpts: { numItems: 3, cursor: null },
+  it('calls the real product URL and shows the answer', async () => {
+    const row = { ean: '7310865078216', name: 'Laktosfri Standardmjölk' };
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => [row],
     });
-  });
+    vi.stubGlobal('fetch', fetchMock);
 
-  it('shows what the deployment said when a call fails', async () => {
-    backend.error = 'getManyByEan accepts at most 50 EANs, got 51';
     render(<DevPortal />);
-    expand('catalog.getManyByEan');
-
     fireEvent.click(screen.getByRole('button', { name: 'Run' }));
 
-    // The notice also announces itself into a live region, so the message is on
-    // the page twice by design.
-    expect(await screen.findAllByText(backend.error)).not.toHaveLength(0);
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://example-deployment.convex.site/product?ean=7310865078216',
+    );
+    expect(
+      await screen.findByText(/"Laktosfri Standardmjölk"/),
+    ).toBeInTheDocument();
+  });
+
+  it('offers store as a dropdown of the chains actually catalogued', () => {
+    render(<DevPortal />);
+    const store = screen.getByRole('combobox', { name: 'store' });
+    expect(store).toHaveTextContent('Any');
+  });
+
+  it('shows the 400 error the deployment answered with', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 400,
+      json: async () => ({ error: 'ean is required' }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<DevPortal />);
+    fireEvent.click(screen.getByRole('button', { name: 'Run' }));
+
+    // The notice also announces itself into a live region, so the message is
+    // on the page twice by design.
+    expect(await screen.findAllByText('ean is required')).not.toHaveLength(0);
+  });
+
+  it('folds the product fields card and generates it from the contract', () => {
+    render(<DevPortal />);
+    expect(screen.getByText('Product fields')).toBeInTheDocument();
+    expect(
+      screen.getByText(/fields, generated from the contract/),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Product fields'));
+    expect(screen.getByText('CatalogItem')).toBeInTheDocument();
+    // A field name unique to the generated list, not one of the endpoint
+    // cards' own parameter rows.
+    expect(screen.getByText('brand?')).toBeInTheDocument();
+    expect(screen.getByText('basisUnit')).toBeInTheDocument();
   });
 });

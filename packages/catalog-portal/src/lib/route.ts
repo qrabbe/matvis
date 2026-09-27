@@ -10,6 +10,12 @@ export function isAdminPath(path: string): boolean {
   return path.replace(/\/$/, '') === ADMIN_PATH;
 }
 
+export const DEVELOPERS_PATH = '/developers';
+
+export function isDevelopersPath(path: string): boolean {
+  return path.replace(/\/$/, '') === DEVELOPERS_PATH;
+}
+
 export function href(path: string): string {
   return `#${path}`;
 }

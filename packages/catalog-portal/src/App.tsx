@@ -7,9 +7,12 @@ import { DevPortal } from './features/DevPortal';
 import { ProductDetail } from './features/ProductDetail';
 import {
   ADMIN_PATH,
+  DEVELOPERS_PATH,
   eanFromPath,
   href,
   isAdminPath,
+  isDevelopersPath,
+  navigate,
   useRoute,
 } from './lib/route';
 import { api } from './lib/convexApi';
@@ -33,6 +36,7 @@ export function App() {
   const route = useRoute();
   const ean = eanFromPath(route);
   const admin = isAdminPath(route);
+  const activeTab = isDevelopersPath(route) ? 'developers' : 'catalog';
   return (
     <Stack
       direction="column"
@@ -67,7 +71,12 @@ export function App() {
       ) : ean ? (
         <ProductDetail ean={ean} />
       ) : (
-        <Tabs.Root defaultValue="catalog">
+        <Tabs.Root
+          value={activeTab}
+          onValueChange={(value) =>
+            navigate(value === 'developers' ? DEVELOPERS_PATH : '/')
+          }
+        >
           <Tabs.List>
             <Tabs.Tab value="catalog">Catalog</Tabs.Tab>
             <Tabs.Tab value="developers">Developers</Tabs.Tab>
