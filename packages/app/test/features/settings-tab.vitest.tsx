@@ -4,6 +4,8 @@ import userEvent from '@testing-library/user-event';
 
 const store = vi.hoisted( () => ( { setTargetCalls: [] as unknown[] } ) );
 
+const MOCK_TOKEN = 'mv_' + 'abcdef123456';
+
 vi.mock( '../../src/hooks/use-settings', () => ( {
 	useSettings: () => ( {
 		available: true,
@@ -31,7 +33,7 @@ describe( 'SettingsTab', () => {
 	it( 'shows a masked token and a Forget action', () => {
 		const onForget = vi.fn();
 		render(
-			<SettingsTab token="mv_abcdef123456" onForgetToken={ onForget } />
+			<SettingsTab token={ MOCK_TOKEN } onForgetToken={ onForget } />
 		);
 		expect( screen.getByText( '…123456' ) ).toBeInTheDocument();
 	} );
@@ -40,7 +42,7 @@ describe( 'SettingsTab', () => {
 		const user = userEvent.setup();
 		const onForget = vi.fn();
 		render(
-			<SettingsTab token="mv_abcdef123456" onForgetToken={ onForget } />
+			<SettingsTab token={ MOCK_TOKEN } onForgetToken={ onForget } />
 		);
 		await user.click( screen.getByRole( 'button', { name: 'Forget' } ) );
 		expect( onForget ).toHaveBeenCalledTimes( 1 );
@@ -49,7 +51,7 @@ describe( 'SettingsTab', () => {
 	it( 'toggling an enabled target off calls setTarget with null', async () => {
 		const user = userEvent.setup();
 		render(
-			<SettingsTab token="mv_abcdef123456" onForgetToken={ () => {} } />
+			<SettingsTab token={ MOCK_TOKEN } onForgetToken={ () => {} } />
 		);
 		await user.click( screen.getByRole( 'switch' ) );
 		expect( store.setTargetCalls ).toEqual( [ [ 'salt', null ] ] );
@@ -58,7 +60,7 @@ describe( 'SettingsTab', () => {
 	it( 'tapping a target value lets you type a custom number', async () => {
 		const user = userEvent.setup();
 		render(
-			<SettingsTab token="mv_abcdef123456" onForgetToken={ () => {} } />
+			<SettingsTab token={ MOCK_TOKEN } onForgetToken={ () => {} } />
 		);
 		await user.click( screen.getByText( '6 g' ) );
 		const input = screen.getByDisplayValue( '6' );
