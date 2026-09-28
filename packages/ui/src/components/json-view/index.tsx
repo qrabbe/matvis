@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { Button, Stack, Text } from '@wordpress/ui';
-import { CopyButton } from './CopyButton';
-import { downloadJson } from '../download';
+import { CopyButton } from '../copy-button';
+import { downloadJson } from '../../download';
 
 /**
  * Pass a stable `value`, memoized at the call site, or the pretty-print reruns

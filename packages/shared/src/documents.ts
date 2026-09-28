@@ -16,7 +16,7 @@ export type ReceiptHeader = ReceiptCore & {
 /**
  * How a receipt line's printed text resolved against `itemGtinMap`, live at
  * read time. `product` is the only kind that carries a `gtin`. Absent means
- * the text has no mapping row yet — unidentified, not any of these kinds.
+ * the text has no mapping row yet, unidentified rather than any of these kinds.
  */
 export type ItemMappingKind =
 	'product' | 'produce' | 'notFood' | 'notInCatalog';

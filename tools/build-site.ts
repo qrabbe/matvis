@@ -1,18 +1,11 @@
 /**
- * Assembles the whole public site into `_site/`: the landing page at the root,
- * each portal under its own sub-path. Used by the statichost.eu build (see
- * statichost.yml) and runnable locally to preview the deployed layout.
+ * Assembles the whole public site into `_site/`: the landing page at the
+ * root, each portal under its own sub-path. Runnable locally to preview the
+ * deployed layout.
  *
- * Every frontend is a separate Vite build, so each one needs its own base path
- * and, for the portals and the app, its own Convex deployment URL. The site's
- * settings hold one URL per deployment; this maps each onto the `VITE_*` name
- * the build that needs it actually reads.
- *
- *   SITE_BASE               path the site is served from, default '/'
- *   CONNECTOR_CONVEX_URL    connector deployment, read by the connector portal
- *                           and by the app
- *   CATALOG_CONVEX_URL      catalog deployment, read by the catalog portal and
- *                           by the app
+ * Every frontend is a separate Vite build, so each needs its own base path
+ * and, for the portals and the app, its own Convex deployment URL, read
+ * through a `VITE_*` env var.
  */
 import { cpSync, mkdirSync, rmSync } from 'node:fs';
 

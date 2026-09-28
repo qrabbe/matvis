@@ -6,7 +6,7 @@ export function formatAmount(
 	n: number | null | undefined,
 	currency = 'SEK'
 ): string {
-	if ( n == null ) {
+	if ( n === null || n === undefined ) {
 		return '—';
 	}
 	return `${ n.toFixed( 2 ) } ${ currency }`;

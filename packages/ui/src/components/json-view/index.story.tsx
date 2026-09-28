@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { JsonView } from './JsonView';
+import { JsonView } from '.';
 
 const meta = {
 	title: 'Components/JsonView',

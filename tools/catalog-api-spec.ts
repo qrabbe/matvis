@@ -1,14 +1,12 @@
 /**
- * Regenerates the catalog's public API spec — the file the dev portal renders
+ * Regenerates the catalog's public API spec: the file the dev portal renders
  * its operation list from, and the artifact CI diffs.
  *
- * It holds what `convex function-spec` reports, read out of the source instead
- * of out of a deployment: every registered Convex function carries `exportArgs`
- * and `exportReturns`, so importing the module is enough. Reading it from source
- * is the point. It needs no deploy key, and it describes the code in the pull
- * request rather than whatever happens to be deployed while that request is
- * open. Field order follows the source; a deployment reports the same tree
- * sorted by field name.
+ * It mirrors what `convex function-spec` reports, read out of the source
+ * instead of a deployment: every registered Convex function carries
+ * `exportArgs` and `exportReturns`, so importing the module is enough. That
+ * needs no deploy key, and it describes the code in the pull request rather
+ * than whatever happens to be deployed while that request is open.
  *
  *   bun run spec         write the file
  *   bun run spec:check   fail when the committed file is stale
@@ -17,11 +15,12 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import * as catalogModule from '../packages/catalog/convex/catalog';
 
 /**
- * The one module the spec covers. `visibility` alone is not the filter it looks
- * like: the admin console's functions are registered public as well, gated at
- * runtime by a token rather than by registration, and none of them are part of
- * the promise the portal documents. Everything else — `raw.js`, `backfill.js`,
- * `ingest.js` — is `internal` and unreachable by any client.
+ * The one module the spec covers. `visibility` alone is not the filter it
+ * looks like: the admin console's functions are registered public too, gated
+ * at runtime by a token rather than by registration, and none of them are
+ * part of the promise the portal documents. Everything else, such as
+ * `raw.js`, `backfill.js` and `ingest.js`, is `internal` and unreachable by
+ * any client.
  */
 const MODULE = 'catalog.js';
 

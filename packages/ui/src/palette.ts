@@ -155,7 +155,7 @@ const cssVars = (
 
 /**
  * `ThemeProvider` writes its derived tokens inline on `<html>` and on its own
- * wrapper, which carries `data-wpds-corner-radius`, and @wordpress/ui nests one
+ * wrapper, which carries `data-wpds-corner-radius`, and \@wordpress/ui nests one
  * such wrapper inside every portal. The pins cover all of them, with
  * `!important` to beat the inline styles.
  */

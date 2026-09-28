@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { CopyButton } from './CopyButton';
+import { CopyButton } from '.';
 
 const meta = {
 	title: 'Components/CopyButton',
