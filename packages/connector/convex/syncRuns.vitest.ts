@@ -3,6 +3,7 @@ import { convexTest } from 'convex-test';
 import { describe, expect, test } from 'vitest';
 import { internal } from './_generated/api';
 import schema from './schema';
+import { TEST_SEALED_SECRET } from './testSupport';
 import { MAX_SYNC_ERROR_LENGTH, SYNC_RUN_TTL_MS } from './validators';
 
 const modules = import.meta.glob( './**/*.ts' );
@@ -12,13 +13,12 @@ async function seedConnection( t: ReturnType< typeof convexTest > ) {
 		const accountId = await ctx.db.insert( 'accounts', {
 			subject: 'sub-a',
 		} );
-		const sealed = { keyVersion: 1, iv: 'aXY=', ciphertext: 'Y3Q=' };
 		return await ctx.db.insert( 'connections', {
 			accountId,
 			store: 'coop',
-			accessToken: sealed,
+			accessToken: TEST_SEALED_SECRET,
 			accessTokenExpiresAt: 0,
-			refreshToken: sealed,
+			refreshToken: TEST_SEALED_SECRET,
 			status: 'active' as const,
 		} );
 	} );

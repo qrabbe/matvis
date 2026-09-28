@@ -129,10 +129,3 @@ export function resolveMapping(
 	}
 	return undefined; // priced `product` rows exist but none fit — unresolved
 }
-
-export function resolveGtin(
-	map: GtinMap,
-	item: { text: string; price: number; isDiscount: boolean }
-): string | undefined {
-	return resolveMapping( map, item )?.gtin;
-}

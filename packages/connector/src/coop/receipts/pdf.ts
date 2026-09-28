@@ -1,4 +1,4 @@
-import type { FetchLike } from '../../http';
+import { assertOk, type FetchLike } from '../../http';
 import { apiHeaders, DEFAULT_COOP_CONFIG, type CoopConfig } from '../config';
 
 export async function fetchReceiptPdf(
@@ -18,10 +18,6 @@ export async function fetchReceiptPdf(
 			accept: 'application/pdf;q=0.9,application/json;q=0.1',
 		},
 	} );
-	if ( ! res.ok ) {
-		throw new Error(
-			`fetchReceiptPdf(${ receiptId }) failed: ${ res.status } ${ res.statusText }`
-		);
-	}
+	assertOk( res, `fetchReceiptPdf(${ receiptId })` );
 	return new Uint8Array( await res.arrayBuffer() );
 }

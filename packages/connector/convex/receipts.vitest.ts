@@ -3,11 +3,9 @@ import { convexTest } from 'convex-test';
 import { describe, expect, test } from 'vitest';
 import { api } from './_generated/api';
 import schema from './schema';
+import { actingAs, TEST_SEALED_SECRET } from './testSupport';
 
 const modules = import.meta.glob( './**/*.ts' );
-
-const as = ( t: ReturnType< typeof convexTest >, subject: string ) =>
-	t.withIdentity( { subject } );
 
 async function seed( t: ReturnType< typeof convexTest > ) {
 	return await t.run( async ( ctx ) => {
@@ -17,14 +15,13 @@ async function seed( t: ReturnType< typeof convexTest > ) {
 		const accountB = await ctx.db.insert( 'accounts', {
 			subject: 'sub-b',
 		} );
-		const sealed = { keyVersion: 1, iv: 'aXY=', ciphertext: 'Y3Q=' };
 		const conn = ( accountId: typeof accountA ) =>
 			ctx.db.insert( 'connections', {
 				accountId,
 				store: 'coop',
-				accessToken: sealed,
+				accessToken: TEST_SEALED_SECRET,
 				accessTokenExpiresAt: 0,
-				refreshToken: sealed,
+				refreshToken: TEST_SEALED_SECRET,
 				status: 'active' as const,
 			} );
 		const connA = await conn( accountA );
@@ -80,7 +77,7 @@ describe( 'receipts read API', () => {
 	test( 'list paginates one account newest-first, trimmed', async () => {
 		const t = convexTest( schema, modules );
 		await seed( t );
-		const page = await as( t, 'sub-a' ).query( api.receipts.list, {
+		const page = await actingAs( t, 'sub-a' ).query( api.receipts.list, {
 			paginationOpts: { numItems: 10, cursor: null },
 		} );
 		expect( page.page.map( ( r ) => r.externalId ) ).toEqual( [
@@ -97,7 +94,7 @@ describe( 'receipts read API', () => {
 	test( 'unknown account yields an empty page', async () => {
 		const t = convexTest( schema, modules );
 		await seed( t );
-		const page = await as( t, 'nobody' ).query( api.receipts.list, {
+		const page = await actingAs( t, 'nobody' ).query( api.receipts.list, {
 			paginationOpts: { numItems: 10, cursor: null },
 		} );
 		expect( page.page ).toEqual( [] );
@@ -107,18 +104,24 @@ describe( 'receipts read API', () => {
 	test( 'changes returns all from since:0 then nothing at the cursor', async () => {
 		const t = convexTest( schema, modules );
 		await seed( t );
-		const first = await as( t, 'sub-a' ).query( api.receipts.changes, {
-			since: 0,
-		} );
+		const first = await actingAs( t, 'sub-a' ).query(
+			api.receipts.changes,
+			{
+				since: 0,
+			}
+		);
 		expect( first.receipts.map( ( r ) => r.externalId ) ).toEqual( [
 			'a-1',
 			'a-2',
 			'a-3',
 		] );
 		expect( first.hasMore ).toBe( false );
-		const second = await as( t, 'sub-a' ).query( api.receipts.changes, {
-			since: first.cursor,
-		} );
+		const second = await actingAs( t, 'sub-a' ).query(
+			api.receipts.changes,
+			{
+				since: first.cursor,
+			}
+		);
 		expect( second.receipts ).toEqual( [] );
 		expect( second.hasMore ).toBe( false );
 		expect( second.cursor ).toBe( first.cursor );
@@ -127,16 +130,19 @@ describe( 'receipts read API', () => {
 	test( 'changes honors limit and reports hasMore', async () => {
 		const t = convexTest( schema, modules );
 		await seed( t );
-		const first = await as( t, 'sub-a' ).query( api.receipts.changes, {
-			since: 0,
-			limit: 2,
-		} );
+		const first = await actingAs( t, 'sub-a' ).query(
+			api.receipts.changes,
+			{
+				since: 0,
+				limit: 2,
+			}
+		);
 		expect( first.receipts.map( ( r ) => r.externalId ) ).toEqual( [
 			'a-1',
 			'a-2',
 		] );
 		expect( first.hasMore ).toBe( true );
-		const rest = await as( t, 'sub-a' ).query( api.receipts.changes, {
+		const rest = await actingAs( t, 'sub-a' ).query( api.receipts.changes, {
 			since: first.cursor,
 			limit: 2,
 		} );
@@ -149,9 +155,12 @@ describe( 'receipts read API', () => {
 	test( 'getReceipt returns header + items in lineNo order for the owner', async () => {
 		const t = convexTest( schema, modules );
 		const { r3 } = await seed( t );
-		const got = await as( t, 'sub-a' ).query( api.receipts.getReceipt, {
-			receiptId: r3,
-		} );
+		const got = await actingAs( t, 'sub-a' ).query(
+			api.receipts.getReceipt,
+			{
+				receiptId: r3,
+			}
+		);
 		expect( got?.receipt.externalId ).toBe( 'a-3' );
 		expect( got?.items.map( ( i ) => i.text ) ).toEqual( [
 			'MJÖLK',
@@ -162,9 +171,12 @@ describe( 'receipts read API', () => {
 	test( 'getReceipt does not leak another account row', async () => {
 		const t = convexTest( schema, modules );
 		const { r3 } = await seed( t );
-		const cross = await as( t, 'sub-b' ).query( api.receipts.getReceipt, {
-			receiptId: r3,
-		} );
+		const cross = await actingAs( t, 'sub-b' ).query(
+			api.receipts.getReceipt,
+			{
+				receiptId: r3,
+			}
+		);
 		expect( cross ).toBeNull();
 	} );
 
@@ -172,11 +184,14 @@ describe( 'receipts read API', () => {
 		const t = convexTest( schema, modules );
 		const { r3 } = await seed( t );
 		await t.run( async ( ctx ) => await ctx.db.delete( r3 ) );
-		const got = await as( t, 'sub-a' ).query( api.receipts.getReceipt, {
-			receiptId: r3,
-		} );
+		const got = await actingAs( t, 'sub-a' ).query(
+			api.receipts.getReceipt,
+			{
+				receiptId: r3,
+			}
+		);
 		expect( got ).toBeNull();
-		const url = await as( t, 'sub-a' ).query( api.receipts.getPdf, {
+		const url = await actingAs( t, 'sub-a' ).query( api.receipts.getPdf, {
 			receiptId: r3,
 		} );
 		expect( url ).toBeNull();
@@ -185,15 +200,15 @@ describe( 'receipts read API', () => {
 	test( 'getPdf: signed URL for owner, null cross-account, null when no PDF', async () => {
 		const t = convexTest( schema, modules );
 		const { r1, r3 } = await seed( t );
-		const url = await as( t, 'sub-a' ).query( api.receipts.getPdf, {
+		const url = await actingAs( t, 'sub-a' ).query( api.receipts.getPdf, {
 			receiptId: r3,
 		} );
 		expect( typeof url ).toBe( 'string' );
-		const cross = await as( t, 'sub-b' ).query( api.receipts.getPdf, {
+		const cross = await actingAs( t, 'sub-b' ).query( api.receipts.getPdf, {
 			receiptId: r3,
 		} );
 		expect( cross ).toBeNull();
-		const noPdf = await as( t, 'sub-a' ).query( api.receipts.getPdf, {
+		const noPdf = await actingAs( t, 'sub-a' ).query( api.receipts.getPdf, {
 			receiptId: r1,
 		} );
 		expect( noPdf ).toBeNull();
@@ -202,9 +217,12 @@ describe( 'receipts read API', () => {
 	test( 'getReceipt resolves gtin live against itemGtinMap, even rows added after the receipt existed', async () => {
 		const t = convexTest( schema, modules );
 		const { r3 } = await seed( t );
-		const before = await as( t, 'sub-a' ).query( api.receipts.getReceipt, {
-			receiptId: r3,
-		} );
+		const before = await actingAs( t, 'sub-a' ).query(
+			api.receipts.getReceipt,
+			{
+				receiptId: r3,
+			}
+		);
 		expect( before?.items.map( ( i ) => i.gtin ) ).toEqual( [
 			undefined,
 			undefined,
@@ -221,9 +239,12 @@ describe( 'receipts read API', () => {
 				source: 'seed',
 			} );
 		} );
-		const after = await as( t, 'sub-a' ).query( api.receipts.getReceipt, {
-			receiptId: r3,
-		} );
+		const after = await actingAs( t, 'sub-a' ).query(
+			api.receipts.getReceipt,
+			{
+				receiptId: r3,
+			}
+		);
 		expect( after?.items.map( ( i ) => i.gtin ) ).toEqual( [
 			'7310865004703',
 			undefined, // the discount line is never matched
@@ -245,9 +266,12 @@ describe( 'receipts read API', () => {
 				source: 'app',
 			} );
 		} );
-		const got = await as( t, 'sub-a' ).query( api.receipts.getReceipt, {
-			receiptId: r3,
-		} );
+		const got = await actingAs( t, 'sub-a' ).query(
+			api.receipts.getReceipt,
+			{
+				receiptId: r3,
+			}
+		);
 		expect( got?.items[ 0 ]?.gtin ).toBeUndefined();
 		expect( got?.items[ 0 ]?.kind ).toBe( 'notFood' );
 	} );
@@ -274,9 +298,12 @@ describe( 'receipts read API', () => {
 				source: 'seed',
 			} );
 		} );
-		const got = await as( t, 'sub-a' ).query( api.receipts.getReceipt, {
-			receiptId: r3,
-		} );
+		const got = await actingAs( t, 'sub-a' ).query(
+			api.receipts.getReceipt,
+			{
+				receiptId: r3,
+			}
+		);
 		expect( got?.items[ 0 ]?.gtin ).toBe( 'small-carton' );
 	} );
 
@@ -297,9 +324,12 @@ describe( 'receipts read API', () => {
 				source: 'seed',
 			} );
 		} );
-		const got = await as( t, 'sub-a' ).query( api.receipts.getReceipt, {
-			receiptId: r3,
-		} );
+		const got = await actingAs( t, 'sub-a' ).query(
+			api.receipts.getReceipt,
+			{
+				receiptId: r3,
+			}
+		);
 		expect( got?.items[ 0 ]?.gtin ).toBe( 'already' );
 		expect( got?.items[ 0 ]?.kind ).toBe( 'product' );
 	} );

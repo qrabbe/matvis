@@ -11,6 +11,7 @@ import {
 } from '../src/crypto';
 import type { FetchLike } from '../src/http';
 import { bytesResponse, jsonResponse } from '../test/helpers';
+import { actingAs } from './testSupport';
 
 const modules = import.meta.glob( './**/*.ts' );
 
@@ -99,9 +100,6 @@ function routes( opts: {
 	};
 }
 
-const as = ( t: ReturnType< typeof convexTest >, subject: string ) =>
-	t.withIdentity( { subject } );
-
 async function seed(
 	t: ReturnType< typeof convexTest >,
 	options: {
@@ -178,7 +176,7 @@ describe( 'connection reads for sync', () => {
 	test( 'getConnectionForSync returns the owner their connection, tokens still sealed', async () => {
 		const t = convexTest( schema, modules );
 		const { a } = await seed( t );
-		const connection = await as( t, 'sub-a' ).query(
+		const connection = await actingAs( t, 'sub-a' ).query(
 			internal.model.receipts.getConnectionForSync,
 			{ connectionId: a.connectionId }
 		);
@@ -199,14 +197,14 @@ describe( 'connection reads for sync', () => {
 	test( 'getConnectionForSync is null for another account and for a missing row', async () => {
 		const t = convexTest( schema, modules );
 		const { a } = await seed( t );
-		const foreign = await as( t, 'sub-b' ).query(
+		const foreign = await actingAs( t, 'sub-b' ).query(
 			internal.model.receipts.getConnectionForSync,
 			{ connectionId: a.connectionId }
 		);
 		expect( foreign ).toBeNull();
 
 		await t.run( async ( ctx ) => await ctx.db.delete( a.connectionId ) );
-		const gone = await as( t, 'sub-a' ).query(
+		const gone = await actingAs( t, 'sub-a' ).query(
 			internal.model.receipts.getConnectionForSync,
 			{ connectionId: a.connectionId }
 		);
@@ -354,7 +352,7 @@ describe( 'sync action', () => {
 		const { a } = await seed( t );
 		transport.fetch = routes( { list: [ 'r1', 'r2' ] } );
 
-		const first = await as( t, 'sub-a' ).action( api.sync.sync, {
+		const first = await actingAs( t, 'sub-a' ).action( api.sync.sync, {
 			connectionId: a.connectionId,
 		} );
 		expect( first ).toEqual( { synced: 2, skipped: 0, status: 'active' } );
@@ -374,7 +372,7 @@ describe( 'sync action', () => {
 			( await connectionRow( t, a.connectionId ) )?.lastSyncedAt
 		).toBeDefined();
 
-		const second = await as( t, 'sub-a' ).action( api.sync.sync, {
+		const second = await actingAs( t, 'sub-a' ).action( api.sync.sync, {
 			connectionId: a.connectionId,
 		} );
 		expect( second ).toEqual( { synced: 0, skipped: 2, status: 'active' } );
@@ -394,7 +392,7 @@ describe( 'sync action', () => {
 		};
 
 		await expect(
-			as( t, 'sub-b' ).action( api.sync.sync, {
+			actingAs( t, 'sub-b' ).action( api.sync.sync, {
 				connectionId: a.connectionId,
 			} )
 		).rejects.toThrow( /connection not found/ );
@@ -410,7 +408,7 @@ describe( 'sync action', () => {
 		const { a } = await seed( t, { expired: true } );
 		transport.fetch = routes( { list: [], refresh: 'ok' } );
 
-		const result = await as( t, 'sub-a' ).action( api.sync.sync, {
+		const result = await actingAs( t, 'sub-a' ).action( api.sync.sync, {
 			connectionId: a.connectionId,
 		} );
 		expect( result ).toEqual( { synced: 0, skipped: 0, status: 'active' } );
@@ -430,7 +428,7 @@ describe( 'sync action', () => {
 		const { a } = await seed( t, { expired: true } );
 		transport.fetch = routes( { list: [ 'r1' ], refresh: 'fail' } );
 
-		const result = await as( t, 'sub-a' ).action( api.sync.sync, {
+		const result = await actingAs( t, 'sub-a' ).action( api.sync.sync, {
 			connectionId: a.connectionId,
 		} );
 		expect( result ).toEqual( {
@@ -454,7 +452,7 @@ describe( 'sync action', () => {
 			throw new Error( 'a paused sync must not call the store' );
 		};
 
-		const result = await as( t, 'sub-a' ).action( api.sync.sync, {
+		const result = await actingAs( t, 'sub-a' ).action( api.sync.sync, {
 			connectionId: a.connectionId,
 		} );
 		expect( result ).toEqual( { synced: 0, skipped: 0, status: 'active' } );

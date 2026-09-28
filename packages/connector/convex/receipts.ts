@@ -114,10 +114,10 @@ export const changes = query( {
 	} ),
 	handler: async ( ctx, { since, limit, token } ) => {
 		const accountId = await readScopedAccountId( ctx, token );
-		const n = Math.min( limit ?? 50, 100 );
 		if ( accountId === null ) {
 			return { receipts: [], cursor: since, hasMore: false };
 		}
+		const n = Math.min( limit ?? 50, 100 );
 		const rows = await ctx.db
 			.query( 'receipts' )
 			.withIndex( 'by_account', ( q ) =>

@@ -1,6 +1,6 @@
 import type { ReceiptSummary } from '@matvis/shared';
 import { z } from 'zod';
-import type { FetchLike } from '../../http';
+import { assertOk, type FetchLike } from '../../http';
 import { apiHeaders, DEFAULT_COOP_CONFIG, type CoopConfig } from '../config';
 
 export const CoopReceiptListRow = z.object( {
@@ -44,11 +44,7 @@ export async function listReceipts(
 		method: 'GET',
 		headers: apiHeaders( accessToken ),
 	} );
-	if ( ! res.ok ) {
-		throw new Error(
-			`listReceipts failed: ${ res.status } ${ res.statusText }`
-		);
-	}
+	assertOk( res, 'listReceipts' );
 
 	const parsed = CoopReceiptListResponse.parse( await res.json() );
 

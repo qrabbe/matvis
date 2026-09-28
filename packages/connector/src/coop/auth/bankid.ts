@@ -81,13 +81,14 @@ export async function startBankId(
 	const autoStartToken = firstString( json, AUTOSTART_TOKEN_KEYS );
 	const orderRef = firstString( json, [ 'orderRef', 'order_ref' ] );
 	if ( ! orderRef ) {
-		console.error(
-			'startBankId: no orderRef; response keys =',
-			Object.keys( json )
+		throw new Error(
+			`startBankId: response did not contain an orderRef (keys: ${ Object.keys(
+				json
+			).join( ', ' ) })`
 		);
-		throw new Error( 'startBankId: response did not contain an orderRef' );
 	}
 	if ( opts.sameDevice && ! autoStartToken ) {
+		// eslint-disable-next-line no-console
 		console.error(
 			'startBankId(sameDevice): no autostart token; response keys =',
 			Object.keys( json )

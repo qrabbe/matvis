@@ -48,7 +48,8 @@ describe( 'token encryption', () => {
 	it( 'fails to decrypt tampered ciphertext', async () => {
 		const sealed = await encryptSecret( 'secret', key );
 		const bytes = atob( sealed.ciphertext ).split( '' );
-		bytes[ 0 ] = String.fromCharCode( bytes[ 0 ]!.charCodeAt( 0 ) ^ 0xff );
+		const flipped = ( bytes[ 0 ]!.charCodeAt( 0 ) + 1 ) % 256;
+		bytes[ 0 ] = String.fromCharCode( flipped );
 		const tampered: EncryptedSecret = {
 			...sealed,
 			ciphertext: btoa( bytes.join( '' ) ),

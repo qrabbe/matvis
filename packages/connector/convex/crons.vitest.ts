@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { internal } from './_generated/api';
 import type { Id } from './_generated/dataModel';
 import schema from './schema';
+import { TEST_SEALED_SECRET } from './testSupport';
 import {
 	SYNC_BATCH_LIMIT,
 	SYNC_MIN_INTERVAL_MS,
@@ -25,16 +26,15 @@ async function seedConnections(
 		const accountId = await ctx.db.insert( 'accounts', {
 			subject: 'sub-a',
 		} );
-		const sealed = { keyVersion: 1, iv: 'aXY=', ciphertext: 'Y3Q=' };
 		const ids: Id< 'connections' >[] = [];
 		for ( const row of rows ) {
 			ids.push(
 				await ctx.db.insert( 'connections', {
 					accountId,
 					store: 'coop',
-					accessToken: sealed,
+					accessToken: TEST_SEALED_SECRET,
 					accessTokenExpiresAt: 0,
-					refreshToken: sealed,
+					refreshToken: TEST_SEALED_SECRET,
 					status: row.status,
 					lastSyncedAt:
 						row.syncedAgo === undefined

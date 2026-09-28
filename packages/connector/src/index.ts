@@ -1,5 +1,3 @@
-// @matvis/connector
-
 export type { FetchLike, HttpResponse } from './http';
 export { defaultFetch } from './http';
 

@@ -44,16 +44,14 @@ export const encryptedSecretValidator = v.object( {
 	ciphertext: v.string(),
 } );
 
-type _EncryptedSecretMatches = Assert<
+export type _EncryptedSecretMatches = Assert<
 	Equal< Infer< typeof encryptedSecretValidator >, EncryptedSecret >
 >;
 
-// @matvis/shared
 export const storeValidator = v.union(
 	...STORES.map( ( slug ) => v.literal( slug ) )
 );
 
-// @matvis/shared ItemMappingKind
 export const itemGtinMapKindValidator = v.union(
 	v.literal( 'product' ),
 	v.literal( 'produce' ),
@@ -61,7 +59,7 @@ export const itemGtinMapKindValidator = v.union(
 	v.literal( 'notInCatalog' )
 );
 
-type _ItemMappingKindMatches = Assert<
+export type _ItemMappingKindMatches = Assert<
 	Equal< Infer< typeof itemGtinMapKindValidator >, ItemMappingKind >
 >;
 
@@ -141,10 +139,12 @@ export const vatLineValidator = v.object( {
 	gross: v.number(),
 } );
 
-type _StoreMatches = Assert<
+export type _StoreMatches = Assert<
 	Equal< Infer< typeof storeObjectValidator >, Store >
 >;
-type _VatMatches = Assert< Equal< Infer< typeof vatLineValidator >, VatLine > >;
+export type _VatMatches = Assert<
+	Equal< Infer< typeof vatLineValidator >, VatLine >
+>;
 
 export const receiptItemInsertValidator = v.object( {
 	text: v.string(),
@@ -154,7 +154,7 @@ export const receiptItemInsertValidator = v.object( {
 	unit: v.optional( v.string() ),
 } );
 
-type _LineItemMatches = Assert<
+export type _LineItemMatches = Assert<
 	Equal<
 		Infer< typeof receiptItemInsertValidator >,
 		Omit< LineItem, 'gtin' >
@@ -172,7 +172,7 @@ export const receiptItemDocValidator = v.object( {
 } );
 
 // @matvis/shared rather than through `Doc<'receiptItems'>`, so guard that copy
-type _ReceiptItemDocMatches = Assert<
+export type _ReceiptItemDocMatches = Assert<
 	Equal< Infer< typeof receiptItemDocValidator >, ReceiptItemDoc >
 >;
 
@@ -195,7 +195,7 @@ export const receiptContentFields = {
 
 type ConnectorReceiptColumns = 'externalId' | 'purchasedAtMs' | 'pdfStorageId';
 
-type _ReceiptContentMatches = Assert<
+export type _ReceiptContentMatches = Assert<
 	Equal<
 		Omit<
 			Infer<
@@ -215,6 +215,6 @@ export const receiptHeaderValidator = v.object( {
 	...receiptContentFields,
 } );
 
-type _ReceiptHeaderDocMatches = Assert<
+export type _ReceiptHeaderDocMatches = Assert<
 	Equal< Infer< typeof receiptHeaderValidator >, ReceiptHeader >
 >;

@@ -3,11 +3,9 @@ import { convexTest } from 'convex-test';
 import { describe, expect, test } from 'vitest';
 import { api } from './_generated/api';
 import schema from './schema';
+import { actingAs, TEST_SEALED_SECRET } from './testSupport';
 
 const modules = import.meta.glob( './**/*.ts' );
-
-const as = ( t: ReturnType< typeof convexTest >, subject: string ) =>
-	t.withIdentity( { subject } );
 
 async function seedAccount( t: ReturnType< typeof convexTest > ) {
 	return await t.run( async ( ctx ) => {
@@ -23,7 +21,7 @@ describe( 'mappings.link', () => {
 	test( 'writes a product row a receipt can then resolve against', async () => {
 		const t = convexTest( schema, modules );
 		await seedAccount( t );
-		await as( t, 'sub-a' ).mutation( api.mappings.link, {
+		await actingAs( t, 'sub-a' ).mutation( api.mappings.link, {
 			token: 'tok-a',
 			store: 'coop',
 			text: 'VANILJYOGHURT 2,7% 35,50',
@@ -49,7 +47,7 @@ describe( 'mappings.link', () => {
 	test( 'rejects a product kind with no gtin, and a non-product kind with one', async () => {
 		const t = convexTest( schema, modules );
 		await seedAccount( t );
-		const asA = as( t, 'sub-a' );
+		const asA = actingAs( t, 'sub-a' );
 		await expect(
 			asA.mutation( api.mappings.link, {
 				token: 'tok-a',
@@ -85,7 +83,7 @@ describe( 'mappings.link', () => {
 	test( 'patches the same price group in place instead of duplicating it', async () => {
 		const t = convexTest( schema, modules );
 		await seedAccount( t );
-		const asA = as( t, 'sub-a' );
+		const asA = actingAs( t, 'sub-a' );
 		const first = await asA.mutation( api.mappings.link, {
 			token: 'tok-a',
 			store: 'coop',
@@ -113,7 +111,7 @@ describe( 'mappings.link', () => {
 	test( 'a different price group on the same text gets its own row', async () => {
 		const t = convexTest( schema, modules );
 		await seedAccount( t );
-		const asA = as( t, 'sub-a' );
+		const asA = actingAs( t, 'sub-a' );
 		await asA.mutation( api.mappings.link, {
 			token: 'tok-a',
 			store: 'coop',
@@ -139,17 +137,17 @@ describe( 'mappings.link', () => {
 	test( 'a resolved product row makes the receipt line resolve on the next read', async () => {
 		const t = convexTest( schema, modules );
 		const accountId = await seedAccount( t );
-		const connectionId = await t.run( async ( ctx ) => {
-			const sealed = { keyVersion: 1, iv: 'aXY=', ciphertext: 'Y3Q=' };
-			return await ctx.db.insert( 'connections', {
-				accountId,
-				store: 'coop',
-				accessToken: sealed,
-				accessTokenExpiresAt: 0,
-				refreshToken: sealed,
-				status: 'active' as const,
-			} );
-		} );
+		const connectionId = await t.run(
+			async ( ctx ) =>
+				await ctx.db.insert( 'connections', {
+					accountId,
+					store: 'coop',
+					accessToken: TEST_SEALED_SECRET,
+					accessTokenExpiresAt: 0,
+					refreshToken: TEST_SEALED_SECRET,
+					status: 'active' as const,
+				} )
+		);
 		const receiptId = await t.run( async ( ctx ) => {
 			const r = await ctx.db.insert( 'receipts', {
 				connectionId,
@@ -170,21 +168,27 @@ describe( 'mappings.link', () => {
 			return r;
 		} );
 
-		const before = await as( t, 'sub-a' ).query( api.receipts.getReceipt, {
-			receiptId,
-		} );
+		const before = await actingAs( t, 'sub-a' ).query(
+			api.receipts.getReceipt,
+			{
+				receiptId,
+			}
+		);
 		expect( before?.items[ 0 ]?.kind ).toBeUndefined();
 
-		await as( t, 'sub-a' ).mutation( api.mappings.link, {
+		await actingAs( t, 'sub-a' ).mutation( api.mappings.link, {
 			token: 'tok-a',
 			store: 'coop',
 			text: 'PASTASÅS ARRABBIA. 22,24',
 			kind: 'notInCatalog',
 		} );
 
-		const after = await as( t, 'sub-a' ).query( api.receipts.getReceipt, {
-			receiptId,
-		} );
+		const after = await actingAs( t, 'sub-a' ).query(
+			api.receipts.getReceipt,
+			{
+				receiptId,
+			}
+		);
 		expect( after?.items[ 0 ]?.kind ).toBe( 'notInCatalog' );
 		expect( after?.items[ 0 ]?.gtin ).toBeUndefined();
 	} );
@@ -194,7 +198,7 @@ describe( 'mappings.unlink', () => {
 	test( 'removes the matching row so the line goes back to unidentified', async () => {
 		const t = convexTest( schema, modules );
 		await seedAccount( t );
-		const asA = as( t, 'sub-a' );
+		const asA = actingAs( t, 'sub-a' );
 		await asA.mutation( api.mappings.link, {
 			token: 'tok-a',
 			store: 'coop',
@@ -216,7 +220,7 @@ describe( 'mappings.unlink', () => {
 		const t = convexTest( schema, modules );
 		await seedAccount( t );
 		await expect(
-			as( t, 'sub-a' ).mutation( api.mappings.unlink, {
+			actingAs( t, 'sub-a' ).mutation( api.mappings.unlink, {
 				token: 'tok-a',
 				store: 'coop',
 				text: 'NOTHING HERE',

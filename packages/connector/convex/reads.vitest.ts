@@ -8,6 +8,7 @@ import type { MutationCtx, QueryCtx } from './_generated/server';
 import * as crons from './crons';
 import * as receipts from './receipts';
 import schema from './schema';
+import { actingAs, TEST_SEALED_SECRET } from './testSupport';
 import { MAX_RECEIPT_ITEMS, SYNC_BATCH_LIMIT } from './validators';
 
 const modules = import.meta.glob( './**/*.ts' );
@@ -38,8 +39,6 @@ async function countMutation(
 	return await t.mutation( measured );
 }
 
-const sealed = { keyVersion: 1, iv: 'aXY=', ciphertext: 'Y3Q=' };
-
 async function seedReceipts(
 	t: ReturnType< typeof convexTest >,
 	receiptCount: number,
@@ -52,9 +51,9 @@ async function seedReceipts(
 		const connectionId = await ctx.db.insert( 'connections', {
 			accountId,
 			store: 'coop',
-			accessToken: sealed,
+			accessToken: TEST_SEALED_SECRET,
 			accessTokenExpiresAt: 0,
-			refreshToken: sealed,
+			refreshToken: TEST_SEALED_SECRET,
 			status: 'active' as const,
 		} );
 		let receiptId: Id< 'receipts' > | null = null;
@@ -82,15 +81,12 @@ async function seedReceipts(
 	} );
 }
 
-const as = ( t: ReturnType< typeof convexTest >, subject: string ) =>
-	t.withIdentity( { subject } );
-
 describe( 'receipts.list', () => {
 	test( 'pages the index and never touches receiptItems', async () => {
 		const t = convexTest( schema, modules );
 		await seedReceipts( t, 5, 3 );
 
-		const counts = await countQuery( as( t, 'sub-a' ), ( ctx ) =>
+		const counts = await countQuery( actingAs( t, 'sub-a' ), ( ctx ) =>
 			handlerOf( receipts.list )( ctx, {
 				paginationOpts: { numItems: 3, cursor: null },
 			} )
@@ -111,7 +107,7 @@ describe( 'receipts.getReceipt', () => {
 		const t = convexTest( schema, modules );
 		const receiptId = await seedReceipts( t, 1, MAX_RECEIPT_ITEMS + 5 );
 
-		const counts = await countQuery( as( t, 'sub-a' ), ( ctx ) =>
+		const counts = await countQuery( actingAs( t, 'sub-a' ), ( ctx ) =>
 			handlerOf( receipts.getReceipt )( ctx, { receiptId } )
 		);
 
@@ -142,9 +138,9 @@ describe( 'crons.dispatchSync', () => {
 				await ctx.db.insert( 'connections', {
 					accountId,
 					store: 'coop',
-					accessToken: sealed,
+					accessToken: TEST_SEALED_SECRET,
 					accessTokenExpiresAt: 0,
-					refreshToken: sealed,
+					refreshToken: TEST_SEALED_SECRET,
 					status: 'active' as const,
 					lastSyncedAt: n < stale ? n : Date.now(),
 				} );

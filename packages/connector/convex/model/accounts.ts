@@ -1,21 +1,7 @@
 import type { Id } from '../_generated/dataModel';
 import type { MutationCtx, QueryCtx } from '../_generated/server';
 
-export async function getOrCreateAccount(
-	ctx: MutationCtx,
-	subject: string
-): Promise< Id< 'accounts' > > {
-	const existing = await ctx.db
-		.query( 'accounts' )
-		.withIndex( 'by_subject', ( q ) => q.eq( 'subject', subject ) )
-		.first();
-	if ( existing ) {
-		return existing._id;
-	}
-	return await ctx.db.insert( 'accounts', { subject } );
-}
-
-export async function findAccount(
+async function findAccountIdBySubject(
 	ctx: QueryCtx,
 	subject: string
 ): Promise< Id< 'accounts' > | null > {
@@ -24,6 +10,24 @@ export async function findAccount(
 		.withIndex( 'by_subject', ( q ) => q.eq( 'subject', subject ) )
 		.first();
 	return existing?._id ?? null;
+}
+
+export async function getOrCreateAccount(
+	ctx: MutationCtx,
+	subject: string
+): Promise< Id< 'accounts' > > {
+	const existing = await findAccountIdBySubject( ctx, subject );
+	if ( existing ) {
+		return existing;
+	}
+	return await ctx.db.insert( 'accounts', { subject } );
+}
+
+export async function findAccount(
+	ctx: QueryCtx,
+	subject: string
+): Promise< Id< 'accounts' > | null > {
+	return findAccountIdBySubject( ctx, subject );
 }
 
 export async function findAccountByToken(
