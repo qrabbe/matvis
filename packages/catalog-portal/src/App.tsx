@@ -1,10 +1,10 @@
 import { useQuery } from 'convex/react';
 import { LinkButton, Stack, Tabs, Text } from '@wordpress/ui';
 import { STORE_LABELS, type StoreSlug } from '@matvis/shared';
-import { AdminConsole } from './features/admin/AdminConsole';
-import { CatalogTab } from './features/CatalogTab';
-import { DevPortal } from './features/DevPortal';
-import { ProductDetail } from './features/ProductDetail';
+import { AdminConsole } from './features/admin';
+import { CatalogTab } from './features/catalog-tab';
+import { DevPortal } from './features/dev-portal';
+import { ProductDetail } from './features/product-detail';
 import {
 	ADMIN_PATH,
 	DEVELOPERS_PATH,
@@ -15,8 +15,9 @@ import {
 	navigate,
 	storeFromPath,
 	useRoute,
+	type CatalogStore,
 } from './lib/route';
-import { api } from './lib/convexApi';
+import { api } from './lib/convex-api';
 
 type Totals = { total: number; stores: { store: StoreSlug; count: number }[] };
 
@@ -37,6 +38,50 @@ function summarise( { total, stores }: Totals ): string {
 	return stocked.length > 0
 		? `${ products } · ${ stocked.join( ' · ' ) }`
 		: products;
+}
+
+function Screen( {
+	route,
+	admin,
+	ean,
+	store,
+	activeTab,
+}: {
+	route: string;
+	admin: boolean;
+	ean: string | null;
+	store: CatalogStore | null;
+	activeTab: 'catalog' | 'developers';
+} ) {
+	if ( admin ) {
+		return <AdminConsole />;
+	}
+	if ( ean ) {
+		return <ProductDetail ean={ ean } store={ store ?? undefined } />;
+	}
+	return (
+		<Tabs.Root
+			value={ activeTab }
+			onValueChange={ ( value ) =>
+				navigate( value === 'developers' ? DEVELOPERS_PATH : '/' )
+			}
+		>
+			<Tabs.List>
+				<Tabs.Tab value="catalog">Catalog</Tabs.Tab>
+				<Tabs.Tab value="developers">Developers</Tabs.Tab>
+			</Tabs.List>
+			<Tabs.Panel value="catalog">
+				<Stack direction="column" gap="md" style={ { paddingTop: 20 } }>
+					<CatalogTab path={ route } />
+				</Stack>
+			</Tabs.Panel>
+			<Tabs.Panel value="developers">
+				<Stack direction="column" gap="xl" style={ { paddingTop: 20 } }>
+					<DevPortal />
+				</Stack>
+			</Tabs.Panel>
+		</Tabs.Root>
+	);
 }
 
 export function App() {
@@ -69,6 +114,9 @@ export function App() {
 					<Text
 						variant="heading-xl"
 						render={
+							// Text clones its own children onto this anchor, so the
+							// anchor is deliberately empty here.
+							// eslint-disable-next-line jsx-a11y/anchor-has-content
 							<a
 								href={ href( '/' ) }
 								style={ { color: 'inherit' } }
@@ -92,43 +140,13 @@ export function App() {
 					</LinkButton>
 				) }
 			</Stack>
-			{ admin ? (
-				<AdminConsole />
-			) : ean ? (
-				<ProductDetail ean={ ean } store={ store ?? undefined } />
-			) : (
-				<Tabs.Root
-					value={ activeTab }
-					onValueChange={ ( value ) =>
-						navigate(
-							value === 'developers' ? DEVELOPERS_PATH : '/'
-						)
-					}
-				>
-					<Tabs.List>
-						<Tabs.Tab value="catalog">Catalog</Tabs.Tab>
-						<Tabs.Tab value="developers">Developers</Tabs.Tab>
-					</Tabs.List>
-					<Tabs.Panel value="catalog">
-						<Stack
-							direction="column"
-							gap="md"
-							style={ { paddingTop: 20 } }
-						>
-							<CatalogTab path={ route } />
-						</Stack>
-					</Tabs.Panel>
-					<Tabs.Panel value="developers">
-						<Stack
-							direction="column"
-							gap="xl"
-							style={ { paddingTop: 20 } }
-						>
-							<DevPortal />
-						</Stack>
-					</Tabs.Panel>
-				</Tabs.Root>
-			) }
+			<Screen
+				route={ route }
+				admin={ admin }
+				ean={ ean }
+				store={ store }
+				activeTab={ activeTab }
+			/>
 		</Stack>
 	);
 }

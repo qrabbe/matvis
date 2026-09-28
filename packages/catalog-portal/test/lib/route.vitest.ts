@@ -19,7 +19,7 @@ import {
 
 /**
  * Hash routing. The portal is a static bundle with no server able to rewrite
- * unknown paths, so the hash is the whole routing story — and a deep link that
+ * unknown paths, so the hash is the whole routing story, and a deep link that
  * does not survive a cold load is the one case the route exists for.
  */
 

@@ -52,7 +52,7 @@ function schemaType( node: SchemaNode ): string {
 }
 
 /**
- * `$defs` by name. `schemaType` already resolves a `$ref` to its name; this is
+ * `$defs` by name. `schemaType` already resolves a `$ref` to its name, this is
  * what turns that name back into the block it points at, which is the link the
  * flat rendering used to throw away.
  */
@@ -70,7 +70,7 @@ function fieldsFrom(
 			const target = ref ? defs[ ref ] : undefined;
 			// A self-referential contract would recurse forever, so a name already on
 			// the path renders as its type alone. Nothing in the catalog does this
-			// today; the guard is cheaper than finding out the hard way.
+			// today, the guard is cheaper than finding out the hard way.
 			const expandable = target && ! seen.includes( ref! );
 
 			return {

@@ -16,7 +16,7 @@ let fallbackId: string | null = null;
  *
  * `load` and `save` in the shared store call `window.localStorage` bare, which
  * throws in a hardened or private-mode browser, so both are wrapped. A browser
- * that cannot remember its id still gets its searches counted; it just looks
+ * that cannot remember its id still gets its searches counted, it just looks
  * like a new visitor on every reload.
  */
 export function visitorId(): string {

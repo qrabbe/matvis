@@ -11,7 +11,7 @@ export function productPath( ean: string, store?: CatalogStore ): string {
 	return `/p/${ encodeURIComponent( ean ) }${ query }`;
 }
 
-/** Coop's is `/`, always; ICA's is the only other chain the portal knows. */
+/** Coop's is `/`, always. ICA's is the only other chain the portal knows. */
 export function storeFrontPath( store: CatalogStore ): string {
 	return store === 'coop' ? '/' : `/c/${ store }`;
 }

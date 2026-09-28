@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { Notice } from '@wordpress/ui';
 import { ErrorNotice, InlineSpinner } from '@matvis/ui';
-import { clearAdminToken } from '../../lib/adminSession';
+import { clearAdminToken } from '../../lib/admin-session';
 
 export type TaskState =
 	| { status: 'idle' }
