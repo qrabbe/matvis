@@ -17,15 +17,11 @@ function nonEmpty( raw: string | null ): string | null {
 	return raw && raw.trim() ? raw : null;
 }
 
-export function loadApiToken(): string | null {
-	return nonEmpty( tokenStore.load() );
-}
-
-export function saveApiToken( token: string ): void {
+function saveApiToken( token: string ): void {
 	tokenStore.save( token.trim() );
 }
 
-export function clearApiToken(): void {
+function clearApiToken(): void {
 	tokenStore.clear();
 	dropLegacyCoopTokens();
 }

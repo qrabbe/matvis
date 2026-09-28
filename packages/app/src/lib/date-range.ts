@@ -7,14 +7,6 @@ export interface DateRange {
 
 export type RangePresetId = '30d' | '90d' | '6m' | '1y' | 'all';
 
-export const RANGE_PRESETS: { id: RangePresetId; label: string }[] = [
-	{ id: '30d', label: '30 days' },
-	{ id: '90d', label: '90 days' },
-	{ id: '6m', label: '6 months' },
-	{ id: '1y', label: '1 year' },
-	{ id: 'all', label: 'All' },
-];
-
 const PRESET_DAYS: Record< Exclude< RangePresetId, 'all' >, number > = {
 	'30d': 30,
 	'90d': 90,

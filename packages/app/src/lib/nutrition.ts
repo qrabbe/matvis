@@ -12,24 +12,6 @@ export interface Macros {
 	salt: number;
 }
 
-export type MacroKey = 'kcal' | 'protein' | 'fat' | 'carbs' | 'sugars';
-
-export const MACRO_LABELS: Record< MacroKey, string > = {
-	kcal: 'Energy',
-	protein: 'Protein',
-	fat: 'Fat',
-	carbs: 'Carbohydrate',
-	sugars: 'Sugars',
-};
-
-export const MACRO_UNITS: Record< MacroKey, string > = {
-	kcal: 'kcal',
-	protein: 'g',
-	fat: 'g',
-	carbs: 'g',
-	sugars: 'g',
-};
-
 export const ZERO_MACROS: Macros = {
 	kcal: 0,
 	protein: 0,

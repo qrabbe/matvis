@@ -334,7 +334,7 @@ export function countedShare(
 	return { countedKr, eatenKr };
 }
 
-export interface WastedProduct {
+interface WastedProduct {
 	name: string;
 	count: number;
 	kr: number;

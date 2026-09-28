@@ -84,7 +84,7 @@ type ExportAll = FunctionReference<
 	{ marks: MarkRow[] }
 >;
 
-export interface DurationEstimateRow {
+interface DurationEstimateRow {
 	_id: string;
 	_creationTime: number;
 	groupKey: string;

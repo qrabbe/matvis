@@ -7,7 +7,7 @@ import {
 } from '@matvis/shared';
 import type { Connector } from './connector';
 
-export type ReceiptItemRow = Omit< LineItem, 'gtin' >;
+type ReceiptItemRow = Omit< LineItem, 'gtin' >;
 
 export type ReceiptRow = Omit< ReceiptCore, 'source' > & {
 	externalId: string;

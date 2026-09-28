@@ -69,13 +69,6 @@ export function formatDayShort( key: string ): string {
 	} );
 }
 
-export function formatGrams( n: number | null | undefined ): string {
-	if ( n === null || n === undefined || ! Number.isFinite( n ) ) {
-		return '—';
-	}
-	return `${ Math.round( n ) } g`;
-}
-
 export function formatKcal( n: number | null | undefined ): string {
 	if ( n === null || n === undefined || ! Number.isFinite( n ) ) {
 		return '—';

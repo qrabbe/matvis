@@ -6,11 +6,7 @@ import {
 	type PantryUnit,
 } from './pantry-units';
 import type { PurchaseLine } from './purchases';
-import {
-	finishedSpans,
-	resolveTypicalDuration,
-	type FinishedSpan,
-} from './durations';
+import { finishedSpans, resolveTypicalDuration } from './durations';
 
 const MS_PER_DAY = 86_400_000;
 
@@ -168,5 +164,3 @@ export function splitStaples( tiles: readonly PantryTile[] ): {
 	}
 	return { regular, staples };
 }
-
-export type { FinishedSpan };

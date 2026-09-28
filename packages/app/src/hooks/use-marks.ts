@@ -10,7 +10,7 @@ import {
 import { appBackendClient } from '../lib/app-backend-client';
 import { errMsg } from '@matvis/shared';
 
-export interface MarkArgs extends UnitKey {
+interface MarkArgs extends UnitKey {
 	outcome: MarkOutcome;
 	finishedAt: number;
 	finishedAtHandSet: boolean;
@@ -19,7 +19,7 @@ export interface MarkArgs extends UnitKey {
 	source?: MarkSource;
 }
 
-export interface MarkManyArgs {
+interface MarkManyArgs {
 	units: UnitKey[];
 	outcome: MarkOutcome;
 	finishedAt: number;

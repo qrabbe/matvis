@@ -1,4 +1,4 @@
-export type Shape =
+type Shape =
 	'carton' | 'tub' | 'loaf' | 'block' | 'box' | 'can' | 'bag' | 'jar';
 
 export type Product = { shape: Shape; tint: string };

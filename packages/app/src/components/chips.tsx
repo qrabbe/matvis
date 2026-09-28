@@ -5,7 +5,7 @@ export interface ChipOption< T extends string > {
 	label: string;
 }
 
-export const chipStyle: CSSProperties = {
+const chipStyle: CSSProperties = {
 	minHeight: 32,
 	padding: '0 12px',
 	borderRadius: 999,

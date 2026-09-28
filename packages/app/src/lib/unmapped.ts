@@ -13,7 +13,7 @@ export interface UnmappedGroup {
 	priceGroups: PriceGroup[];
 }
 
-export interface PriceGroup {
+interface PriceGroup {
 	price: number;
 	count: number;
 }

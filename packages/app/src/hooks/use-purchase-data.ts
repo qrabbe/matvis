@@ -33,7 +33,7 @@ const ITEM_FLUSH_MS = 250;
 
 const EAN_LOOKUP_CONCURRENCY = 6;
 
-export interface HydrationProgress {
+interface HydrationProgress {
 	done: number;
 	total: number;
 }
