@@ -109,7 +109,7 @@ async function clearBackfillMarks(
 	} );
 }
 
-async function main(): Promise< void > {
+function requiredToken(): string {
 	const token = arg( 'token' );
 	if ( ! token ) {
 		console.error(
@@ -118,39 +118,29 @@ async function main(): Promise< void > {
 		);
 		process.exit( 1 );
 	}
-	const clearOnly = process.argv.includes( '--clear-only' );
+	return token;
+}
 
-	const appUrl = process.env.VITE_APP_CONVEX_URL;
-	if ( ! appUrl ) {
-		throw new Error(
-			'VITE_APP_CONVEX_URL is not set — this app has no deployment configured yet to write marks into'
-		);
-	}
-	const appClient = new ConvexHttpClient( appUrl );
-
-	if ( clearOnly ) {
-		await clearBackfillMarks( appClient, token );
-		console.log( 'Done: cleared, nothing else to do with --clear-only.' );
-		return;
-	}
-
-	const dryRun = process.argv.includes( '--dry-run' );
+function parseShardArg(): {
+	shardIndex: number | null;
+	shardCount: number | null;
+} {
 	const shardArg = arg( 'shard' );
-
-	let shardIndex: number | null = null;
-	let shardCount: number | null = null;
-	if ( shardArg ) {
-		const parsed = /^(\d+)\/(\d+)$/.exec( shardArg );
-		if ( ! parsed ) {
-			console.error(
-				'--shard must look like "0/4" (this shard / total)'
-			);
-			process.exit( 1 );
-		}
-		shardIndex = Number( parsed[ 1 ] );
-		shardCount = Number( parsed[ 2 ] );
+	if ( ! shardArg ) {
+		return { shardIndex: null, shardCount: null };
 	}
+	const parsed = /^(\d+)\/(\d+)$/.exec( shardArg );
+	if ( ! parsed ) {
+		console.error( '--shard must look like "0/4" (this shard / total)' );
+		process.exit( 1 );
+	}
+	return {
+		shardIndex: Number( parsed[ 1 ] ),
+		shardCount: Number( parsed[ 2 ] ),
+	};
+}
 
+function parseTrackingStartMs(): number {
 	const trackingStartRaw =
 		arg( 'tracking-start' ) ?? new Date().toISOString().slice( 0, 10 );
 	const trackingStartMs = new Date(
@@ -163,13 +153,13 @@ async function main(): Promise< void > {
 		process.exit( 1 );
 	}
 	console.log( `Tracking start: ${ trackingStartRaw }` );
+	return trackingStartMs;
+}
 
-	const connectorUrl = process.env.VITE_CONNECTOR_CONVEX_URL;
-	if ( ! connectorUrl ) {
-		throw new Error( 'VITE_CONNECTOR_CONVEX_URL is not set' );
-	}
-	const connector = new ConvexHttpClient( connectorUrl );
-
+async function loadPurchaseLines(
+	connector: ConvexHttpClient,
+	token: string
+): Promise< PurchaseLine[] > {
 	console.log( 'Loading receipt headers…' );
 	const headers: ReceiptHeader[] = [];
 	let cursor: string | null = null;
@@ -213,21 +203,29 @@ async function main(): Promise< void > {
 		}
 	} );
 	console.log( `${ lines.length } food lines.` );
+	return lines;
+}
 
-	const shardedLines =
-		shardCount !== null
-			? lines.filter(
-					( line ) =>
-						hashString( shardKeyOf( line ) ) % shardCount ===
-						shardIndex
-				)
-			: lines;
-	if ( shardCount !== null ) {
-		console.log(
-			`${ shardedLines.length } food lines in shard ${ shardIndex }/${ shardCount }.`
-		);
+function selectShard(
+	lines: readonly PurchaseLine[],
+	shardIndex: number | null,
+	shardCount: number | null
+): PurchaseLine[] {
+	if ( shardCount === null ) {
+		return [ ...lines ];
 	}
+	const shardedLines = lines.filter(
+		( line ) => hashString( shardKeyOf( line ) ) % shardCount === shardIndex
+	);
+	console.log(
+		`${ shardedLines.length } food lines in shard ${ shardIndex }/${ shardCount }.`
+	);
+	return shardedLines;
+}
 
+async function loadEstimates(
+	appClient: ConvexHttpClient
+): Promise< Map< string, DurationEstimate > > {
 	console.log( 'Loading duration estimates…' );
 	const estimateRows = await appClient.query(
 		appBackendApi.durationEstimates.list,
@@ -243,20 +241,14 @@ async function main(): Promise< void > {
 		] )
 	);
 	console.log( `${ estimates.size } estimates.` );
+	return estimates;
+}
 
-	const marks = simulateBackfill( shardedLines, estimates, trackingStartMs );
-	console.log( `Backfill would write ${ marks.length } marks.` );
-
-	if ( dryRun ) {
-		console.log( '--dry-run: not writing anything.' );
-		return;
-	}
-
-	const skipClear = process.argv.includes( '--skip-clear' );
-	if ( ! skipClear ) {
-		await clearBackfillMarks( appClient, token );
-	}
-
+async function writeBackfillMarks(
+	appClient: ConvexHttpClient,
+	token: string,
+	marks: ReturnType< typeof simulateBackfill >
+): Promise< void > {
 	console.log( 'Writing marks…' );
 	let written = 0;
 	await mapWithConcurrency( marks, CONCURRENCY, async ( mark ) => {
@@ -278,6 +270,54 @@ async function main(): Promise< void > {
 		}
 	} );
 	console.log( `Done: ${ written } marks written.` );
+}
+
+async function main(): Promise< void > {
+	const token = requiredToken();
+	const clearOnly = process.argv.includes( '--clear-only' );
+
+	const appUrl = process.env.VITE_APP_CONVEX_URL;
+	if ( ! appUrl ) {
+		throw new Error(
+			'VITE_APP_CONVEX_URL is not set — this app has no deployment configured yet to write marks into'
+		);
+	}
+	const appClient = new ConvexHttpClient( appUrl );
+
+	if ( clearOnly ) {
+		await clearBackfillMarks( appClient, token );
+		console.log( 'Done: cleared, nothing else to do with --clear-only.' );
+		return;
+	}
+
+	const dryRun = process.argv.includes( '--dry-run' );
+	const { shardIndex, shardCount } = parseShardArg();
+	const trackingStartMs = parseTrackingStartMs();
+
+	const connectorUrl = process.env.VITE_CONNECTOR_CONVEX_URL;
+	if ( ! connectorUrl ) {
+		throw new Error( 'VITE_CONNECTOR_CONVEX_URL is not set' );
+	}
+	const connector = new ConvexHttpClient( connectorUrl );
+
+	const lines = await loadPurchaseLines( connector, token );
+	const shardedLines = selectShard( lines, shardIndex, shardCount );
+	const estimates = await loadEstimates( appClient );
+
+	const marks = simulateBackfill( shardedLines, estimates, trackingStartMs );
+	console.log( `Backfill would write ${ marks.length } marks.` );
+
+	if ( dryRun ) {
+		console.log( '--dry-run: not writing anything.' );
+		return;
+	}
+
+	const skipClear = process.argv.includes( '--skip-clear' );
+	if ( ! skipClear ) {
+		await clearBackfillMarks( appClient, token );
+	}
+
+	await writeBackfillMarks( appClient, token, marks );
 }
 
 await main();

@@ -85,8 +85,7 @@ function chunk< T >( items: readonly T[], size: number ): T[][] {
 	return out;
 }
 
-async function main(): Promise< void > {
-	const prod = process.argv.includes( '--prod' );
+function loadEstimatesFromBackfillFile(): Estimate[] {
 	const path = join(
 		import.meta.dir,
 		'..',
@@ -126,7 +125,13 @@ async function main(): Promise< void > {
 		`${ entries.length } backfill entries → ${ estimates.length } estimates ` +
 			`(${ skippedNonFood } non-food, ${ skippedUnkeyable } unkeyable skipped)`
 	);
+	return estimates;
+}
 
+async function upsertInBatches(
+	estimates: readonly Estimate[],
+	prod: boolean
+): Promise< { inserted: number; updated: number } > {
 	let inserted = 0;
 	let updated = 0;
 	for ( const batch of chunk( estimates, BATCH_SIZE ) ) {
@@ -148,7 +153,13 @@ async function main(): Promise< void > {
 			updated += Number( parsed[ 2 ] );
 		}
 	}
+	return { inserted, updated };
+}
 
+async function main(): Promise< void > {
+	const prod = process.argv.includes( '--prod' );
+	const estimates = loadEstimatesFromBackfillFile();
+	const { inserted, updated } = await upsertInBatches( estimates, prod );
 	console.log( `Done: ${ inserted } inserted, ${ updated } updated.` );
 }
 
