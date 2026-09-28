@@ -47,7 +47,7 @@ describe( 'headlineStats', () => {
 		expect( stats.spend ).toBe( 400 );
 		expect( stats.items ).toBe( 20 );
 		expect( stats.averageBasket ).toBe( 200 );
-		// Discounts are printed negative; the tile reads "saved", so it is a
+		// Discounts are printed negative, the tile reads "saved", so it is a
 		// positive magnitude by the time it leaves here.
 		expect( stats.discounts ).toBe( 15 );
 	} );

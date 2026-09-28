@@ -1,10 +1,10 @@
 import type { ReceiptHeader } from '@matvis/shared';
-import type { MarkRow } from './appBackendApi';
+import type { MarkRow } from './app-backend-api';
 import {
 	expandLinesToUnits,
 	pantryGroupKey,
 	type PantryUnit,
-} from './pantryUnits';
+} from './pantry-units';
 import type { PurchaseLine } from './purchases';
 
 export type TripDotState = 'green' | 'orange' | 'red';
@@ -16,7 +16,7 @@ export interface Trip {
 	dotState: TripDotState;
 	spend: number;
 	/**
-	 * Pantry-eligible units only (product or produce) — the ones a dot or a
+	 * Pantry-eligible units only (product or produce), the ones a dot or a
 	 * "Mark all" can ever act on.
 	 */
 	units: PantryUnit[];
@@ -27,7 +27,7 @@ export interface Trip {
 
 /**
  * Red wins over orange, and only pantry-eligible units ever count toward
- * green — a line marked "Not in catalog" can never keep a trip orange, and
+ * green: a line marked "Not in catalog" can never keep a trip orange, and
  * an unidentified line always makes it red regardless of how much else on
  * the receipt is already marked.
  */

@@ -16,9 +16,9 @@ import {
 	expandLineToUnits,
 	unitPrice,
 	type PantryUnit,
-} from '../../src/lib/pantryUnits';
+} from '../../src/lib/pantry-units';
 import { ZERO_MACROS, type Macros } from '../../src/lib/nutrition';
-import type { MarkRow } from '../../src/lib/appBackendApi';
+import type { MarkRow } from '../../src/lib/app-backend-api';
 import type { CatalogRow, ReceiptHeader, ReceiptItemDoc } from '@matvis/shared';
 import type { PurchaseLine } from '../../src/lib/purchases';
 

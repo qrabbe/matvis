@@ -48,7 +48,7 @@ describe( 'toBaseUnits', () => {
 	// The dimension the callers compare is what prevents the bug this module
 	// exists for: the old repo did `packageSize / basisQuantity` with no unit
 	// check, so a 1.5 l bottle against a 100 ml basis produced 0.015 instead of
-	// 15 — a silent 1000x error.
+	// 15, a silent 1000x error.
 	it( 'reports the dimension alongside the base-unit amount', () => {
 		expect( toBaseUnits( 1.5, 'Liter' ) ).toEqual( {
 			dimension: 'volume',

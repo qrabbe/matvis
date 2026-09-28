@@ -24,9 +24,9 @@ const EMPTY_TARGETS = {
 };
 
 /**
- * Absent for an account that has never customized a target — the default
- * IS "everything on, at the code-level default value" (see
- * `src/lib/targets.ts`), so there is nothing to return until that changes.
+ * Absent for an account that has never customized a target, since the
+ * default is "everything on, at the code-level default value", so there
+ * is nothing to return until that changes.
  */
 export const get = query( {
 	args: { token: v.string() },
@@ -41,7 +41,7 @@ export const get = query( {
 } );
 
 /**
- * Merges the given targets into whatever's already stored — a caller
+ * Merges the given targets into whatever's already stored: a caller
  * turning off `salt` doesn't need to resend the other six untouched.
  */
 export const setTargets = mutation( {

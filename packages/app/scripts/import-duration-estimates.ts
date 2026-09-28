@@ -2,14 +2,14 @@
 /**
  * One-time import of the reviewed backfill estimates
  * (`tickets/backfill/durations.json`, repo root) into this app's own
- * `durationEstimates` table — `durations.ts`'s tier 2, read whenever a
+ * `durationEstimates` table, `durations.ts`'s tier 2, read whenever a
  * product has fewer than two of the account's own teaching marks.
  *
  * Translates the backfill file's own key scheme (`ean:<gtin>` /
  * `text:<store>:<normalizedText>`) into `pantryGroupKey`'s scheme
  * (`product:<gtin>` / `produce:<normalizedText>`) so every reader of this
  * table shares one key format. The store prefix on a `text:` key is
- * dropped — `itemGtinMap` and this account are Coop-only today; a second
+ * dropped, `itemGtinMap` and this account are Coop-only today, a second
  * store's produce texts would need revisiting this if they ever collide.
  *
  * Batches the upsert through `convex run` (rather than calling the internal
@@ -26,8 +26,8 @@ import { $ } from 'bun';
 
 // `bunx`/`npx convex` resolve to a .cmd shim on Windows that mangles the
 // double quotes out of a JSON arg before Convex ever sees it. Calling the
-// bun-workspace-hoisted binary directly avoids that shim entirely (and is
-// faster besides — no re-resolve on every call).
+// bun-workspace-hoisted binary directly avoids that shim entirely, and is
+// faster besides, no re-resolve on every call.
 const REPO_ROOT = join( import.meta.dir, '..', '..', '..' );
 const CONVEX_BIN = ( () => {
 	const exe = join( REPO_ROOT, 'node_modules/.bin/convex.exe' );

@@ -1,10 +1,10 @@
 import type { CatalogRow, ItemMappingKind } from '@matvis/shared';
-import type { MarkRow } from './appBackendApi';
+import type { MarkRow } from './app-backend-api';
 import {
 	expandLinesToUnits,
 	pantryGroupKey,
 	type PantryUnit,
-} from './pantryUnits';
+} from './pantry-units';
 import type { PurchaseLine } from './purchases';
 import {
 	finishedSpans,
@@ -26,7 +26,7 @@ export interface PantryTile {
 	gtin?: string;
 	name: string;
 	product: CatalogRow | null;
-	/** Still in the pantry, oldest first — index 0 is the unit a tap finishes. */
+	/** Still in the pantry, oldest first, index 0 is the unit a tap finishes. */
 	outstandingUnits: PantryUnit[];
 	firstPurchase: Date;
 	lastPurchase: Date;
@@ -35,7 +35,7 @@ export interface PantryTile {
 	 * Days until the oldest outstanding unit is expected to run out, from
 	 * its typical duration. Negative means it's already past that. Null when
 	 * every unit in the group is already finished (grouping never returns
-	 * these — kept only as the type callers narrow from).
+	 * these, kept only as the type callers narrow from).
 	 */
 	dueInDays: number;
 	isStaple: boolean;
@@ -51,7 +51,7 @@ function displayName( units: readonly PantryUnit[] ): string {
 
 /**
  * Every outstanding unit, grouped into one tile per product (or per loose
- * produce text), due first. `today` is injected for deterministic tests;
+ * produce text), due first. `today` is injected for deterministic tests,
  * callers pass `new Date()`.
  */
 export function groupPantryTiles(
@@ -138,7 +138,7 @@ export function groupPantryTiles(
 }
 
 /**
- * Due first: most overdue tiles on top, then soonest to run out — both are
+ * Due first: most overdue tiles on top, then soonest to run out, both are
  * just ascending `dueInDays`, since overdue is a negative number.
  */
 export function sortDueFirst( tiles: readonly PantryTile[] ): PantryTile[] {

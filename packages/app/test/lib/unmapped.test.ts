@@ -30,7 +30,7 @@ function line(
 
 describe( 'groupUnmapped', () => {
 	it( 'groups by the matcher’s own normalization key, so a group is one future mapping', () => {
-		// Same product, different printed prices — `normalizeItemText` strips the
+		// Same product, different printed prices, `normalizeItemText` strips the
 		// trailing price, which is the whole reason these collapse into one row.
 		const groups = groupUnmapped( [
 			line( 'PESTO PEPERONICO 32,95', 32.95, '2026-03-01' ),

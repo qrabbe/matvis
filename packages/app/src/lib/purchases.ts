@@ -41,7 +41,7 @@ export function receiptDate( header: ReceiptHeader ): Date {
 			return parsed;
 		}
 	}
-	if ( header.purchasedAtMs != null ) {
+	if ( header.purchasedAtMs !== null && header.purchasedAtMs !== undefined ) {
 		return new Date( header.purchasedAtMs );
 	}
 	return new Date( header._creationTime );

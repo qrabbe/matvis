@@ -1,5 +1,5 @@
-import type { MarkRow } from './appBackendApi';
-import type { PantryUnit } from './pantryUnits';
+import type { MarkRow } from './app-backend-api';
+import type { PantryUnit } from './pantry-units';
 
 const MS_PER_DAY = 86_400_000;
 
@@ -8,7 +8,7 @@ export interface FinishedSpan {
 	days: number;
 	/**
 	 * Whether this mark counts as a teaching signal: a single tap always
-	 * does, and a bulk "Mark all" only does when its date was hand-set —
+	 * does, and a bulk "Mark all" only does when its date was hand-set,
 	 * otherwise catching up a forgotten trip would teach a product it lasts
 	 * however long it sat unmarked in the pantry.
 	 */
@@ -20,11 +20,12 @@ function defaultStartedAt( unit: PantryUnit ): number {
 }
 
 /**
- * Turns every mark into the Started→Finished span it represents, given the
- * unit it belongs to (for the default Started date when the mark never set
- * one) and the group that unit's product resolves to. A mark for a unit
- * that no longer exists — the line was re-matched away from this key, or
- * simply hasn't loaded yet — contributes nothing rather than guessing.
+ * Turns every mark into the Started to Finished span it represents, given
+ * the unit it belongs to (for the default Started date when the mark never
+ * set one) and the group that unit's product resolves to. A mark for a
+ * unit that no longer exists, because the line was re-matched away from
+ * this key or simply hasn't loaded yet, contributes nothing rather than
+ * guessing.
  */
 export function finishedSpans(
 	marks: readonly MarkRow[],
@@ -56,7 +57,7 @@ export function finishedSpans(
 			groupKey,
 			days,
 			// A backfill mark is a played-forward estimate, not something the
-			// account actually did, so it never teaches — regardless of `via` or
+			// account actually did, so it never teaches, regardless of `via` or
 			// `finishedAtHandSet`.
 			teaches:
 				mark.source !== 'backfill' &&
@@ -78,8 +79,8 @@ function median( values: readonly number[] ): number | null {
 }
 
 /**
- * The account's own typical duration for a product — the median
- * Started→Finished span across its teaching marks, once there are at least
+ * The account's own typical duration for a product, the median
+ * Started to Finished span across its teaching marks, once there are at least
  * two. One or zero teaching marks isn't a pattern yet, so callers fall
  * through to the estimate/category tiers instead of trusting a single data
  * point.

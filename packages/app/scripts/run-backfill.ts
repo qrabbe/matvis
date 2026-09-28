@@ -1,24 +1,24 @@
 #!/usr/bin/env bun
 /**
  * One-time backfill: plays the account's receipt history forward against
- * `durationEstimates` (see `import-duration-estimates.ts`) and writes a
- * `source: 'backfill'` mark for every unit that would already be finished
- * before `--tracking-start`, so the pantry opens holding only what's
- * plausibly still there instead of every food line ever bought. Re-running
- * this clears every `source: 'backfill'` mark from a previous run first, so
- * it's safe to re-run after changing the estimates or the simulation rule.
+ * `durationEstimates` and writes a `source: 'backfill'` mark for every
+ * unit that would already be finished before `--tracking-start`, so the
+ * pantry opens holding only what's plausibly still there instead of every
+ * food line ever bought. Re-running this clears every `source: 'backfill'`
+ * mark from a previous run first, so it's safe to re-run after changing
+ * the estimates or the simulation rule.
  *
  * Needs both deployments' URLs (from `packages/app/.env.local`, loaded
  * automatically by bun) and the account's own API token:
- *   VITE_CONNECTOR_CONVEX_URL — the connector, to read receipts
- *   VITE_APP_CONVEX_URL       — this app's own backend, to read estimates
- *                                and write marks (unset by default; mint a
- *                                deployment and set this before running)
+ *   VITE_CONNECTOR_CONVEX_URL: the connector, to read receipts
+ *   VITE_APP_CONVEX_URL: this app's own backend, to read estimates and
+ *                          write marks (unset by default, mint a
+ *                          deployment and set this before running)
  *
  * `--shard i/N` restricts the run to the i-th of N slices of product
  * groups (split by a hash of the group key), so several invocations can
  * run at once without writing the same unit twice. Only one of them should
- * clear the previous run's marks first — pass `--skip-clear` to the rest,
+ * clear the previous run's marks first, pass `--skip-clear` to the rest,
  * or clear once up front with `--clear-only` (which does nothing else).
  *
  * Usage (from packages/app):
@@ -28,14 +28,14 @@
  *   bun run scripts/run-backfill.ts --token mv_xxx --tracking-start 2026-09-24 --shard 0/4 --skip-clear
  */
 import { ConvexHttpClient } from 'convex/browser';
-import { api } from '../src/lib/convexApi';
-import { appBackendApi } from '../src/lib/appBackendApi';
+import { api } from '../src/lib/convex-api';
+import { appBackendApi } from '../src/lib/app-backend-api';
 import {
 	simulateBackfill,
 	type DurationEstimate,
-} from '../src/lib/backfillSimulation';
-import { expandLineToUnits, pantryGroupKey } from '../src/lib/pantryUnits';
-import type { PurchaseLine } from '../src/lib/purchases';
+} from '../src/lib/backfill-simulation';
+import { expandLineToUnits, pantryGroupKey } from '../src/lib/pantry-units';
+import { receiptDate, type PurchaseLine } from '../src/lib/purchases';
 import type { ReceiptHeader, ReceiptItemDoc } from '@matvis/shared';
 
 function arg( name: string ): string | undefined {
@@ -44,33 +44,20 @@ function arg( name: string ): string | undefined {
 }
 
 /**
- * A stable, even-enough split of group keys across shards — this only
+ * A stable, even-enough split of group keys across shards, this only
  * needs to keep each unit in exactly one shard, not to be cryptographic.
  */
 function hashString( s: string ): number {
 	let h = 5381;
 	for ( let i = 0; i < s.length; i++ ) {
-		h = ( h * 33 ) ^ s.charCodeAt( i );
+		h = ( h * 33 ) ^ s.charCodeAt( i ); // eslint-disable-line no-bitwise -- djb2 has no non-bitwise form
 	}
-	return h >>> 0;
+	return h >>> 0; // eslint-disable-line no-bitwise
 }
 
 function shardKeyOf( line: PurchaseLine ): string {
 	const unit = expandLineToUnits( line )[ 0 ]!;
 	return pantryGroupKey( unit ) ?? `line:${ line.item._id }`;
-}
-
-function receiptDate( header: ReceiptHeader ): Date {
-	if ( header.purchasedAt ) {
-		const parsed = new Date( header.purchasedAt );
-		if ( ! Number.isNaN( parsed.getTime() ) ) {
-			return parsed;
-		}
-	}
-	if ( header.purchasedAtMs != null ) {
-		return new Date( header.purchasedAtMs );
-	}
-	return new Date( header._creationTime );
 }
 
 const CONCURRENCY = 8;
@@ -124,11 +111,6 @@ async function clearBackfillMarks(
 
 async function main(): Promise< void > {
 	const token = arg( 'token' );
-	const dryRun = process.argv.includes( '--dry-run' );
-	const clearOnly = process.argv.includes( '--clear-only' );
-	const skipClear = process.argv.includes( '--skip-clear' );
-	const shardArg = arg( 'shard' );
-
 	if ( ! token ) {
 		console.error(
 			'Usage: bun run scripts/run-backfill.ts --token <account token> --tracking-start <YYYY-MM-DD> [--dry-run] [--shard i/N] [--skip-clear]\n' +
@@ -136,6 +118,7 @@ async function main(): Promise< void > {
 		);
 		process.exit( 1 );
 	}
+	const clearOnly = process.argv.includes( '--clear-only' );
 
 	const appUrl = process.env.VITE_APP_CONVEX_URL;
 	if ( ! appUrl ) {
@@ -150,6 +133,9 @@ async function main(): Promise< void > {
 		console.log( 'Done: cleared, nothing else to do with --clear-only.' );
 		return;
 	}
+
+	const dryRun = process.argv.includes( '--dry-run' );
+	const shardArg = arg( 'shard' );
 
 	let shardIndex: number | null = null;
 	let shardCount: number | null = null;
@@ -266,6 +252,7 @@ async function main(): Promise< void > {
 		return;
 	}
 
+	const skipClear = process.argv.includes( '--skip-clear' );
 	if ( ! skipClear ) {
 		await clearBackfillMarks( appClient, token );
 	}

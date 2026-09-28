@@ -1,31 +1,62 @@
 import { describe, expect, it } from 'bun:test';
-import { chunk, errMsg, formatAmount } from '@matvis/shared';
+import {
+	formatDate,
+	formatDayMonth,
+	formatDayRange,
+	formatNumber,
+	isoWeekLabel,
+} from '../../src/lib/format';
 
-describe( 'formatAmount', () => {
-	it( 'formats a value with two decimals and the currency', () => {
-		expect( formatAmount( 32.95 ) ).toBe( '32.95 SEK' );
-		expect( formatAmount( 10, 'EUR' ) ).toBe( '10.00 EUR' );
-	} );
-	it( 'renders an em dash for undefined', () => {
-		expect( formatAmount( undefined ) ).toBe( '—' );
+const nbsp = ' ';
+
+describe( 'formatDate', () => {
+	it( 'writes dd.mm.yyyy in local time', () => {
+		expect( formatDate( new Date( '2026-09-04T23:30:00' ) ) ).toBe(
+			'04.09.2026'
+		);
 	} );
 } );
 
-describe( 'errMsg', () => {
-	it( 'extracts an Error message and stringifies anything else', () => {
-		expect( errMsg( new Error( 'boom' ) ) ).toBe( 'boom' );
-		expect( errMsg( 'plain' ) ).toBe( 'plain' );
+describe( 'formatDayMonth', () => {
+	it( 'writes dd.mm for a day key, and leaves a bad key alone', () => {
+		expect( formatDayMonth( '2026-10-01' ) ).toBe( '01.10' );
+		expect( formatDayMonth( 'soon' ) ).toBe( 'soon' );
 	} );
 } );
 
-describe( 'chunk', () => {
-	it( 'splits to the server cap without losing the remainder', () => {
-		const values = Array.from( { length: 7 }, ( _, i ) => i );
-		expect( chunk( values, 3 ) ).toEqual( [
-			[ 0, 1, 2 ],
-			[ 3, 4, 5 ],
-			[ 6 ],
-		] );
-		expect( chunk( [], 3 ) ).toEqual( [] );
+describe( 'formatNumber', () => {
+	it( 'keeps one decimal below ten, with a decimal comma', () => {
+		expect( formatNumber( 1.46 ) ).toBe( '1,5' );
+		expect( formatNumber( 6 ) ).toBe( '6' );
+	} );
+
+	it( 'rounds larger values and groups thousands', () => {
+		expect( formatNumber( 34.4 ) ).toBe( '34' );
+		expect( formatNumber( 2500 ) ).toBe( `2${ nbsp }500` );
+	} );
+} );
+
+describe( 'formatDayRange', () => {
+	it( 'names the year once when both ends share it', () => {
+		expect( formatDayRange( '2026-09-25', '2026-10-01' ) ).toBe(
+			'25.09 – 01.10.2026'
+		);
+	} );
+
+	it( 'names both years across new year', () => {
+		expect( formatDayRange( '2025-12-29', '2026-01-04' ) ).toBe(
+			'29.12.2025 – 04.01.2026'
+		);
+	} );
+} );
+
+describe( 'isoWeekLabel', () => {
+	it( 'labels a known ISO week correctly', () => {
+		expect( isoWeekLabel( new Date( 2026, 8, 25 ) ) ).toBe( 'Week 39' );
+	} );
+
+	it( 'rolls over at a week boundary, Monday starting a new week', () => {
+		expect( isoWeekLabel( new Date( 2026, 8, 20 ) ) ).toBe( 'Week 38' );
+		expect( isoWeekLabel( new Date( 2026, 8, 21 ) ) ).toBe( 'Week 39' );
 	} );
 } );

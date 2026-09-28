@@ -8,7 +8,7 @@ import {
 	splitStaples,
 	STAPLE_THRESHOLD_DAYS,
 } from '../../src/lib/pantry';
-import type { MarkRow } from '../../src/lib/appBackendApi';
+import type { MarkRow } from '../../src/lib/app-backend-api';
 import type { PurchaseLine } from '../../src/lib/purchases';
 
 function catalogProduct( ean: string, name = `Product ${ ean }` ): CatalogRow {
@@ -54,7 +54,7 @@ function line(
 }
 
 function mark(
-	line: PurchaseLine,
+	forLine: PurchaseLine,
 	unitIndex: number,
 	finishedAt: string,
 	overrides: Partial< MarkRow > = {}
@@ -62,8 +62,8 @@ function mark(
 	return {
 		_id: `mark_${ seq }`,
 		_creationTime: 0,
-		receiptId: line.header._id,
-		lineNo: line.item.lineNo,
+		receiptId: forLine.header._id,
+		lineNo: forLine.item.lineNo,
 		unitIndex,
 		outcome: 'finished',
 		finishedAt: Date.parse( finishedAt ),

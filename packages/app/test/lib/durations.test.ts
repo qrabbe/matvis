@@ -4,8 +4,8 @@ import {
 	ownTypicalDuration,
 	resolveTypicalDuration,
 } from '../../src/lib/durations';
-import type { MarkRow } from '../../src/lib/appBackendApi';
-import type { PantryUnit } from '../../src/lib/pantryUnits';
+import type { MarkRow } from '../../src/lib/app-backend-api';
+import type { PantryUnit } from '../../src/lib/pantry-units';
 
 function unit( overrides: Partial< PantryUnit > = {} ): PantryUnit {
 	return {

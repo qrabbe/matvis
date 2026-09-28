@@ -42,12 +42,10 @@ const unitFields = {
 	unitIndex: v.number(),
 };
 
-const markFields = {
-	...unitFields,
+const sharedMarkFields = {
 	outcome: v.union( v.literal( 'finished' ), v.literal( 'wasted' ) ),
 	finishedAt: v.number(),
 	finishedAtHandSet: v.boolean(),
-	startedAt: v.optional( v.number() ),
 	via: v.union(
 		v.literal( 'tap' ),
 		v.literal( 'trip' ),
@@ -57,6 +55,12 @@ const markFields = {
 	source: v.optional(
 		v.union( v.literal( 'user' ), v.literal( 'backfill' ) )
 	),
+};
+
+const markFields = {
+	...unitFields,
+	...sharedMarkFields,
+	startedAt: v.optional( v.number() ),
 };
 
 async function findMark(
@@ -79,7 +83,7 @@ async function findMark(
 }
 
 /**
- * Sets one unit's outcome — a tap, a trip catch-up, or an edit made from
+ * Sets one unit's outcome: a tap, a trip catch-up, or an edit made from
  * Details. Upserts: calling it again on the same unit (e.g. correcting a
  * date from Details) replaces the existing mark rather than stacking a
  * second one, since a unit can only be in one state at a time.
@@ -109,7 +113,7 @@ export const mark = mutation( {
 
 /**
  * The same as {@link mark}, applied to several units at once with one
- * shared date — "Mark all N finished" on a trip. `finishedAtHandSet` still
+ * shared date, "Mark all N finished" on a trip. `finishedAtHandSet` still
  * applies to the whole batch: false unless the person changed the date away
  * from "today" in the toast, matching a single tap's own rule.
  */
@@ -117,18 +121,7 @@ export const markMany = mutation( {
 	args: {
 		token: v.string(),
 		units: v.array( v.object( unitFields ) ),
-		outcome: v.union( v.literal( 'finished' ), v.literal( 'wasted' ) ),
-		finishedAt: v.number(),
-		finishedAtHandSet: v.boolean(),
-		via: v.union(
-			v.literal( 'tap' ),
-			v.literal( 'trip' ),
-			v.literal( 'details' ),
-			v.literal( 'backfill' )
-		),
-		source: v.optional(
-			v.union( v.literal( 'user' ), v.literal( 'backfill' ) )
-		),
+		...sharedMarkFields,
 	},
 	returns: v.array( v.id( 'marks' ) ),
 	handler: async ( ctx, { token, units, ...shared } ) => {
@@ -166,7 +159,7 @@ export const markMany = mutation( {
 } );
 
 /**
- * "Put back in the pantry" — undoes a finish or a throw-away. Silently
+ * "Put back in the pantry": undoes a finish or a throw-away. Silently
  * does nothing for a unit that was never marked, the same way deleting an
  * already-gone row elsewhere in this app is a no-op rather than an error.
  */

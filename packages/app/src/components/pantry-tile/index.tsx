@@ -1,0 +1,118 @@
+import { Text } from '@wordpress/ui';
+import { ProductThumb } from '../product-thumb';
+import type { PantryTile as PantryTileData } from '../../lib/pantry';
+
+function weightLabel( quantity: number, unit: string ): string {
+	const amount = quantity.toLocaleString( 'sv-SE', {
+		maximumFractionDigits: 3,
+	} );
+	return `${ amount } ${ unit }`;
+}
+
+function outstandingBadge(
+	tile: PantryTileData,
+	done: boolean
+): string | null {
+	if ( done ) {
+		return null;
+	}
+	const oldest = tile.outstandingUnits[ 0 ];
+	if ( oldest?.weightUnit ) {
+		return weightLabel( oldest.quantity, oldest.weightUnit );
+	}
+	const count = tile.outstandingUnits.length;
+	return count > 1 ? `×${ count }` : null;
+}
+
+export function PantryTileCard( {
+	tile,
+	done = false,
+	finishedLabel,
+	onTap,
+	onOpenDetails,
+}: {
+	tile: PantryTileData;
+	done?: boolean;
+	finishedLabel?: string;
+	onTap: () => void;
+	onOpenDetails: () => void;
+} ) {
+	const badge = outstandingBadge( tile, done );
+
+	return (
+		<button
+			type="button"
+			onClick={ done ? onOpenDetails : onTap }
+			onContextMenu={ ( e ) => {
+				e.preventDefault();
+				onOpenDetails();
+			} }
+			style={ {
+				position: 'relative',
+				display: 'flex',
+				flexDirection: 'column',
+				alignItems: 'center',
+				gap: 6,
+				padding: '10px 6px 8px',
+				borderRadius: 12,
+				border: '1px solid var(--wpds-color-stroke-surface-neutral)',
+				background:
+					'var(--wpds-color-background-surface-neutral-strong)',
+				color: 'inherit',
+				opacity: done ? 0.45 : 1,
+				cursor: 'pointer',
+				textAlign: 'center',
+			} }
+		>
+			{ done && finishedLabel && (
+				<span
+					style={ {
+						position: 'absolute',
+						top: 6,
+						left: 6,
+						fontSize: 10,
+						fontWeight: 700,
+						padding: '3px 6px',
+						borderRadius: 999,
+						background:
+							'var(--wpds-color-background-surface-neutral)',
+						color: 'var(--wpds-color-foreground-content-neutral)',
+					} }
+				>
+					✓ { finishedLabel }
+				</span>
+			) }
+			{ badge && (
+				<span
+					style={ {
+						position: 'absolute',
+						top: 6,
+						right: 6,
+						fontSize: 10,
+						fontWeight: 700,
+						padding: '3px 6px',
+						borderRadius: 999,
+						background:
+							'var(--wpds-color-background-surface-neutral)',
+						color: 'var(--wpds-color-foreground-content-neutral)',
+					} }
+				>
+					{ badge }
+				</span>
+			) }
+			<ProductThumb product={ tile.product } size={ 48 } />
+			<Text
+				variant="body-sm"
+				style={ {
+					lineHeight: 1.25,
+					display: '-webkit-box',
+					WebkitLineClamp: 2,
+					WebkitBoxOrient: 'vertical',
+					overflow: 'hidden',
+				} }
+			>
+				{ tile.name }
+			</Text>
+		</button>
+	);
+}

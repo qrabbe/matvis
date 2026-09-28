@@ -9,14 +9,14 @@ import {
 	Button,
 } from '@wordpress/ui';
 import { ErrorNotice, InlineSpinner } from '@matvis/ui';
-import { usePurchaseData } from './hooks/usePurchaseData';
-import { PantryTab } from './features/PantryTab';
-import { PurchasesTab } from './features/PurchasesTab';
-import { InsightsTab } from './features/InsightsTab';
-import { SettingsTab } from './features/SettingsTab';
-import { IdentifyQueueScreen } from './features/IdentifyQueueScreen';
-import { IdentifyScreen } from './features/IdentifyScreen';
-import { looksLikeToken, useApiToken } from './lib/tokenStore';
+import { usePurchaseData } from './hooks/use-purchase-data';
+import { PantryTab } from './features/pantry-tab';
+import { PurchasesTab } from './features/purchases-tab';
+import { InsightsTab } from './features/insights-tab';
+import { SettingsTab } from './features/settings-tab';
+import { IdentifyQueueScreen } from './features/identify-queue-screen';
+import { IdentifyScreen } from './features/identify-screen';
+import { looksLikeToken, useApiToken } from './lib/token-store';
 
 type IdentifyRoute = { screen: 'queue' } | { screen: 'text'; text: string };
 

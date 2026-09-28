@@ -1,6 +1,6 @@
 import type { ReceiptHeader } from '@matvis/shared';
 import { dayKey } from './format';
-import { inRange, type DateRange } from './dateRange';
+import { inRange, type DateRange } from './date-range';
 import { receiptDate } from './purchases';
 
 export interface DailySpend {

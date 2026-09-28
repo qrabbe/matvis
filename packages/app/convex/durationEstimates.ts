@@ -2,7 +2,7 @@ import { v } from 'convex/values';
 import { internalMutation, query } from './_generated/server';
 
 /**
- * Generous — this is one row per distinct product/text an account has
+ * Generous: this is one row per distinct product/text an account has
  * ever bought, not something that grows with day-to-day use.
  */
 const MAX_ESTIMATES = 5000;
@@ -55,7 +55,7 @@ const estimateRowValidator = v.object( {
 } );
 
 /**
- * Chain-wide reference data, not token-scoped — every account reads the
+ * Chain-wide reference data, not token-scoped: every account reads the
  * same ~100-row table, so the client loads it once rather than per-tile.
  */
 export const list = query( {

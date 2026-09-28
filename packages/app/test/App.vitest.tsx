@@ -2,14 +2,14 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { purchaseData } from './support/fixtures';
-import type { PurchaseData } from '../src/hooks/usePurchaseData';
+import type { PurchaseData } from '../src/hooks/use-purchase-data';
 
 const store = vi.hoisted( () => ( {
 	data: null as PurchaseData | null,
 	seen: [] as ( string | null )[],
 } ) );
 
-vi.mock( '../src/hooks/usePurchaseData', () => ( {
+vi.mock( '../src/hooks/use-purchase-data', () => ( {
 	usePurchaseData: ( token: string | null ) => {
 		store.seen.push( token );
 		return store.data;

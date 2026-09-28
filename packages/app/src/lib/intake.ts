@@ -4,11 +4,11 @@ import {
 	rangeLengthDays,
 	shiftDays,
 	type DateRange,
-} from './dateRange';
+} from './date-range';
 import { addMacros, scaleMacros, ZERO_MACROS, type Macros } from './nutrition';
-import { unitMacros, type PantryUnit } from './pantryUnits';
+import { unitMacros, type PantryUnit } from './pantry-units';
 import type { PantryTile } from './pantry';
-import type { MarkRow } from './appBackendApi';
+import type { MarkRow } from './app-backend-api';
 
 export interface DayMacros {
 	day: string;
@@ -35,7 +35,7 @@ function unitKeyOf(
 }
 
 function byDay( a: { day: string }, b: { day: string } ): number {
-	return a.day < b.day ? -1 : a.day > b.day ? 1 : 0;
+	return a.day.localeCompare( b.day );
 }
 
 function isInRange( day: string, range: DateRange ): boolean {

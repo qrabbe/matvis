@@ -1,5 +1,5 @@
 export function formatKr( n: number | null | undefined ): string {
-	if ( n == null || ! Number.isFinite( n ) ) {
+	if ( n === null || n === undefined || ! Number.isFinite( n ) ) {
 		return '—';
 	}
 	return `${ Math.round( n ).toLocaleString( 'sv-SE' ) } kr`;
@@ -70,14 +70,14 @@ export function formatDayShort( key: string ): string {
 }
 
 export function formatGrams( n: number | null | undefined ): string {
-	if ( n == null || ! Number.isFinite( n ) ) {
+	if ( n === null || n === undefined || ! Number.isFinite( n ) ) {
 		return '—';
 	}
 	return `${ Math.round( n ) } g`;
 }
 
 export function formatKcal( n: number | null | undefined ): string {
-	if ( n == null || ! Number.isFinite( n ) ) {
+	if ( n === null || n === undefined || ! Number.isFinite( n ) ) {
 		return '—';
 	}
 	return `${ Math.round( n ).toLocaleString( 'sv-SE' ) } kcal`;
@@ -91,7 +91,7 @@ export function formatPercent( part: number, total: number ): string {
 }
 
 /**
- * ISO-8601 week number label ("Week 39") — used only to bucket the
+ * ISO-8601 week number label ("Week 39"), used only to bucket the
  * receipts list, never to compute anything numeric, so ISO's Thursday-
  * anchored edge cases don't matter here.
  */

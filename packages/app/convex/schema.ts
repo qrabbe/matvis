@@ -4,20 +4,19 @@ import { v } from 'convex/values';
 export default defineSchema( {
 	/**
 	 * One pantry unit finished or thrown away, on a date. A unit is a single
-	 * package (or weighed lot) from one receipt line — `receiptId` + `lineNo`
-	 * + `unitIndex` is its whole identity, deliberately not the product's
-	 * EAN, so a mark survives the line being re-matched to a different
-	 * product later and a re-parse that only enriches quantity/unit (see
-	 * `packages/connector`'s parser) never orphans it. `token` is the
-	 * connector's own account token, reused verbatim as an opaque partition
-	 * key; this deployment never verifies it against the connector, the same
-	 * way `catalog` never verifies anything about its callers.
+	 * package (or weighed lot) from one receipt line, deliberately identified
+	 * by `receiptId` + `lineNo` + `unitIndex` rather than the product's EAN,
+	 * so a mark survives the line being re-matched to a different product
+	 * later, and survives a re-parse that only enriches quantity or unit.
+	 * `token` is the connector's own account token, reused verbatim as an
+	 * opaque partition key, this deployment never verifies it against the
+	 * connector, the same way `catalog` never verifies anything about its
+	 * callers.
 	 *
 	 * Nothing here is precomputed: which unit is "oldest" and due next, a
 	 * product's typical duration, and the forecast are all derived at read
-	 * time in `src/lib` from these rows plus the connector's receipt lines —
-	 * see `pantryUnits.ts` and `durations.ts`. This table is the only source
-	 * of truth for what actually happened.
+	 * time in `src/lib` from these rows plus the connector's receipt lines.
+	 * This table is the only source of truth for what actually happened.
 	 */
 	marks: defineTable( {
 		token: v.string(),
@@ -29,14 +28,14 @@ export default defineSchema( {
 		/**
 		 * True when the person actively chose this date rather than accepting
 		 * the prefilled default. A single tap always counts as teaching a
-		 * product's typical duration; a bulk "Mark all" only does when this is
-		 * true — otherwise catching up a forgotten trip would teach bread that
-		 * it lasts however long it sat unmarked. See `durations.ts`.
+		 * product's typical duration, a bulk "Mark all" only does when this is
+		 * true, otherwise catching up a forgotten trip would teach bread that
+		 * it lasts however long it sat unmarked.
 		 */
 		finishedAtHandSet: v.boolean(),
 		/**
 		 * Defaults to the unit's purchase date, or the previous unit of the
-		 * same product's finish date, whichever a fresh mark would compute —
+		 * same product's finish date, whichever a fresh mark would compute,
 		 * stored only once the person opens the toast's "Started" chip and
 		 * sets something else.
 		 */
@@ -50,7 +49,7 @@ export default defineSchema( {
 		/**
 		 * Absent (equivalently `'user'`) for anything a person actually did.
 		 * `'backfill'` is stamped only by the one-time script that plays
-		 * pre-tracking history forward from an estimate — those dates are
+		 * pre-tracking history forward from an estimate, those dates are
 		 * played-forward guesses, not observations, so they must never teach
 		 * `durations.ts` anything regardless of `via`/`finishedAtHandSet`.
 		 */
@@ -68,7 +67,7 @@ export default defineSchema( {
 
 	/**
 	 * The backfill's per-product estimate, imported once from
-	 * `tickets/backfill/durations.json` and otherwise read-only at runtime —
+	 * `tickets/backfill/durations.json` and otherwise read-only at runtime,
 	 * `durations.ts`'s tier 2, used only when a product has fewer than two of
 	 * the account's own teaching marks. Never written to by anything in the
 	 * live app. Keyed the same way `pantryGroupKey` groups a tile
@@ -88,10 +87,10 @@ export default defineSchema( {
 
 	/**
 	 * A row exists only once an account changes a target away from its
-	 * code-level default — nothing is ever written here just to record "the
+	 * code-level default, nothing is ever written here just to record "the
 	 * default", which would only go stale the day the default changes. Per
 	 * target: absent (the key missing from `targets`) means "on, at the
-	 * default"; a number means "on, at this value"; `null` means "off". The
+	 * default", a number means "on, at this value", `null` means "off". The
 	 * defaults themselves live in `src/lib/targets.ts`, not here.
 	 */
 	settings: defineTable( {

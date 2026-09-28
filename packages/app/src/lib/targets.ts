@@ -76,7 +76,7 @@ export type TargetValues = Partial<
 
 /**
  * Resolves one target's effective state: on with a value, or off. Absent
- * or `undefined` in `stored` means "on, at the default" — the lean-storage
+ * or `undefined` in `stored` means "on, at the default", the lean-storage
  * contract `schema.ts` documents.
  */
 export function resolveTarget(

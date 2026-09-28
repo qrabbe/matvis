@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'bun:test';
 import type { CatalogRow, ReceiptHeader, ReceiptItemDoc } from '@matvis/shared';
 import { groupTrips, tripDotState } from '../../src/lib/trips';
-import type { MarkRow } from '../../src/lib/appBackendApi';
-import { expandLineToUnits, type PantryUnit } from '../../src/lib/pantryUnits';
+import type { MarkRow } from '../../src/lib/app-backend-api';
+import { expandLineToUnits, type PantryUnit } from '../../src/lib/pantry-units';
 import type { PurchaseLine } from '../../src/lib/purchases';
 
 function catalogProduct( ean: string ): CatalogRow {
@@ -47,12 +47,12 @@ function line(
 	};
 }
 
-function mark( line: PurchaseLine, unitIndex = 0 ): MarkRow {
+function mark( forLine: PurchaseLine, unitIndex = 0 ): MarkRow {
 	return {
 		_id: `mark_${ seq }`,
 		_creationTime: 0,
-		receiptId: line.header._id,
-		lineNo: line.item.lineNo,
+		receiptId: forLine.header._id,
+		lineNo: forLine.item.lineNo,
 		unitIndex,
 		outcome: 'finished',
 		finishedAt: Date.now(),

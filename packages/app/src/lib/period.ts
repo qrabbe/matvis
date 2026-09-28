@@ -1,13 +1,13 @@
 import { dayKey, formatDayRange, parseDayKey } from './format';
-import type { DateRange } from './dateRange';
+import type { DateRange } from './date-range';
 
 export type PeriodUnit = 'week' | 'month' | 'year';
 
 export interface Period {
 	unit: PeriodUnit;
 	/**
-	 * Any day inside the period — the Monday for a week, the 1st for a
-	 * month or year. Always a full calendar period; `periodRange` clips the
+	 * Any day inside the period, the Monday for a week, the 1st for a
+	 * month or year. Always a full calendar period, `periodRange` clips the
 	 * end at today when it's the one currently running.
 	 */
 	anchor: string;
@@ -94,7 +94,7 @@ export function isLatestPeriod( period: Period, today: Date ): boolean {
 
 /**
  * The nominal calendar period's name, regardless of how much of it has
- * actually happened — "September 2026" even on the 3rd.
+ * actually happened, "September 2026" even on the 3rd.
  */
 export function periodLabel( period: Period ): string {
 	const anchor = parseDayKey( period.anchor );

@@ -6,12 +6,12 @@ import {
 } from '../../src/lib/purchases';
 import { itemMacros } from '../../src/lib/nutrition';
 import { dayKey } from '../../src/lib/format';
-import type { PurchaseData } from '../../src/hooks/usePurchaseData';
-import type { MarkRow } from '../../src/lib/appBackendApi';
+import type { PurchaseData } from '../../src/hooks/use-purchase-data';
+import type { MarkRow } from '../../src/lib/app-backend-api';
 
 /**
  * Fixtures for the DOM suites. The bun suites in `test/lib` each build their
- * own, because each one only needs the two or three fields its function reads;
+ * own, because each one only needs the two or three fields its function reads,
  * a panel renders the whole shape, so these are shared instead.
  */
 
@@ -89,7 +89,7 @@ export function product( overrides: Partial< CatalogRow > = {} ): CatalogRow {
 /**
  * One joined line, the shape every panel actually reads. `day`/
  * `purchasedAt` derive from `header.purchasedAt` the same way `buildLines`
- * really computes them, unless a test overrides either directly — so
+ * really computes them, unless a test overrides either directly, so
  * passing a custom `header` alone (without also repeating the date on the
  * line itself) still produces a consistent, correctly-dated fixture.
  */
@@ -139,7 +139,7 @@ let markSeq = 0;
 
 /**
  * A finished/wasted mark row, keyed to whichever unit a test's own fixture
- * lines produced (`receiptId`/`lineNo`/`unitIndex` — see `pantryUnits.ts`).
+ * lines produced (`receiptId`/`lineNo`/`unitIndex`).
  */
 export function markRow( overrides: Partial< MarkRow > = {} ): MarkRow {
 	markSeq += 1;
