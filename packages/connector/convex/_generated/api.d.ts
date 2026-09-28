@@ -24,6 +24,7 @@ import type * as model_syncRuns from "../model/syncRuns.js";
 import type * as receipts from "../receipts.js";
 import type * as reparseItems from "../reparseItems.js";
 import type * as sync from "../sync.js";
+import type * as testSupport from "../testSupport.js";
 import type * as validators from "../validators.js";
 
 import type {
@@ -49,6 +50,7 @@ declare const fullApi: ApiFromModules<{
   receipts: typeof receipts;
   reparseItems: typeof reparseItems;
   sync: typeof sync;
+  testSupport: typeof testSupport;
   validators: typeof validators;
 }>;
 
