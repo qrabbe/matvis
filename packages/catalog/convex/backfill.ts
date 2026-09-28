@@ -665,8 +665,14 @@ export const rebuildCategoryTree = internalAction( {
 			} );
 		}
 
-		const pages = await paginateAll(
-			( cursor ) =>
+		const pages: number = await paginateAll(
+			(
+				cursor
+			): Promise< {
+				rows: { store: StoreSlug; categoryPath?: string[] }[];
+				continueCursor: string;
+				isDone: boolean;
+			} > =>
 				ctx.runQuery( internal.backfill.categoryTallyPage, {
 					cursor,
 				} ),
