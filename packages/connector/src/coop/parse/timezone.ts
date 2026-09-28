@@ -26,21 +26,9 @@ function stockholmOffsetMs( instantMs: number ): number {
 	return wallReadAsUtc - instantMs;
 }
 
-/**
- * Coop prints receipt timestamps ("Datum 2024-01-15 10:30", normalized by
- * `toIso` in `./metadata.ts` to "2024-01-15T10:30:00") with no UTC offset —
- * they are Stockholm wall-clock time off a till in a Swedish store.
- * `Date.parse` can't turn that into the right instant: an offset-less
- * date-time string is read in whatever zone the runtime itself is in (UTC on
- * Convex), not Stockholm's, and Stockholm's own offset from UTC changes
- * across the year (UTC+1 in winter, UTC+2 during DST).
- *
- * This guesses the instant by first reading the wall-clock numbers as UTC,
- * checks what Stockholm's offset actually is at that guessed instant, then
- * corrects for it — which is right except in the one hour a year the
- * Stockholm clock repeats (the DST-end fallback), an edge case not worth
- * resolving for receipts.
- */
+// Coop receipt times are Stockholm wall-clock time with no UTC offset, and
+// Convex runs in UTC. Inside the repeated hour at the end of DST this picks
+// the later instant.
 export function stockholmWallTimeToUtcMs(
 	wallTime: string
 ): number | undefined {
