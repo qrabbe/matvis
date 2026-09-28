@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, type ReactNode } from 'react';
 import { useMutation, useQuery } from 'convex/react';
 import {
 	Button,
@@ -11,7 +11,7 @@ import {
 } from '@wordpress/ui';
 import { seen, unseen } from '@wordpress/icons';
 import { CopyButton, ErrorNotice, InlineSpinner } from '@matvis/ui';
-import { api } from '../lib/convexApi';
+import { api } from '../../lib/convex-api';
 import { errMsg } from '@matvis/shared';
 
 export function TokenPanel() {
@@ -31,6 +31,23 @@ export function TokenPanel() {
 			setBusy( false );
 		}
 	}, [ createToken ] );
+
+	let tokenControl: ReactNode;
+	if ( token === undefined ) {
+		tokenControl = <InlineSpinner label="Loading…" />;
+	} else if ( token === null ) {
+		tokenControl = (
+			<Button
+				variant="solid"
+				onClick={ () => void create() }
+				loading={ busy }
+			>
+				Create API token
+			</Button>
+		);
+	} else {
+		tokenControl = <TokenField token={ token } />;
+	}
 
 	return (
 		<Card.Root>
@@ -60,19 +77,7 @@ export function TokenPanel() {
 						</ErrorNotice>
 					) }
 
-					{ token === undefined ? (
-						<InlineSpinner label="Loading…" />
-					) : token === null ? (
-						<Button
-							variant="solid"
-							onClick={ () => void create() }
-							loading={ busy }
-						>
-							Create API token
-						</Button>
-					) : (
-						<TokenField token={ token } />
-					) }
+					{ tokenControl }
 				</Stack>
 			</Card.Content>
 		</Card.Root>

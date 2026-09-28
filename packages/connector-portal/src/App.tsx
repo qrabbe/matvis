@@ -3,12 +3,12 @@ import { Authenticated, AuthLoading, Unauthenticated } from 'convex/react';
 import { useAuthActions } from '@convex-dev/auth/react';
 import { Button, Card, Stack, Tabs, Text } from '@wordpress/ui';
 import { ErrorNotice } from '@matvis/ui';
-import { ConnectPanel } from './features/ConnectPanel';
-import { ConnectionsPanel } from './features/ConnectionsPanel';
-import { TokenPanel } from './features/TokenPanel';
-import { DemoPanel } from './features/DemoPanel';
-import { DevPortal } from './features/DevPortal';
-import { clearConnectionId } from './lib/connectionStore';
+import { ConnectPanel } from './features/connect-panel';
+import { ConnectionsPanel } from './features/connections-panel';
+import { TokenPanel } from './features/token-panel';
+import { DemoPanel } from './features/demo-panel';
+import { DevPortal } from './features/dev-portal';
+import { clearConnectionId } from './lib/connection-store';
 import { errMsg } from '@matvis/shared';
 
 export function App() {

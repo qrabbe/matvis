@@ -1,16 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useConvex } from 'convex/react';
-import type { StoreSlug } from '@matvis/shared';
-import { api, type Id } from '../lib/convexApi';
+import { errMsg, type StoreSlug } from '@matvis/shared';
+import { api, type Id } from '../lib/convex-api';
 import {
 	bankIdAppLink,
 	failedHintMessage,
 	launchBankIdApp,
 	pendingHint,
 } from '../lib/bankid-copy';
-import { errMsg } from '@matvis/shared';
 
-export type LinkPhase = 'idle' | 'starting' | 'polling' | 'error';
+type LinkPhase = 'idle' | 'starting' | 'polling' | 'error';
 
 const POLL_INTERVAL_MS = 2000;
 const delay = ( ms: number ) =>

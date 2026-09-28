@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Button, Card, Input, Notice, Stack, Text } from '@wordpress/ui';
-import { ConnectionsPanel } from './ConnectionsPanel';
-import { ReceiptsPanel } from './ReceiptsPanel';
+import { ConnectionsPanel } from '../connections-panel';
+import { ReceiptsPanel } from '../receipts-panel';
 
 /**
  * Must never read through the login session. The whole point of this tab is

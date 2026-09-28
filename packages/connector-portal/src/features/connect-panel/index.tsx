@@ -1,19 +1,17 @@
-import { useCallback, useState } from 'react';
-import { useConvex } from 'convex/react';
-import type { FunctionReturnType } from 'convex/server';
+import { useCallback, useState, type ReactNode } from 'react';
 import { Badge, Button, Card, Notice, Stack, Text } from '@wordpress/ui';
 import { STORES, STORE_LABELS, type StoreSlug } from '@matvis/shared';
 import { CopyButton, ErrorNotice, InlineSpinner } from '@matvis/ui';
-import { api, type Id } from '../lib/convexApi';
+import type { Id } from '../../lib/convex-api';
 import {
 	clearConnectionId,
 	loadConnectionId,
 	saveConnectionId,
-} from '../lib/connectionStore';
-import { errMsg } from '@matvis/shared';
-import { pendingHint } from '../lib/bankid-copy';
-import { useBankIdLink } from '../hooks/useBankIdLink';
-import { QrCode } from '../components/QrCode';
+} from '../../lib/connection-store';
+import { pendingHint } from '../../lib/bankid-copy';
+import { useBankIdLink } from '../../hooks/use-bank-id-link';
+import { useSyncConnection } from '../../hooks/use-sync-connection';
+import { QrCode } from '../../components/qr-code';
 
 const LIVE_STORES: readonly StoreSlug[] = [ 'coop' ];
 
@@ -23,11 +21,7 @@ const PICKER_STORES: readonly StoreSlug[] = [ ...STORES ].sort(
 		Number( ! LIVE_STORES.includes( b ) )
 );
 
-type SyncResult = FunctionReturnType< typeof api.sync.sync >;
-
 export function ConnectPanel() {
-	const convex = useConvex();
-
 	const [ store, setStore ] = useState< StoreSlug >( 'coop' );
 	const [ connectionId, setConnectionId ] = useState< string | null >( () =>
 		loadConnectionId()
@@ -56,6 +50,31 @@ export function ConnectPanel() {
 		setConnectionId( null );
 	}, [ reset ] );
 
+	let stage: ReactNode;
+	if ( connectionId ) {
+		stage = (
+			<ConnectedView connectionId={ connectionId } onRelink={ relink } />
+		);
+	} else if ( active ) {
+		stage = (
+			<LinkInProgressView
+				qr={ qr }
+				hint={ hint }
+				appLink={ appLink }
+				sameDevice={ sameDevice }
+				onCancel={ cancel }
+			/>
+		);
+	} else {
+		stage = (
+			<StorePickerView
+				store={ store }
+				onStore={ setStore }
+				onLink={ ( onThisDevice ) => login( store, onThisDevice ) }
+			/>
+		);
+	}
+
 	return (
 		<Card.Root>
 			<Card.Header>
@@ -69,29 +88,7 @@ export function ConnectPanel() {
 						</ErrorNotice>
 					) }
 
-					{ connectionId ? (
-						<ConnectedView
-							connectionId={ connectionId }
-							convex={ convex }
-							onRelink={ relink }
-						/>
-					) : active ? (
-						<LinkInProgressView
-							qr={ qr }
-							hint={ hint }
-							appLink={ appLink }
-							sameDevice={ sameDevice }
-							onCancel={ cancel }
-						/>
-					) : (
-						<StorePickerView
-							store={ store }
-							onStore={ setStore }
-							onLink={ ( onThisDevice ) =>
-								login( store, onThisDevice )
-							}
-						/>
-					) }
+					{ stage }
 				</Stack>
 			</Card.Content>
 		</Card.Root>
@@ -160,33 +157,37 @@ function LinkInProgressView( {
 	sameDevice: boolean;
 	onCancel: () => void;
 } ) {
+	let content: ReactNode;
+	if ( sameDevice ) {
+		content = appLink ? (
+			<>
+				<Text variant="body-md">Opening the BankID app…</Text>
+				<Button
+					variant="solid"
+					tone="brand"
+					// eslint-disable-next-line jsx-a11y/anchor-has-content -- Button merges its children into this anchor via the render prop
+					render={ <a href={ appLink } referrerPolicy="origin" /> }
+				>
+					Didn’t open? Tap to open BankID
+				</Button>
+			</>
+		) : (
+			<InlineSpinner label="Starting BankID…" variant="body-md" />
+		);
+	} else if ( qr ) {
+		content = (
+			<>
+				<QrCode value={ qr } />
+				<Text variant="body-sm">{ hint ?? pendingHint }</Text>
+			</>
+		);
+	} else {
+		content = <InlineSpinner label="Starting BankID…" variant="body-md" />;
+	}
+
 	return (
 		<Stack direction="column" gap="md" align="center">
-			{ sameDevice ? (
-				appLink ? (
-					<>
-						<Text variant="body-md">Opening the BankID app…</Text>
-						<Button
-							variant="solid"
-							tone="brand"
-							render={
-								<a href={ appLink } referrerPolicy="origin" />
-							}
-						>
-							Didn’t open? Tap to open BankID
-						</Button>
-					</>
-				) : (
-					<InlineSpinner label="Starting BankID…" variant="body-md" />
-				)
-			) : qr ? (
-				<>
-					<QrCode value={ qr } />
-					<Text variant="body-sm">{ hint ?? pendingHint }</Text>
-				</>
-			) : (
-				<InlineSpinner label="Starting BankID…" variant="body-md" />
-			) }
+			{ content }
 			<Button variant="minimal" tone="neutral" onClick={ onCancel }>
 				Cancel
 			</Button>
@@ -196,33 +197,14 @@ function LinkInProgressView( {
 
 function ConnectedView( {
 	connectionId,
-	convex,
 	onRelink,
 }: {
 	connectionId: string;
-	convex: ReturnType< typeof useConvex >;
 	onRelink: () => void;
 } ) {
-	const [ busy, setBusy ] = useState( false );
-	const [ result, setResult ] = useState< SyncResult | null >( null );
-	const [ error, setError ] = useState< string | null >( null );
-
-	const needsReauth = result?.status === 'needs_reauth';
-
-	const sync = useCallback( async () => {
-		setBusy( true );
-		setError( null );
-		try {
-			const res = await convex.action( api.sync.sync, {
-				connectionId: connectionId as Id< 'connections' >,
-			} );
-			setResult( res );
-		} catch ( e ) {
-			setError( errMsg( e ) );
-		} finally {
-			setBusy( false );
-		}
-	}, [ convex, connectionId ] );
+	const { busy, result, error, needsReauth, sync } = useSyncConnection(
+		connectionId as Id< 'connections' >
+	);
 
 	return (
 		<Stack direction="column" gap="md">

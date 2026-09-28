@@ -11,7 +11,7 @@ const backend = vi.hoisted( () => ( {
 	page: {
 		results: [] as unknown[],
 		status: 'Exhausted' as string,
-		loadMore: ( _count: number ) => {},
+		loadMore: () => {},
 	},
 	/** Every args object the panel passed to `receipts.list`. */
 	listArgs: [] as unknown[],
@@ -28,7 +28,7 @@ vi.mock( 'convex/react', () => {
 	};
 } );
 
-const { ReceiptsPanel } = await import( '../../src/features/ReceiptsPanel' );
+const { ReceiptsPanel } = await import( '../../src/features/receipts-panel' );
 
 beforeEach( () => {
 	backend.page = { results: [], status: 'Exhausted', loadMore: () => {} };

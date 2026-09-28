@@ -18,7 +18,7 @@ import {
 	type View,
 } from '@wordpress/dataviews';
 import { ErrorNotice, InlineSpinner, JsonView, SkeletonList } from '@matvis/ui';
-import { api } from '../lib/convexApi';
+import { api } from '../../lib/convex-api';
 import { errMsg, formatAmount, formatPurchasedAt } from '@matvis/shared';
 
 type ReceiptHeader = FunctionReturnType<

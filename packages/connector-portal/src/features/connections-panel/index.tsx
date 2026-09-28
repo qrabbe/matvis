@@ -1,13 +1,11 @@
-import { useCallback, useState } from 'react';
-import { useConvex, useQuery } from 'convex/react';
-import type { FunctionReturnType } from 'convex/server';
+import { type ReactNode } from 'react';
+import { useQuery } from 'convex/react';
 import { Badge, Button, Card, Notice, Stack, Text } from '@wordpress/ui';
-import { errMsg, STORE_LABELS, type ConnectionPublic } from '@matvis/shared';
+import { STORE_LABELS, type ConnectionPublic } from '@matvis/shared';
 import { ErrorNotice, SkeletonList } from '@matvis/ui';
-import { api, type Id } from '../lib/convexApi';
-import { formatDateTime } from '../lib/format';
-
-type SyncResult = FunctionReturnType< typeof api.sync.sync >;
+import { api, type Id } from '../../lib/convex-api';
+import { formatDateTime } from '../../lib/format';
+import { useSyncConnection } from '../../hooks/use-sync-connection';
 
 type Health = {
 	label: string;
@@ -51,38 +49,40 @@ export function ConnectionsPanel( { token }: { token?: string } = {} ) {
 	const now = Date.now();
 	const canSync = token === undefined;
 
+	let body: ReactNode;
+	if ( connections === undefined ) {
+		body = <SkeletonList label="Loading connections…" rowHeight={ 32 } />;
+	} else if ( connections.length === 0 ) {
+		body = (
+			<Notice.Root intent="info">
+				<Notice.Description>
+					{ canSync
+						? 'No stores linked yet — link one above to start syncing receipts.'
+						: 'This token isn’t linked to any store connections.' }
+				</Notice.Description>
+			</Notice.Root>
+		);
+	} else {
+		body = (
+			<Stack direction="column" gap="md">
+				{ connections.map( ( c ) => (
+					<ConnectionRow
+						key={ c._id }
+						connection={ c }
+						now={ now }
+						canSync={ canSync }
+					/>
+				) ) }
+			</Stack>
+		);
+	}
+
 	return (
 		<Card.Root>
 			<Card.Header>
 				<Card.Title>Connected stores</Card.Title>
 			</Card.Header>
-			<Card.Content>
-				{ connections === undefined ? (
-					<SkeletonList
-						label="Loading connections…"
-						rowHeight={ 32 }
-					/>
-				) : connections.length === 0 ? (
-					<Notice.Root intent="info">
-						<Notice.Description>
-							{ canSync
-								? 'No stores linked yet — link one above to start syncing receipts.'
-								: 'This token isn’t linked to any store connections.' }
-						</Notice.Description>
-					</Notice.Root>
-				) : (
-					<Stack direction="column" gap="md">
-						{ connections.map( ( c ) => (
-							<ConnectionRow
-								key={ c._id }
-								connection={ c }
-								now={ now }
-								canSync={ canSync }
-							/>
-						) ) }
-					</Stack>
-				) }
-			</Card.Content>
+			<Card.Content>{ body }</Card.Content>
 		</Card.Root>
 	);
 }
@@ -132,24 +132,8 @@ function SyncNow( {
 	connectionId: Id< 'connections' >;
 	healthy: boolean;
 } ) {
-	const convex = useConvex();
-	const [ busy, setBusy ] = useState( false );
-	const [ result, setResult ] = useState< SyncResult | null >( null );
-	const [ error, setError ] = useState< string | null >( null );
-
-	const needsReauth = result?.status === 'needs_reauth';
-
-	const sync = useCallback( async () => {
-		setBusy( true );
-		setError( null );
-		try {
-			setResult( await convex.action( api.sync.sync, { connectionId } ) );
-		} catch ( e ) {
-			setError( errMsg( e ) );
-		} finally {
-			setBusy( false );
-		}
-	}, [ convex, connectionId ] );
+	const { busy, result, error, needsReauth, sync } =
+		useSyncConnection( connectionId );
 
 	return (
 		<Stack direction="column" gap="xs" align="start">
