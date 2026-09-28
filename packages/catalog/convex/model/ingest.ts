@@ -53,8 +53,6 @@ export const fetchOutcomeValidator = v.union(
 	v.literal( 'failed' )
 );
 
-export type FetchOutcome = Infer< typeof fetchOutcomeValidator >;
-
 export const COOP_BATCH_SIZE = 500;
 
 /**

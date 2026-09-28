@@ -38,8 +38,8 @@ const REQUEST_TIMEOUT_MS = 15_000;
 /**
  * The statuses that are a statement about the caller rather than about the
  * page, and so must not be answered with 24 more requests. This is the whole
- * distinction Coop's batch-wide rule was reasoned from; on a fan-out lane it
- * applies to these three and to nothing else.
+ * distinction Coop's batch-wide rule was reasoned from, and on a fan-out lane
+ * it applies to these three and to nothing else.
  */
 const CALLER_WIDE_STATUSES = new Set( [ 401, 403, 429 ] );
 
@@ -69,7 +69,7 @@ export type IcaFetchedPage = Infer< typeof fetchedPageValidator >;
  * unlisted id in the census, because the census only records ids that answered
  * when it crawled them. The old note here claimed about 7%, which was a rate
  * over the seed range the crawl started from and never over the range this
- * lane fetches. See DECISIONS.md.
+ * lane fetches.
  *
  * Anything else that goes wrong comes back as an error on this page alone. One
  * unparseable page, one 500 or one hung socket is a statement about that
@@ -78,6 +78,7 @@ export type IcaFetchedPage = Infer< typeof fetchedPageValidator >;
  */
 async function fetchOne( sourceId: string ): Promise< IcaFetchedPage > {
 	const controller = new AbortController();
+	// eslint-disable-next-line @wordpress/no-unused-vars-before-return -- cleared in the finally block below, which the rule does not see as a use
 	const timer = setTimeout( () => controller.abort(), REQUEST_TIMEOUT_MS );
 	try {
 		const response = await fetch(

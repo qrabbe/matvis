@@ -121,11 +121,11 @@ type Harness = ReturnType< typeof convexTest >;
 
 async function enqueue(
 	t: Harness,
-	rows: { ean: string; sourceId?: string }[]
+	entries: { ean: string; sourceId?: string }[]
 ): Promise< void > {
 	await t.mutation( internal.ingest.enqueueEans, {
 		store: 'ica',
-		rows,
+		rows: entries,
 		source: 'census',
 	} );
 }
@@ -375,7 +375,7 @@ describe( 'the ICA lane, when a page is written', () => {
 		// catalog row goes under the parsed EAN and the parsed EAN is what is
 		// recorded as reachable at this product id. Measured at zero over the
 		// 34 437 page census, so this is a guard rather than a fix for something
-		// observed. See DECISIONS.md.
+		// observed.
 		expect( await catalogRows( t ) ).toMatchObject( [
 			{ ean: EAN_B, store: 'ica' },
 		] );

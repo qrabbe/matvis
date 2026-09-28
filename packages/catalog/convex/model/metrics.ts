@@ -23,8 +23,8 @@ import {
  * maintained counters and are exact for the whole table. The buckets come from
  * a bounded sample of the most recently added rows, because bucketing the whole
  * table by age is a scan and an age bucket cannot be maintained on write. The
- * sample is biased toward new rows and the console says so; a number without
- * its window is a number that gets misremembered as all-time.
+ * sample is biased toward new rows and the console says so, because a number
+ * without its window is a number that gets misremembered as all-time.
  */
 export async function readFreshness( ctx: QueryCtx ): Promise< Freshness > {
 	const now = Date.now();

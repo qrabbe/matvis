@@ -1,6 +1,6 @@
 /**
  * Which stores the ingest pipeline actually has a fetch lane for. `STORES` in
- * `@matvis/shared` lists every chain a receipt can name, which is ten; only
+ * `@matvis/shared` lists every chain a receipt can name, which is ten, but only
  * these have code behind them. The console offers this list rather than that
  * one, because offering a store with no lane buys an operator a run that throws
  * `no ingest lane for willys`.

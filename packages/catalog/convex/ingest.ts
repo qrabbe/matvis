@@ -278,7 +278,7 @@ const fetchCoop: Lane = async ( ctx, claimed ) => {
 							id: row.id,
 							outcome: 'skipped',
 							// Deliberately not `not stocked by Coop`. Coop did return an
-							// item; it was unusable. The console shows this text.
+							// item, but it was unusable. The console shows this text.
 							error: 'Coop item projected to nothing (no name)',
 						}
 			);
@@ -303,9 +303,9 @@ const fetchCoop: Lane = async ( ctx, claimed ) => {
  *
  * A page that answered badly fails only its own row. Coop's rule that one bad
  * response fails the whole batch is reasoned from Coop's shape, where the batch
- * is a single request and a refusal is about the caller; here the batch is 25
+ * is a single request and a refusal is about the caller. Here the batch is 25
  * requests and a 500 is about one page. Only the statuses that really are about
- * the caller — 401, 403, 429 — still throw out of `fetchByProductId` and take
+ * the caller (401, 403, 429) still throw out of `fetchByProductId` and take
  * the batch and the chain with them.
  */
 const fetchIca: Lane = async ( ctx, claimed ) => {
@@ -585,8 +585,8 @@ export const queueMissingEans = internalAction( {
 			let stopped = false;
 			for ( let i = 0; i < rounds; i += 1 ) {
 				// Every round after the first re-reads pause. A fetch gets this for
-				// free because each of its batches is a fresh run; this loop is inside
-				// one, so without the probe a long sweep could not be stopped at all.
+				// free because each of its batches is a fresh run, but this loop is
+				// inside one, so without the probe a long sweep could not be stopped.
 				if ( i > 0 && ( await paused() ) ) {
 					stopped = true;
 					break;

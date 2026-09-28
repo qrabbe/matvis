@@ -13,4 +13,4 @@ export {
 	slugSegment,
 	CATEGORY_KEY_CEILING,
 	OTHER_CATEGORY_KEY,
-} from './categoryKey';
+} from './category-key';

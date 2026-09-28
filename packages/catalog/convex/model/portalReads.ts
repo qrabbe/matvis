@@ -1,7 +1,7 @@
 import type { PaginationOptions, PaginationResult } from 'convex/server';
 import type { StoreSlug } from '@matvis/shared';
 import type { QueryCtx } from '../_generated/server';
-import { CATEGORY_KEY_CEILING } from '../../src/categoryKey';
+import { CATEGORY_KEY_CEILING } from '../../src/category-key';
 import { searchCatalog, toCatalogItem, type CatalogRow } from './catalogReads';
 
 export type PortalListRow = {
@@ -137,7 +137,7 @@ export async function getCategory(
 
 // Products under a branch, paginated 48 at a time, in shelf order. A branch's
 // categoryKey is a prefix every leaf beneath it starts with, so this is a
-// range scan rather than an exact match — it reaches the branch's own
+// range scan rather than an exact match, reaching the branch's own
 // directly-tagged products and every deeper category at once.
 export async function searchCategoryBranch(
 	ctx: QueryCtx,

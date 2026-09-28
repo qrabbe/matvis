@@ -272,7 +272,7 @@ export const resolveSignIn = internalMutation( {
  *
  * Must stay an action: `crypto.getRandomValues` is seeded inside a mutation,
  * which would make every token guessable. The token is generated before the
- * outcome is known so the whole attempt is one round trip; on a refusal it is
+ * outcome is known so the whole attempt is one round trip. On a refusal it is
  * simply discarded, never stored and never returned.
  */
 export const signIn = action( {
@@ -643,7 +643,7 @@ export const enqueueEans = adminAction( {
  * The door for replaying legacy size fields out of a pre-migration snapshot.
  * One-off repair work rather than a console button, so it lives here only
  * because the snapshot is on someone's laptop and an internal mutation cannot
- * be reached from there. See ../MIGRATION-canonical-units.md.
+ * be reached from there.
  */
 export const repairNetContent = adminAction( {
 	args: {

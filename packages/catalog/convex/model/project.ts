@@ -20,9 +20,8 @@ import {
 	categoryKeyFor,
 	foldSegment,
 	searchTextFor,
-} from '../../src/categoryKey';
+} from '../../src/category-key';
 
-// Helper to bump/decrement a category count in categoryTree.
 async function bumpCategoryCount(
 	ctx: MutationCtx,
 	store: StoreSlug,
@@ -311,11 +310,11 @@ export const projectCoop: Projector< CoopProduct > = ( doc ) => {
  * rename. Three fields are absent rather than derived, and each for a reason
  * worth keeping written down:
  *
- * `netContent` is read out of the product name because ICA publishes no size
- * field on the public page. It is on the store scoped ecommerce API as
- * `packSizeDescription`, along with `countryOfOrigin` and `labels`, but that
- * API answers five calls before a WAF challenge locks it out for minutes, so it
- * cannot carry a 34 437 product load. See `netContentFromName`.
+ * `netContent` is read out of the product name instead, by `netContentFromName`,
+ * because ICA publishes no size field on the public page. It is on the store
+ * scoped ecommerce API as `packSizeDescription`, along with `countryOfOrigin`
+ * and `labels`, but that API answers five calls before a WAF challenge locks it
+ * out for minutes, so it cannot carry a 34 437 product load.
  *
  * `soldBy` is left absent rather than guessed at `piece`. ICA states it
  * nowhere, and a wrong `weight`/`piece` on a loose item is worse than none.
@@ -415,8 +414,8 @@ export async function upsertClean(
 		if ( existing.fetchedAt === undefined ) {
 			await bumpCounter( ctx, CATALOG_VERIFIED_KEY, 1 );
 		}
-		// If the category changed, move the count. A row from before step 01's
-		// backfill has no categoryKey to move away from.
+		// If the category changed, move the count. A row from before the
+		// category-key backfill has no categoryKey to move away from.
 		if ( existing.categoryKey !== derived.categoryKey ) {
 			if ( existing.categoryKey !== undefined ) {
 				await bumpCategoryCount(

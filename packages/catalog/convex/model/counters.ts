@@ -99,7 +99,7 @@ async function writeCounter(
  * catalog row. Anything that starts to must decrement all three of them
  * (`CATALOG_COUNT_KEY`, the store key and `CATALOG_VERIFIED_KEY`) through one
  * guarded helper, or every total on the console and the site header drifts
- * silently. See DECISIONS.md, "Delisting".
+ * silently.
  */
 export async function bumpCounter(
 	ctx: MutationCtx,

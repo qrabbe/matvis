@@ -126,7 +126,7 @@ describe( 'listCategoryLevel', () => {
 		);
 		// Ägg & Jäst folds to a leading char that sorts after every ASCII letter,
 		// so it lands last even though it precedes Ost alphabetically in Swedish
-		// spelling — matches the plan's own worked example.
+		// spelling.
 		expect( children.map( ( row ) => row.name ) ).toEqual( [
 			'Grädde',
 			'Mjölk',

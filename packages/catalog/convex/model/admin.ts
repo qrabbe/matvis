@@ -50,6 +50,7 @@ export async function secretsMatch(
 	] );
 	let difference = 0;
 	for ( let i = 0; i < a.length; i += 1 ) {
+		// eslint-disable-next-line no-bitwise -- constant-time comparison, a short-circuiting +/=== would leak timing
 		difference |= a.charCodeAt( i ) ^ b.charCodeAt( i );
 	}
 	return difference === 0;

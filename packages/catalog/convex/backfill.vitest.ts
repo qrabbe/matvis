@@ -182,7 +182,7 @@ describe( 'rebuildCounters', () => {
 /**
  * The real tables with validation off. Rows on disk carry three fields the
  * schema no longer declares, so this is the only way to stage the situation the
- * migration exists to resolve — and it is exactly what the deployment runs
+ * migration exists to resolve, and it is exactly what the deployment runs
  * during the migration window, for the same reason.
  */
 const migrationSchema = defineSchema( schema.tables, {

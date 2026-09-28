@@ -13,7 +13,7 @@ import {
 	categoryKeyForPrefix,
 	OTHER_CATEGORY_KEY,
 	slugSegment,
-} from '../src/categoryKey';
+} from '../src/category-key';
 import {
 	deriveSearchFields,
 	netContentFrom,
@@ -43,6 +43,30 @@ const countedTableValidator = v.union(
 );
 
 type CountedTable = 'ingest_queue' | 'catalog' | 'eans';
+
+/**
+ * Drives one page-cursor loop to the end, handing each page to `onPage`
+ * before asking for the next. Shared by every backfill that pages an action
+ * across many mutation or query transactions.
+ */
+async function paginateAll<
+	Page extends { continueCursor: string; isDone: boolean },
+>(
+	fetchPage: ( cursor: string | null ) => Promise< Page >,
+	onPage: ( page: Page ) => void
+): Promise< number > {
+	let pages = 0;
+	let cursor: string | null = null;
+	for (;;) {
+		const page = await fetchPage( cursor );
+		onPage( page );
+		pages += 1;
+		if ( page.isDone ) {
+			return pages;
+		}
+		cursor = page.continueCursor;
+	}
+}
 
 /**
  * One row against one coverage field. Nested fields are spelled out rather
@@ -248,26 +272,17 @@ export const normalizeUnits = internalAction( {
 	} ),
 	handler: async ( ctx ) => {
 		const totals = { scanned: 0, rewritten: 0, unresolved: 0, pages: 0 };
-		let cursor: string | null = null;
-		for (;;) {
-			const page: {
-				scanned: number;
-				rewritten: number;
-				unresolved: number;
-				continueCursor: string;
-				isDone: boolean;
-			} = await ctx.runMutation( internal.backfill.normalizeUnitsPage, {
-				cursor,
-			} );
-			totals.scanned += page.scanned;
-			totals.rewritten += page.rewritten;
-			totals.unresolved += page.unresolved;
-			totals.pages += 1;
-			if ( page.isDone ) {
-				break;
+		totals.pages = await paginateAll(
+			( cursor ) =>
+				ctx.runMutation( internal.backfill.normalizeUnitsPage, {
+					cursor,
+				} ),
+			( page ) => {
+				totals.scanned += page.scanned;
+				totals.rewritten += page.rewritten;
+				totals.unresolved += page.unresolved;
 			}
-			cursor = page.continueCursor;
-		}
+		);
 		return totals;
 	},
 } );
@@ -322,27 +337,16 @@ export const backfillSearchFields = internalAction( {
 	} ),
 	handler: async ( ctx ) => {
 		const totals = { scanned: 0, updated: 0, pages: 0 };
-		let cursor: string | null = null;
-		for (;;) {
-			const page: {
-				scanned: number;
-				updated: number;
-				continueCursor: string;
-				isDone: boolean;
-			} = await ctx.runMutation(
-				internal.backfill.backfillSearchFieldsPage,
-				{
+		totals.pages = await paginateAll(
+			( cursor ) =>
+				ctx.runMutation( internal.backfill.backfillSearchFieldsPage, {
 					cursor,
-				}
-			);
-			totals.scanned += page.scanned;
-			totals.updated += page.updated;
-			totals.pages += 1;
-			if ( page.isDone ) {
-				break;
+				} ),
+			( page ) => {
+				totals.scanned += page.scanned;
+				totals.updated += page.updated;
 			}
-			cursor = page.continueCursor;
-		}
+		);
 		return totals;
 	},
 } );
@@ -353,10 +357,9 @@ export const backfillSearchFields = internalAction( {
  *
  * `normalizeUnitsPage` drops the three legacy fields whether or not the unit
  * resolved, and its re-run guard is "does this row still carry legacy fields".
- * Together that means a row whose unit was unknown cannot be repaired in place:
- * the evidence needed to retry went with the rewrite. Adding the spelling and
- * re-running, which MIGRATION-canonical-units.md used to advise, reaches
- * nothing.
+ * Together that means a row whose unit was unknown cannot be repaired in place,
+ * since the evidence needed to retry went with the rewrite. Adding the missing
+ * spelling and re-running the migration reaches nothing.
  *
  * So the legacy values come back in from the pre-migration snapshot and are
  * re-resolved here, through the same lookup a fetch would use, rather than a
@@ -490,21 +493,20 @@ export const rebuildCounters = internalAction( {
 
 		let pages = 0;
 		for ( const table of tables ) {
-			let cursor: string | null = null;
-			for (;;) {
-				const page: CountPage = await ctx.runMutation(
-					internal.backfill.countTablePage,
-					{ table, cursor }
-				);
-				for ( const [ key, value ] of Object.entries( page.counts ) ) {
-					totals[ key ] = ( totals[ key ] ?? 0 ) + value;
+			pages += await paginateAll(
+				( cursor ) =>
+					ctx.runMutation( internal.backfill.countTablePage, {
+						table,
+						cursor,
+					} ),
+				( page: CountPage ) => {
+					for ( const [ key, value ] of Object.entries(
+						page.counts
+					) ) {
+						totals[ key ] = ( totals[ key ] ?? 0 ) + value;
+					}
 				}
-				pages += 1;
-				if ( page.isDone ) {
-					break;
-				}
-				cursor = page.continueCursor;
-			}
+			);
 		}
 
 		// Stamped just before the write, so the timestamp means "these counts are
@@ -663,42 +665,44 @@ export const rebuildCategoryTree = internalAction( {
 			} );
 		}
 
-		let pages = 0;
-		let cursor: string | null = null;
-		for (;;) {
-			const page: {
-				rows: { store: StoreSlug; categoryPath?: string[] }[];
-				continueCursor: string;
-				isDone: boolean;
-			} = await ctx.runQuery( internal.backfill.categoryTallyPage, {
-				cursor,
-			} );
-			for ( const row of page.rows ) {
-				const categoryKey = categoryKeyFor( row.categoryPath );
-				if ( categoryKey === OTHER_CATEGORY_KEY ) {
-					bump( row.store, 'other', '', 'Other', OTHER_CATEGORY_KEY );
-					continue;
-				}
-				const trimmed = row.categoryPath!.map( ( segment ) =>
-					segment.trim()
-				);
-				const slugs = trimmed.map( slugSegment );
-				for ( let depth = 0; depth < trimmed.length; depth++ ) {
-					bump(
-						row.store,
-						slugs.slice( 0, depth + 1 ).join( '/' ),
-						depth === 0 ? '' : slugs.slice( 0, depth ).join( '/' ),
-						trimmed[ depth ]!,
-						categoryKeyForPrefix( trimmed.slice( 0, depth + 1 ) )
+		const pages = await paginateAll(
+			( cursor ) =>
+				ctx.runQuery( internal.backfill.categoryTallyPage, {
+					cursor,
+				} ),
+			( page ) => {
+				for ( const row of page.rows ) {
+					const categoryKey = categoryKeyFor( row.categoryPath );
+					if ( categoryKey === OTHER_CATEGORY_KEY ) {
+						bump(
+							row.store,
+							'other',
+							'',
+							'Other',
+							OTHER_CATEGORY_KEY
+						);
+						continue;
+					}
+					const trimmed = row.categoryPath!.map( ( segment ) =>
+						segment.trim()
 					);
+					const slugs = trimmed.map( slugSegment );
+					for ( let depth = 0; depth < trimmed.length; depth++ ) {
+						bump(
+							row.store,
+							slugs.slice( 0, depth + 1 ).join( '/' ),
+							depth === 0
+								? ''
+								: slugs.slice( 0, depth ).join( '/' ),
+							trimmed[ depth ]!,
+							categoryKeyForPrefix(
+								trimmed.slice( 0, depth + 1 )
+							)
+						);
+					}
 				}
 			}
-			pages += 1;
-			if ( page.isDone ) {
-				break;
-			}
-			cursor = page.continueCursor;
-		}
+		);
 
 		const rows = [ ...tally.values() ];
 		for ( let i = 0; i < rows.length; i += INSERT_BATCH ) {

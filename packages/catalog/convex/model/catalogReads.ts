@@ -31,7 +31,7 @@ export type CatalogRow = ReturnType< typeof toCatalogItem >;
 
 /**
  * `catalog.search` and `GET /search` both call this: one search, two
- * surfaces. The reactive query paginates it as the app scrolls; the HTTP
+ * surfaces. The reactive query paginates it as the app scrolls, while the HTTP
  * endpoint caps `paginationOpts` at 10 and reads only `page`.
  */
 export async function searchCatalog(

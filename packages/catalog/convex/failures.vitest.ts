@@ -10,12 +10,11 @@ const modules = import.meta.glob( './**/*.ts' );
 
 /**
  * Every failure path the drain can take, pinned against the code rather than
- * assumed. The written verdict on each is in DECISIONS.md; this file is the
- * half that fails the build when the behaviour moves.
+ * assumed, so this file fails the build when the behaviour moves.
  *
  * Everything here is offline. Reproducing a real 403 against the live API is
- * deliberately not done here - a test that calls Coop is a test that hits the
- * rate limit that caused the bug.
+ * deliberately not done here, since a test that calls Coop is a test that hits
+ * the rate limit that caused the bug.
  */
 
 const realFetch = globalThis.fetch;
@@ -241,8 +240,8 @@ describe( 'the fetch, when it fails', () => {
 	test( 'a batch that merely fails per row keeps the chain going', async () => {
 		const t = convexTest( schema, modules );
 		vi.stubEnv( 'COOP_EXTERNAL_API_KEY', 'test-key' );
-		// The request succeeds; the row is simply not in the response, which is a
-		// skip rather than a thrown fetch.
+		// The request succeeds, but the row is simply not in the response, which is
+		// a skip rather than a thrown fetch.
 		respondWith( itemsBody( [] ) );
 		await t.mutation( internal.ingest.enqueueEans, {
 			store: 'coop',
@@ -282,7 +281,7 @@ describe( 'the fetch, when it fails', () => {
 
 		// Nothing caps this. The row retries on every run until it succeeds or
 		// someone removes it, and a dead-letter state is a milestone 5 blocker
-		// rather than a wart. See DECISIONS.md.
+		// rather than a wart.
 		const [ row ] = await rows( t );
 		expect( row!.attempts ).toBe( 2 );
 		expect( row!.status ).toBe( 'pending' );
@@ -350,9 +349,8 @@ describe( 'the fetch, when a product is missing', () => {
 		} );
 
 		// Skipped is the one terminal state, so an item that was merely out of
-		// stock is never looked at again. Correct while nothing re-fetches at all;
-		// it needs a re-check policy the day a refresh path exists. See
-		// DECISIONS.md.
+		// stock is never looked at again. Correct while nothing re-fetches at
+		// all, but it needs a re-check policy the day a refresh path exists.
 		const left = await t.run(
 			async ( ctx ) => await ctx.db.query( 'ingest_queue' ).take( 50 )
 		);
