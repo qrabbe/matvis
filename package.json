@@ -15,6 +15,7 @@
 	],
 	"scripts": {
 		"typecheck": "tsc -b",
+		"dev": "bun run --filter '*' --if-present dev",
 		"test": "bun test && vitest run",
 		"build": "tsc -b",
 		"build:site": "bun tools/build-site.ts",
