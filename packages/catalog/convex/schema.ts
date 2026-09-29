@@ -69,10 +69,13 @@ export default defineSchema( {
 	 * `by_store_key_name` serves browsing: products within a category, in shelf
 	 * order. Indexed on `nameKey` (Swedish-folded) rather than `name`, since an
 	 * index sorts by code unit and would put Ä/Ö before every ASCII letter.
+	 *
+	 * `by_store_name` is a chain's front page: its products A to Ö.
 	 */
 	catalog: defineTable( { ...catalogFields, ...catalogInternalFields } )
 		.index( 'by_ean_store', [ 'ean', 'store' ] )
 		.index( 'by_store_key_name', [ 'store', 'categoryKey', 'nameKey' ] )
+		.index( 'by_store_name', [ 'store', 'nameKey' ] )
 		.searchIndex( 'search_text', {
 			searchField: 'searchText',
 			filterFields: [ 'store' ],

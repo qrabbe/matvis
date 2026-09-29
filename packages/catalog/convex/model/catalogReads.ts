@@ -44,10 +44,8 @@ export async function searchCatalog(
 ): Promise< PaginationResult< CatalogRow > > {
 	const { q, store, paginationOpts } = args;
 	const term = q?.trim();
-	// A store filter here rides no index: `by_ean_store` is ean first, so an
-	// ean range and a store equality can't share it, and the plain listing
-	// below has no index on store at all. Both stay small pages, so the
-	// filter runs over the fetched page in memory instead.
+	// An ean range can't share `by_ean_store` with a store equality, since ean
+	// comes first, so that one small page is filtered in memory.
 	const byStore = ( rows: Doc< 'catalog' >[] ) =>
 		store ? rows.filter( ( row ) => row.store === store ) : rows;
 
@@ -75,11 +73,18 @@ export async function searchCatalog(
 			.paginate( paginationOpts );
 		return { ...page, page: page.page.map( toCatalogItem ) };
 	}
+	if ( store ) {
+		const page = await ctx.db
+			.query( 'catalog' )
+			.withIndex( 'by_store_name', ( i ) => i.eq( 'store', store ) )
+			.paginate( paginationOpts );
+		return { ...page, page: page.page.map( toCatalogItem ) };
+	}
 	const page = await ctx.db
 		.query( 'catalog' )
 		.order( 'desc' )
 		.paginate( paginationOpts );
-	return { ...page, page: byStore( page.page ).map( toCatalogItem ) };
+	return { ...page, page: page.page.map( toCatalogItem ) };
 }
 
 /** One row per store at most, which is what bounds the take. */

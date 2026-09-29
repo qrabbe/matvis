@@ -9,7 +9,7 @@ import type { CatalogStore } from '../../lib/route';
 const DEFAULT_PRODUCTS_COUNT = 12;
 
 /**
- * A bounded taste of the chain's most recently added products, in the same
+ * A bounded taste of the chain's products, A to Ö, in the same
  * `ProductList` table as a category's own product screens. Not paginated:
  * `status="Exhausted"` keeps its infinite scroll from asking for more, a
  * chain's category rows are what browses the rest.
@@ -31,7 +31,7 @@ export function DefaultProducts( { store }: { store: CatalogStore } ) {
 
 	return (
 		<Stack direction="column" gap="sm">
-			<Text variant="heading-md">New in { STORE_LABELS[ store ] }</Text>
+			<Text variant="heading-md">{ STORE_LABELS[ store ] } A to Ö</Text>
 			<ProductList
 				rows={ page.page.map( ( row ) => ( { ...row, store } ) ) }
 				status="Exhausted"
