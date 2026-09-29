@@ -11,7 +11,7 @@ import {
 } from '../src/crypto';
 import type { FetchLike } from '../src/http';
 import { bytesResponse, jsonResponse } from '../test/helpers';
-import { actingAs } from './testSupport';
+import { actingAs, type Test } from './testSupport';
 
 const modules = import.meta.glob( './**/*.ts' );
 
@@ -101,7 +101,7 @@ function routes( opts: {
 }
 
 async function seed(
-	t: ReturnType< typeof convexTest >,
+	t: Test,
 	options: {
 		expired?: boolean;
 		status?: 'active' | 'needs_reauth' | 'revoked';
@@ -129,15 +129,10 @@ async function seed(
 	} );
 }
 
-const connectionRow = (
-	t: ReturnType< typeof convexTest >,
-	connectionId: Id< 'connections' >
-) => t.run( async ( ctx ) => await ctx.db.get( connectionId ) );
+const connectionRow = ( t: Test, connectionId: Id< 'connections' > ) =>
+	t.run( async ( ctx ) => await ctx.db.get( connectionId ) );
 
-async function storedReceipts(
-	t: ReturnType< typeof convexTest >,
-	connectionId: Id< 'connections' >
-) {
+async function storedReceipts( t: Test, connectionId: Id< 'connections' > ) {
 	return await t.run( async ( ctx ) => {
 		const receipts = await ctx.db
 			.query( 'receipts' )
@@ -159,10 +154,7 @@ async function storedReceipts(
 	} );
 }
 
-const runsFor = (
-	t: ReturnType< typeof convexTest >,
-	connectionId: Id< 'connections' >
-) =>
+const runsFor = ( t: Test, connectionId: Id< 'connections' > ) =>
 	t.run( async ( ctx ) =>
 		ctx.db
 			.query( 'syncRuns' )

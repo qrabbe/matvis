@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { internal } from './_generated/api';
 import type { Id } from './_generated/dataModel';
 import schema from './schema';
-import { TEST_SEALED_SECRET } from './testSupport';
+import { TEST_SEALED_SECRET, type Test } from './testSupport';
 import {
 	SYNC_BATCH_LIMIT,
 	SYNC_MIN_INTERVAL_MS,
@@ -18,10 +18,7 @@ type Seed = {
 	syncedAgo?: number;
 };
 
-async function seedConnections(
-	t: ReturnType< typeof convexTest >,
-	rows: Seed[]
-) {
+async function seedConnections( t: Test, rows: Seed[] ) {
 	return await t.run( async ( ctx ) => {
 		const accountId = await ctx.db.insert( 'accounts', {
 			subject: 'sub-a',
@@ -47,7 +44,7 @@ async function seedConnections(
 	} );
 }
 
-async function queuedSyncs( t: ReturnType< typeof convexTest > ) {
+async function queuedSyncs( t: Test ) {
 	return await t.run( async ( ctx ) => {
 		const jobs = await ctx.db.system
 			.query( '_scheduled_functions' )

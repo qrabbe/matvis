@@ -3,12 +3,12 @@ import { convexTest } from 'convex-test';
 import { describe, expect, test } from 'vitest';
 import { internal } from './_generated/api';
 import schema from './schema';
-import { TEST_SEALED_SECRET } from './testSupport';
+import { TEST_SEALED_SECRET, type Test } from './testSupport';
 import { MAX_SYNC_ERROR_LENGTH, SYNC_RUN_TTL_MS } from './validators';
 
 const modules = import.meta.glob( './**/*.ts' );
 
-async function seedConnection( t: ReturnType< typeof convexTest > ) {
+async function seedConnection( t: Test ) {
 	return await t.run( async ( ctx ) => {
 		const accountId = await ctx.db.insert( 'accounts', {
 			subject: 'sub-a',

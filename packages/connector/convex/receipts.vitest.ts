@@ -3,11 +3,11 @@ import { convexTest } from 'convex-test';
 import { describe, expect, test } from 'vitest';
 import { api } from './_generated/api';
 import schema from './schema';
-import { actingAs, TEST_SEALED_SECRET } from './testSupport';
+import { actingAs, TEST_SEALED_SECRET, type Test } from './testSupport';
 
 const modules = import.meta.glob( './**/*.ts' );
 
-async function seed( t: ReturnType< typeof convexTest > ) {
+async function seed( t: Test ) {
 	return await t.run( async ( ctx ) => {
 		const accountA = await ctx.db.insert( 'accounts', {
 			subject: 'sub-a',

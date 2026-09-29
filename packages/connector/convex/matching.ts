@@ -1,5 +1,5 @@
 import { normalizeItemText } from '@matvis/shared';
-import { MAX_MAP_ROWS_PER_STORE } from './validators';
+import { MAX_MAP_ROWS_PER_TEXT } from './validators';
 import type { Doc } from './_generated/dataModel';
 import type { QueryCtx } from './_generated/server';
 
@@ -61,29 +61,50 @@ function pickMapRow(
 
 export type GtinMap = Map< string, Doc< 'itemGtinMap' >[] >;
 
-/**
- * Loads every `itemGtinMap` row for a store in one indexed scan, grouped by
- * text — so resolving a whole receipt's lines costs one query, not one per
- * line. Read live (not cached in `receiptItems`), so a row added long after
- * a receipt was synced still resolves on the very next read.
- */
-export async function loadGtinMap(
-	ctx: QueryCtx,
-	store: Doc< 'receipts' >[ 'source' ]
-): Promise< GtinMap > {
-	const rows = await ctx.db
-		.query( 'itemGtinMap' )
-		.withIndex( 'by_store_text', ( q ) => q.eq( 'store', store ) )
-		.take( MAX_MAP_ROWS_PER_STORE );
-	const map: GtinMap = new Map();
-	for ( const row of rows ) {
-		const existing = map.get( row.normalizedText );
-		if ( existing ) {
-			existing.push( row );
-		} else {
-			map.set( row.normalizedText, [ row ] );
+function unresolvedTexts(
+	items: { text: string; isDiscount: boolean }[]
+): string[] {
+	const texts = new Set< string >();
+	for ( const item of items ) {
+		if ( item.isDiscount ) {
+			continue;
+		}
+		const normalized = normalizeItemText( item.text );
+		if ( normalized !== '' ) {
+			texts.add( normalized );
 		}
 	}
+	return [ ...texts ];
+}
+
+/**
+ * Loads only the `itemGtinMap` rows a receipt's own lines could match: one
+ * indexed lookup per distinct normalized text among `items`, capped per text
+ * by `MAX_MAP_ROWS_PER_TEXT` — so the read cost tracks the receipt (a
+ * handful of distinct texts), never the whole store's map, which can run
+ * into the tens of thousands of rows as coverage grows. Read live (not
+ * cached in `receiptItems`), so a row added long after a receipt was synced
+ * still resolves on the very next read.
+ */
+export async function loadGtinMapForItems(
+	ctx: QueryCtx,
+	store: Doc< 'receipts' >[ 'source' ],
+	items: { text: string; isDiscount: boolean }[]
+): Promise< GtinMap > {
+	const map: GtinMap = new Map();
+	await Promise.all(
+		unresolvedTexts( items ).map( async ( text ) => {
+			const rows = await ctx.db
+				.query( 'itemGtinMap' )
+				.withIndex( 'by_store_text', ( q ) =>
+					q.eq( 'store', store ).eq( 'normalizedText', text )
+				)
+				.take( MAX_MAP_ROWS_PER_TEXT );
+			if ( rows.length > 0 ) {
+				map.set( text, rows );
+			}
+		} )
+	);
 	return map;
 }
 

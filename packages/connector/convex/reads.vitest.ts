@@ -1,6 +1,12 @@
 /// <reference types="vite/client" />
 import { countReads, handlerOf, rangesOn } from '@matvis/shared/testing';
 import type { ReadCounts } from '@matvis/shared/testing';
+import type {
+	DefaultFunctionArgs,
+	FunctionVisibility,
+	RegisteredMutation,
+	RegisteredQuery,
+} from 'convex/server';
 import { convexTest } from 'convex-test';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import type { Id } from './_generated/dataModel';
@@ -8,12 +14,35 @@ import type { MutationCtx, QueryCtx } from './_generated/server';
 import * as crons from './crons';
 import * as receipts from './receipts';
 import schema from './schema';
-import { actingAs, TEST_SEALED_SECRET } from './testSupport';
+import { actingAs, TEST_SEALED_SECRET, type Test } from './testSupport';
 import { MAX_RECEIPT_ITEMS, SYNC_BATCH_LIMIT } from './validators';
 
 const modules = import.meta.glob( './**/*.ts' );
 
-type Test = ReturnType< ReturnType< typeof convexTest >[ 'withIdentity' ] >;
+/**
+ * `handlerOf` alone cannot infer `Args`/`Returns` at a call site that
+ * immediately invokes its result: those two type parameters are phantom on
+ * `RegisteredQuery`/`RegisteredMutation` (structurally erased), and
+ * TypeScript only recovers phantom parameters from a matching generic
+ * reference, which it does not do across `handlerOf`'s query-or-mutation
+ * union. Naming the kind here, one branch at a time, keeps that reference
+ * direct.
+ */
+function callQuery< Ctx, Args extends DefaultFunctionArgs, Returns >(
+	fn: RegisteredQuery< FunctionVisibility, Args, Returns >,
+	ctx: Ctx,
+	args: Args
+): Returns {
+	return handlerOf< Ctx, Args, Returns >( fn )( ctx, args );
+}
+
+function callMutation< Ctx, Args extends DefaultFunctionArgs, Returns >(
+	fn: RegisteredMutation< FunctionVisibility, Args, Returns >,
+	ctx: Ctx,
+	args: Args
+): Returns {
+	return handlerOf< Ctx, Args, Returns >( fn )( ctx, args );
+}
 
 async function countQuery(
 	t: Test,
@@ -39,11 +68,7 @@ async function countMutation(
 	return await t.mutation( measured );
 }
 
-async function seedReceipts(
-	t: ReturnType< typeof convexTest >,
-	receiptCount: number,
-	items: number
-) {
+async function seedReceipts( t: Test, receiptCount: number, items: number ) {
 	return await t.run( async ( ctx ) => {
 		const accountId = await ctx.db.insert( 'accounts', {
 			subject: 'sub-a',
@@ -87,7 +112,7 @@ describe( 'receipts.list', () => {
 		await seedReceipts( t, 5, 3 );
 
 		const counts = await countQuery( actingAs( t, 'sub-a' ), ( ctx ) =>
-			handlerOf( receipts.list )( ctx, {
+			callQuery( receipts.list, ctx, {
 				paginationOpts: { numItems: 3, cursor: null },
 			} )
 		);
@@ -108,16 +133,57 @@ describe( 'receipts.getReceipt', () => {
 		const receiptId = await seedReceipts( t, 1, MAX_RECEIPT_ITEMS + 5 );
 
 		const counts = await countQuery( actingAs( t, 'sub-a' ), ( ctx ) =>
-			handlerOf( receipts.getReceipt )( ctx, { receiptId } )
+			callQuery( receipts.getReceipt, ctx, { receiptId } )
 		);
 
-		expect( counts.ranges ).toEqual( [
+		expect( rangesOn( counts, 'accounts' ) ).toEqual( [
 			{ table: 'accounts', kind: 'index', index: 'by_subject' },
-			{ table: 'receiptItems', kind: 'index', index: 'by_receipt' },
-			{ table: 'itemGtinMap', kind: 'index', index: 'by_store_text' },
 		] );
+		expect( rangesOn( counts, 'receiptItems' ) ).toEqual( [
+			{ table: 'receiptItems', kind: 'index', index: 'by_receipt' },
+		] );
+		// One itemGtinMap lookup per distinct item text — every text here is
+		// unique, so this is also the item bound, from the other direction.
+		expect( rangesOn( counts, 'itemGtinMap' ) ).toHaveLength(
+			MAX_RECEIPT_ITEMS
+		);
 		expect( counts.gets ).toBe( 1 );
 		expect( counts.docs ).toBe( 1 + 1 + MAX_RECEIPT_ITEMS );
+	} );
+
+	test( "loads itemGtinMap only for the receipt's own item texts, never the whole store", async () => {
+		const t = convexTest( schema, modules );
+		const receiptId = await seedReceipts( t, 1, 3 );
+
+		await t.run( async ( ctx ) => {
+			for ( let n = 0; n < 3; n += 1 ) {
+				await ctx.db.insert( 'itemGtinMap', {
+					store: 'coop',
+					normalizedText: `mjölk ${ n }`,
+					kind: 'product',
+					gtin: `gtin-${ n }`,
+					source: 'seed',
+				} );
+			}
+			// Rows for texts this receipt never mentions — present only to
+			// prove the whole store's map is never read to answer it.
+			for ( let n = 0; n < 500; n += 1 ) {
+				await ctx.db.insert( 'itemGtinMap', {
+					store: 'coop',
+					normalizedText: `unrelated product ${ n }`,
+					kind: 'product',
+					gtin: `unrelated-${ n }`,
+					source: 'seed',
+				} );
+			}
+		} );
+
+		const counts = await countQuery( actingAs( t, 'sub-a' ), ( ctx ) =>
+			callQuery( receipts.getReceipt, ctx, { receiptId } )
+		);
+
+		expect( rangesOn( counts, 'itemGtinMap' ) ).toHaveLength( 3 );
+		expect( counts.docs ).toBe( 1 + 1 + 3 + 3 );
 	} );
 } );
 
@@ -125,11 +191,7 @@ describe( 'crons.dispatchSync', () => {
 	beforeEach( () => vi.useFakeTimers() );
 	afterEach( () => vi.useRealTimers() );
 
-	async function seedConnections(
-		t: ReturnType< typeof convexTest >,
-		total: number,
-		stale: number
-	) {
+	async function seedConnections( t: Test, total: number, stale: number ) {
 		await t.run( async ( ctx ) => {
 			const accountId = await ctx.db.insert( 'accounts', {
 				subject: 'sub-a',
@@ -154,7 +216,7 @@ describe( 'crons.dispatchSync', () => {
 		await seedConnections( t, total, total );
 
 		const counts = await countMutation( t, ( ctx ) =>
-			handlerOf( crons.dispatchSync )( ctx, {} )
+			callMutation( crons.dispatchSync, ctx, {} )
 		);
 		expect( counts.ranges ).toEqual( [
 			{
@@ -172,7 +234,7 @@ describe( 'crons.dispatchSync', () => {
 		await seedConnections( t, SYNC_BATCH_LIMIT + 10, 2 );
 
 		const counts = await countMutation( t, async ( ctx ) => {
-			const result = await handlerOf( crons.dispatchSync )( ctx, {} );
+			const result = await callMutation( crons.dispatchSync, ctx, {} );
 			expect( result ).toEqual( {
 				scheduled: 2,
 				skipped: SYNC_BATCH_LIMIT - 2,

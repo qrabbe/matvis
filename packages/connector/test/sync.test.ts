@@ -21,7 +21,7 @@ const baseReceipt: Receipt = {
 	source: 'coop',
 	store: { name: 'Stora Coop Test', city: 'Test' },
 	receiptNumber: '100000-001-00001',
-	purchasedAt: '2026-01-09T12:34:00.000Z',
+	purchasedAt: '2026-01-09T12:34:00',
 	cashier: '42',
 	receiptType: 'Elektroniskt kassakvitto',
 	currency: 'SEK',
@@ -45,12 +45,11 @@ const baseReceipt: Receipt = {
 };
 
 describe( 'mapReceiptToRow', () => {
-	it( 'derives purchasedAtMs from the ISO date', () => {
+	it( 'derives purchasedAtMs from the Stockholm wall-clock date', () => {
 		const row = mapReceiptToRow( baseReceipt, 'ext-1' );
 		expect( row.externalId ).toBe( 'ext-1' );
-		expect( row.purchasedAtMs ).toBe(
-			Date.parse( '2026-01-09T12:34:00.000Z' )
-		);
+		// 2026-01-09 is outside DST, so Stockholm is UTC+1.
+		expect( row.purchasedAtMs ).toBe( Date.UTC( 2026, 0, 9, 11, 34, 0 ) );
 	} );
 
 	it( 'guards an unparseable date to undefined', () => {

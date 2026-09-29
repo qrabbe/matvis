@@ -29,10 +29,16 @@ export const reparseCoopReceipts = internalAction( {
 		let cursor: string | null = null;
 
 		for (;;) {
-			const page = await ctx.runQuery(
-				internal.model.reparseItems.receiptsPage,
-				{ cursor }
-			);
+			const page: {
+				page: {
+					_id: Id< 'receipts' >;
+					pdfStorageId: Id< '_storage' >;
+				}[];
+				continueCursor: string;
+				isDone: boolean;
+			} = await ctx.runQuery( internal.model.reparseItems.receiptsPage, {
+				cursor,
+			} );
 
 			for ( const receipt of page.page ) {
 				totals.receiptsScanned++;

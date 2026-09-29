@@ -57,10 +57,24 @@ export function stubFetch( response: HttpResponse ): {
 	fetch: FetchLike;
 	calls: FetchCall[];
 } {
+	return stubFetchSequence( [ response ] );
+}
+
+/**
+ * A stub transport that returns `responses` in order, one per call, and
+ * repeats the last one for any call beyond the list — for exercising code
+ * that pages through several responses.
+ */
+export function stubFetchSequence( responses: HttpResponse[] ): {
+	fetch: FetchLike;
+	calls: FetchCall[];
+} {
 	const calls: FetchCall[] = [];
 	const fetch: FetchLike = async ( url, init ) => {
 		calls.push( { url, ...init } );
-		return response;
+		const response =
+			responses[ Math.min( calls.length - 1, responses.length - 1 ) ];
+		return response!;
 	};
 	return { fetch, calls };
 }

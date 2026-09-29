@@ -6,6 +6,7 @@ import {
 	type TokenSet,
 } from '@matvis/shared';
 import type { Connector } from './connector';
+import { stockholmWallTimeToUtcMs } from './coop/parse/timezone';
 
 type ReceiptItemRow = Omit< LineItem, 'gtin' >;
 
@@ -21,11 +22,12 @@ export function mapReceiptToRow(
 	externalId: string
 ): ReceiptRow {
 	const { source, cashier, receiptType, items, ...core } = receipt;
-	const ms = core.purchasedAt ? Date.parse( core.purchasedAt ) : NaN;
 	return {
 		...core,
 		externalId,
-		purchasedAtMs: Number.isNaN( ms ) ? undefined : ms,
+		purchasedAtMs: core.purchasedAt
+			? stockholmWallTimeToUtcMs( core.purchasedAt )
+			: undefined,
 		items: items.map( ( { gtin, ...line } ) => line ),
 	};
 }
